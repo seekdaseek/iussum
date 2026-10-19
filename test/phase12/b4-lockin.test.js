@@ -53,6 +53,13 @@ test('B4 a receipt that does not verify, or binds another mandate, cannot replac
   assert.equal(other.provisional, true); assert.equal(t.refunds.length, 0);
   assert.equal(t.store.get(sig('P')).verdict.liable, 'agent_operator');
 });
+test('B4 a verifying receipt that binds NO mandate cannot replace a provisional verdict (it must bind the same mandate)', async () => {
+  const t = build('60000');
+  assert.equal((await t.svc.dispute(bundle(null))).provisional, true);
+  const unbound = receipt({ mandate_id: null, grant_tx: null, tx_sig: sig('P'), amount: '60000', settled_at: T0 + 1100 });
+  const r = await t.svc.dispute(bundle(unbound));
+  assert.equal(r.reason, 'duplicate_dispute'); assert.equal(r.provisional, true); assert.equal(t.store.get(sig('P')).replaced.length, 0);
+});
 test('B4 /v/:tx and the /dispute response say "provisional"', async () => {
   const t = build('60000');
   const app = createResolverApp(t.svc);

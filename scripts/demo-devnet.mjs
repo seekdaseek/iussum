@@ -1,10 +1,10 @@
-// npm run demo:devnet : nine scenarios on devnet, real facilitator, real USDC, throw-away principal (no phone). Exit code 1 if any expectation fails.
+// npm run demo:devnet : thirteen scenarios on devnet, real facilitator, real USDC, throw-away principal (no phone). Exit code 1 if any expectation fails.
 import http from 'node:http';
 import { randomBytes } from 'node:crypto';
 import { createAgent, IussumRefusal } from '@iussum/agent';
 import { createResolver, createResolverApp, openStore, makeRefundSender } from '@iussum/resolver';
 import { createGrantChecker, mandateId, summaryLine, verifyReceipt, principalAta } from '@iussum/core';
-import { loadKeys, makeCtx, sendGrant, sendRevoke, usdc, startDemoSeller, NETWORK, MINT, FACILITATOR, RPC_URL } from './demo-lib.mjs';
+import { loadKeys, makeCtx, sendGrant, sendRevoke, sendPlainTransfer, usdc, startDemoSeller, NETWORK, MINT, FACILITATOR, RPC_URL } from './demo-lib.mjs';
 
 const ctx = makeCtx(), keys = await loadKeys();
 const results = []; let current = '';
@@ -201,7 +201,57 @@ async function s10() {
   expect('the principal\'s dispute with M2 is judged, not a duplicate: seller C liable, refunded', [good.verdict, good.reason, good.liable, !!good.refund_tx], ['valid', 'pay_to_not_allowed', 'seller', true]);
 }
 
-const scenarios = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10];
+async function s11() {
+  head(11, 'hidden debit: the agent takes 0.02 USDC with a plain Transfer outside x402; the x402 payment that then crosses the budget is still the agent operator\'s');
+  const g = await newMandate({ per_payment_max: '20000', period_budget: '30000' }, ['A']);
+  const hidden = await sendPlainTransfer(ctx, keys, { to: sellers.C.address, amount: '20000' });
+  step(`plain Transfer 0.02 USDC signed by the agent as delegate, to seller C's token account, no x402: ${hidden}`);
+  const naive = await agentFor(g, { localChecks: false });
+  const r1 = await naive.fetch(sellers.A.url()); expect('x402 payment 1 (0.01, seller A) settles', r1.status, 200);
+  const r2 = await naive.fetch(sellers.A.url()); expect('x402 payment 2 (0.01, seller A) settles', r2.status, 200);
+  step(`payment 1 ${r1.receipt.tx_sig}\n    payment 2 ${r2.receipt.tx_sig}`);
+  const v1 = await dispute({ tx_sig: r1.receipt.tx_sig, mandate: g.m, grant_tx: g.grant_tx, receipt: r1.receipt });
+  expect('payment 1: 0.02 hidden + 0.01 = 0.03, exactly the budget, in scope', [v1.reason, v1.liable], ['in_scope', 'principal']);
+  const v2 = await dispute({ tx_sig: r2.receipt.tx_sig, mandate: g.m, grant_tx: g.grant_tx, receipt: r2.receipt }); showVerdict(v2);
+  expect('payment 2 crosses the 0.03 budget only because the hidden debit counts: period_over_budget, agent operator', [v2.verdict, v2.reason, v2.liable], ['valid', 'period_over_budget', 'agent_operator']);
+  const vh = await dispute({ tx_sig: hidden, mandate: g.m, grant_tx: g.grant_tx, receipt: null }); showVerdict(vh);
+  expect('the plain Transfer itself cannot have gone through x402: debit_not_x402, agent operator', [vh.verdict, vh.reason, vh.liable, vh.refund_tx ?? null], ['valid', 'debit_not_x402', 'agent_operator', null]);
+}
+async function s12() {
+  head(12, 'concurrency: five concurrent fetches against a period budget that fits three');
+  const g = await newMandate({ per_payment_max: '20000', period_budget: '30000' }, ['A']);
+  const a = await agentFor(g);
+  const before = await usdc(ctx, keys.principal.address);
+  const rs = await Promise.allSettled([1, 2, 3, 4, 5].map(() => a.fetch(sellers.A.url())));
+  const ok = rs.filter((r) => r.status === 'fulfilled' && r.value.status === 200);
+  const refused = rs.filter((r) => r.status === 'rejected' && r.reason instanceof IussumRefusal && r.reason.reason === 'period_over_budget');
+  step(`outcomes: ${rs.map((r) => (r.status === 'fulfilled' ? r.value.status : r.reason.reason ?? r.reason.message)).join(', ')}`);
+  expect('exactly three payments settled and two were refused locally with period_over_budget', [ok.length, refused.length], [3, 2]);
+  const sigs = ok.map((r) => r.value.receipt.tx_sig);
+  step(`settled transactions: ${sigs.join(' ')}`);
+  const st = (await ctx.rpc.call('getSignatureStatuses', [sigs, { searchTransactionHistory: true }])).value;
+  expect('all three are confirmed on chain without error', st.map((x) => [x?.confirmationStatus === 'confirmed' || x?.confirmationStatus === 'finalized', x?.err ?? null]), sigs.map(() => [true, null]));
+  expect('the principal paid exactly 0.03 USDC (3 x 0.01)', String(before - (await usdc(ctx, keys.principal.address))), '30000');
+}
+async function s13() {
+  head(13, 'provisional verdict: the liable seller files first without the receipt; the principal\'s later dispute with the receipt replaces it and gets the refund');
+  const g = await newMandate({}, ['A']);
+  const before = await usdc(ctx, keys.principal.address);
+  const res = await (await agentFor(g, { localChecks: false })).fetch(sellers.C.url());
+  expect('observe-mode seller C settles an out-of-scope payment', res.status, 200);
+  const r = res.receipt;
+  step(`payment tx ${r.tx_sig}`);
+  const mid = await usdc(ctx, keys.principal.address);
+  const first = await dispute({ tx_sig: r.tx_sig, mandate: g.m, grant_tx: g.grant_tx, receipt: null }); showVerdict(first);
+  expect('seller C files first WITHOUT the receipt: provisional, agent operator, no refund', [first.reason, first.liable, first.provisional, first.refund_tx ?? null], ['pay_to_not_allowed', 'agent_operator', true, null]);
+  const second = await dispute({ tx_sig: r.tx_sig, mandate: g.m, grant_tx: g.grant_tx, receipt: r }); showVerdict(second);
+  expect('the principal files WITH the receipt: the verdict is replaced, seller C liable, final', [second.reason, second.liable, second.provisional, second.replaced?.length], ['pay_to_not_allowed', 'seller', false, 1]);
+  const after = await usdc(ctx, keys.principal.address);
+  expect('the refund is on chain: the principal paid 0.01 then got 0.01 back', [String(before - mid), String(after - mid), !!second.refund_tx], ['10000', '10000', true]);
+  step(`refund tx ${second.refund_tx}`);
+}
+
+const scenarios = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13];
 for (const f of scenarios) { try { await f(); } catch (e) { results.push({ scenario: current, label: 'scenario threw', ok: false, actual: String(e.stack ?? e) }); say(`    FAIL scenario threw: ${e.stack ?? e}`); } }
 say('\n=== Summary');
 for (const sc of [...new Set(results.map((r) => r.scenario))]) { const rs = results.filter((r) => r.scenario === sc); say(`${rs.every((r) => r.ok) ? 'PASS' : 'FAIL'}  ${sc}  (${rs.filter((r) => r.ok).length}/${rs.length} checks)`); }

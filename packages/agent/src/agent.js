@@ -152,7 +152,7 @@ export async function createAgent(cfg) {
         if (fails('agent.period', spent + held + BigInt(r.amount) > BigInt(mandate.period_budget))) { reason = R.period_over_budget; delta = [{ code: R.period_over_budget, field: 'period_budget', authorized: mandate.period_budget, actual: `${spent} already spent and ${held} reserved in this period, +${r.amount}` }]; }
       }
       if (reason) return { abort: true, reason: MARK + JSON.stringify({ reason, delta }) };
-      if (isMutated('agent.reserve_atomic')) await Promise.resolve(); // mutation: yield between the check and the reservation
+      if (isMutated('agent.reserve_atomic')) await new Promise((r) => setTimeout(r, 50)); // mutation: let other payments run their check between this one's check and its reservation
       const res = { id: nextReservation++, amount: BigInt(r.amount), t, state: 'held', created: false, agentSig: null, lastValid: 0n, sig: null };
       reservations.push(res);
       store?.ids.push(res.id);

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import express from 'express';
 import { createKeyPairSignerFromBytes, pipe, createTransactionMessage, setTransactionMessageFeePayerSigner, setTransactionMessageLifetimeUsingBlockhash, appendTransactionMessageInstructions, signTransactionMessageWithSigners, getBase64EncodedWireTransaction, getSignatureFromTransaction } from '@solana/kit';
-import { getApproveCheckedInstruction, getRevokeInstruction, TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
+import { getApproveCheckedInstruction, getRevokeInstruction, getTransferInstruction, getCreateAssociatedTokenIdempotentInstructionAsync, TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
 import { x402ResourceServer, HTTPFacilitatorClient } from '@x402/core/server';
 import { paymentMiddleware } from '@x402/express';
 import { registerExactSvmScheme } from '@x402/svm/exact/server';
@@ -47,6 +47,15 @@ export async function sendGrant(ctx, keys, mandate) {
 export async function sendRevoke(ctx, keys) {
   const src = await principalAta(keys.principal.address, MINT);
   return sendTx(ctx.rpc, keys.principal, [getRevokeInstruction({ source: src, owner: keys.principal }, { programAddress: TOKEN_PROGRAM_ADDRESS })]);
+}
+// A plain SPL Transfer signed by the AGENT as delegate, out of the principal's account, outside x402 (no seller, no gate, no receipt).
+// The refund-float key only pays the fee. Used by scenario 11 to show that such a debit cannot hide from the period count.
+export async function sendPlainTransfer(ctx, keys, { to, amount }) {
+  const src = await principalAta(keys.principal.address, MINT), dst = await principalAta(to, MINT);
+  return sendTx(ctx.rpc, keys.float, [
+    await getCreateAssociatedTokenIdempotentInstructionAsync({ payer: keys.float, mint: MINT, owner: to }),
+    getTransferInstruction({ source: src, destination: dst, authority: keys.agent, amount: BigInt(amount) }, { programAddress: TOKEN_PROGRAM_ADDRESS }),
+  ]);
 }
 export async function usdc(ctx, owner) {
   const ata = await principalAta(owner, MINT);

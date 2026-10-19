@@ -96,5 +96,8 @@ test('B5 held is released when the blockhash has expired and no transaction with
   assert.equal(r2, 200); assert.equal(a.ledger.length, 1);
 });
 test('B5 held becomes consumed (still counted) when the chain shows the lost payment landed', async (tc) => {
-  assert.equal((await lostThenAsk({ blockHeight: 101, onChain: true }, tc)).r2, 'period_over_budget');
+  const { r2, a } = await lostThenAsk({ blockHeight: 101, onChain: true }, tc);
+  assert.equal(r2, 'period_over_budget');
+  assert.deepEqual(a.reservations.map((r) => r.state), ['consumed'], 'held -> consumed, exactly once');
+  assert.equal(a.ledger.length, 1, 'the landed payment is in the ledger once');
 });

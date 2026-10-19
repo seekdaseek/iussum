@@ -9,7 +9,7 @@ import '@iussum/resolver';
 
 const files = [...fs.globSync('{packages,apps}/*/test/*.test.js'), ...fs.globSync('test/{regression,phase11,phase12}/*.test.js')];
 const run = (env) => {
-  const r = spawnSync(process.execPath, ['--test', '--test-reporter=tap', ...files], { env: { ...process.env, ...env }, encoding: 'utf8' });
+  const r = spawnSync(process.execPath, ['--test', '--test-force-exit', '--test-timeout=60000', '--test-reporter=tap', ...files], { env: { ...process.env, ...env }, encoding: 'utf8' });
   const n = (k) => Number(new RegExp(`^# ${k} (\\d+)`, 'm').exec(r.stdout)?.[1] ?? NaN);
   const names = [...r.stdout.matchAll(/^not ok \d+ - (.+?)(?: #.*)?$/gm)].map((m) => m[1]);
   return { tests: n('tests'), pass: n('pass'), fail: n('fail'), names };

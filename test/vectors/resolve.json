@@ -10606,6 +10606,299 @@
   }
  },
  {
+  "name": "one agent debit plus another TransferChecked from a different account in the same transaction cannot be judged: tx_mismatch",
+  "kind": "resolve",
+  "input": {
+   "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "50000",
+    "period_budget": "100000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+   "grant_tx_parsed": {
+    "slot": 1000,
+    "blockTime": 1800000010,
+    "meta": {
+     "err": null
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "approveChecked",
+         "info": {
+          "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "1000000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       },
+       {
+        "programId": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+        "program": "spl-memo",
+        "parsed": "iussum v0.2 | agent 4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi | asset 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU | total 1000000 | per payment 50000 | per 86400s 100000 | sellers 2 | resources 1 | from 2027-01-15T08:00:00.000Z until 2027-01-22T08:00:00.000Z | id 58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "HMypLP"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "3gJqkocMWaMm"
+       }
+      ]
+     }
+    }
+   },
+   "receipt": {
+    "v": "iussum/0.2",
+    "mandate_id": "58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3",
+    "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+    "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
+    "resource": "https://api.example.test/v1/quote",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "10000",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "settled_at": 1800000100,
+    "seller": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+    "signature": "/SR9s6Ja2vOeDtsFNFv3jh4hLY+DfHKKsvqJ2Rxr2zGX7E2c6zViDomZtTM/jF0gI18Gu47CT/XPr6HOzyvFAA=="
+   },
+   "seller_pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+   "payment": {
+    "slot": 2000,
+    "blockTime": 1800000100,
+    "meta": {
+     "err": null,
+     "preTokenBalances": [
+      {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+       "uiTokenAmount": {
+        "amount": "5000000",
+        "decimals": 6
+       }
+      },
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+       "uiTokenAmount": {
+        "amount": "0",
+        "decimals": 6
+       }
+      }
+     ],
+     "postTokenBalances": [
+      {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+       "uiTokenAmount": {
+        "amount": "4990000",
+        "decimals": 6
+       }
+      },
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+       "uiTokenAmount": {
+        "amount": "10000",
+        "decimals": 6
+       }
+      }
+     ]
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": true,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "x"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "y"
+       },
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "transferChecked",
+         "info": {
+          "authority": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "destination": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "10000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       },
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "transferChecked",
+         "info": {
+          "authority": "B2bWqgDYnJ3g5Vyc7useHitYRCMpUNykEtzfuaYSYj1T",
+          "destination": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "source": "GyScGmXtyechnMVPNYquQ6o2jmVY8zaMTHpL2Yr1cZJm",
+          "tokenAmount": {
+           "amount": "10000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   },
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null,
+   "allowance": {
+    "slot": 1000000000,
+    "account": {
+     "data": {
+      "parsed": {
+       "info": {
+        "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "delegatedAmount": {
+         "amount": "990000"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "expect": {
+   "verdict": "invalid",
+   "reason": "tx_mismatch",
+   "liable": null,
+   "deltaFields": [
+    "transfers"
+   ]
+  }
+ },
+ {
   "name": "a plain Transfer by the agent out of the granted account cannot have gone through x402: debit_not_x402, agent operator",
   "kind": "resolve",
   "input": {
