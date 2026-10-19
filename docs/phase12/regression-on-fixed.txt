@@ -1,0 +1,49 @@
+✔ B1 control: a plain x402-shaped payment as the earlier debit: P2 crosses the budget, agent operator
+✔ B1 hidden debit as transfer: the later payment is still period_over_budget (agent operator) and the debit itself is debit_not_x402
+✔ B1 hidden debit as burnChecked: the later payment is still period_over_budget (agent operator) and the debit itself is debit_not_x402
+✔ B1 hidden debit as burn: the later payment is still period_over_budget (agent operator) and the debit itself is debit_not_x402
+✔ B1 hidden debit as cpi: the later payment is still period_over_budget (agent operator) and the debit itself is debit_not_x402
+✔ B1 hidden debit as twoTransfers: the later payment is still period_over_budget (agent operator) and the debit itself is debit_not_x402
+✔ B1 an unreadable transaction in the history makes the later payment history_incomplete, never in_scope; nothing is stored
+✔ B1 a debit in the grant's own slot, after the grant, counts (position, not slot)
+✔ B1 reconcile: a transaction whose balance drop no parsed instruction explains makes the history incomplete and names the signature
+✔ B2 the grant check of a superseded M1 does not pass while G2 is unreadable, and stays failed after the RPC recovers
+✔ B2 the resolver does not judge a payment under the superseded M1 while G2 is unreadable (history_incomplete, nothing stored), so the M2 dispute is not locked out
+✔ B2 the earliest superseding transaction is chosen by position, not by signature string
+✔ B2 concurrent checks of one grant share one supersession scan (five concurrent payments do not make five scans), and a later call scans again
+✔ B3 the principal's own transfer 100 slots BEFORE the grant is tx_mismatch, liable null, not stored
+✔ B3 the principal's own transfer after the grant (not signed by the agent) is tx_mismatch, liable null, not stored
+✔ B3 an agent payment executed BEFORE the grant in the grant's own slot is tx_mismatch (position, not slot)
+✔ B4 resource outside the prefix: the seller filing first without the receipt is provisional, and the principal's later dispute with the receipt replaces it and gets the refund
+✔ B4 amount over per_payment_max: the seller filing first without the receipt is provisional, and the principal's later dispute with the receipt replaces it and gets the refund
+✔ B4 a verdict decided WITH a verifying receipt is final: a later dispute is duplicate_dispute
+✔ B4 a receipt that does not verify, or binds another mandate, cannot replace a provisional verdict
+✔ B4 a verifying receipt that binds NO mandate cannot replace a provisional verdict (it must bind the same mandate)
+✔ B4 /v/:tx and the /dispute response say "provisional"
+✔ B5 five concurrent payments against a budget that fits three: exactly three settle, two are refused locally with period_over_budget
+✔ B5 overlapping payments: A is slow, B starts meanwhile; both settle and BOTH reach the ledger, so the budget holds afterwards
+✔ B5 a payment that settled but whose response was lost still counts: the next one is refused locally
+✔ B5 a payment that was never created (signing failed) releases its reservation: the next payment goes through
+✔ B5 held stays held while the blockhash can still land (block height below lastValidBlockHeight)
+✔ B5 held is released when the blockhash has expired and no transaction with the agent's signature is on chain
+✔ B5 held becomes consumed (still counted) when the chain shows the lost payment landed
+✔ C1 control: the history adds up to the allowance that is gone: judged
+✔ C1 a debit missing from the history: history_incomplete with both numbers, liable null, not stored
+✔ C1 an allowance that ran out (delegate cleared by the token program) is 0 left: the debits must add up to the whole cap
+✔ C1 the agent's ledger rebuild uses the same check: a restarted agent whose history misses a debit refuses to pay (history_incomplete)
+✔ S6 a requirement whose destination is not the associated token account of payTo is refused locally (destination_mismatch) and never signed
+✔ S6 even without local checks the agent signs the associated token account of payTo, not the destination the 402 names
+✔ S7 periodSpendAt keeps the order it is given within a slot (execution order), whatever the signature strings say
+✔ S7 resolver: A (executed first) is in scope and B (executed second) crosses the budget, although sig(B) < sig(A)
+✔ S7 the block is fetched only when two relevant transactions share a slot
+✔ S7 if the block cannot be read the history is incomplete (history_incomplete, liable null, not stored)
+✔ S8 http://example.com/ is refused
+✔ S8 http://localhost/v1/ is accepted
+✔ S8 http://localhost:3000/v1/ is accepted
+✔ S8 http://127.0.0.1:8080/v1/ is accepted
+✔ S8 http://[::1]:8080/v1/ is accepted
+✔ S8 https://api.example.com/v1/ is accepted
+✔ S8 a host that only starts with localhost is not local
+ℹ tests 46
+ℹ pass 46
+ℹ fail 0
