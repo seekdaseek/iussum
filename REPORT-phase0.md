@@ -15,16 +15,15 @@ Scope: Phase 0 only (G0.1 to G0.5), with Addendum A (sha256 `ff7bbbf4…`) appli
 |---|---|---|
 | G0.1 Twins | **PARTIAL, continued by your decision** | seller-side mandate checking exists (aether, PR #3376); no receipt bound to a mandate anywhere found; aether's receipt confirmed unbound by reading the code. |
 | G0.2 x402 surface | **GREEN** | extension reaches client, hook, handler, facilitator; funded devnet settles on payai and x402.org carried `extensions.iussum.info`. |
-| G0.3 Seed Vault signMessages | **PARTIAL** | accepted and the signature verifies against natX (detached 64 bytes); WHAT THE SHEET DISPLAYS IS NOT CAPTURED (only a loading skeleton). |
+| G0.3 Seed Vault signMessages | **GREEN on signing, RED on what-you-see-is-what-you-sign** | all three samples signed and verify against natX (detached 64 bytes); the Verify sheet never shows the message text (skeleton, then a generic line). |
 | G0.4 Delegation through a facilitator | **GREEN for path A, path B refused** | SPL delegate settled on devnet through both facilitators; Subscriptions delegatee refused by both (program not allow-listed). |
 | G0.5 Merchant track | **DONE** | don't build now. |
 
-Not all gates are fully green, so Phase 1 stays unstarted. G0.3's display question needs one more tap (below).
+Phase 1 stays unstarted. G0.3's finding changes the design: the signed bytes cannot be relied on to be read by the person via `signMessages` on this device.
 
 ## Needs from you
 
-1. **Re-tap for the display question.** Tap MULTILINE and LONG on the Seeker while I record the screen with `adb screenrecord`; the single-frame capture caught only the sheet's loading skeleton. One tap and approve each, I do the rest.
-2. Nothing else is blocked.
+Nothing blocked. Decision for Phase 1: how the principal reads the mandate, given that Seed Vault does not display `signMessages` text (see G0.3).
 
 ## G0.1 Twins — `TWINS.md`
 
@@ -46,11 +45,12 @@ UNTESTED: nothing in TWINS.md was executed; aether's tests not run; the list of 
 
 ## G0.3 Seed Vault — `docs/SEED-VAULT.md`
 
-Probe `apps/seeker-probe/` (Expo 55, RN 0.83.6, nuntius's `transact()` wiring and polyfills copied, fresh `authorize` per session), release APK `apps/seeker-probe/iussum-probe-release.apk` (30,700,943 B, sha256 `a8a9f6299103ed26975741651ad0b258c30ff2d00813a20b88371eb20bbd52b8`), installed on the Seeker `the Seeker` (Android 16) with `adb install -r` → `Success`. SHORT (162 B) tapped and approved with natX at 16:27-16:28.
-- Observed: `signMessages` accepted a free-text payload; returned **64 bytes = a detached ed25519 signature**; the returned account's base64 address decodes to base58 `ASCQRp616JVQKMpynYfcPVdKPext719WUf7CuFcnnatX` (label `DAPP`).
-- **Verified in Node** (`probes/verify-seedvault.mjs`): `{"ok":true,"layout":"signature only"}` on the exact message; control with the message plus one byte: `{"ok":false}`.
-- Seed Vault flow: a "Connect / Select a wallet" sheet, then a "Verify" sheet with a labelled **"Message ⓘ" box**, `Wallet DAPP`, `Application ochinimus.app`, Approve, then a biometric double-tap. Screenshots: `docs/seedvault/frames/`.
-- **NOT captured: the text inside the Message box.** The only pre-approval frame (`004.png`) shows it as a loading skeleton; the next frame is already the biometric step. Whether the summary line is shown in full, truncated or as hex is UNKNOWN, and so is MULTILINE/LONG behaviour. Test: one tap each on MULTILINE and LONG while `adb shell screenrecord` runs, then read the frames.
+Probe `apps/seeker-probe/` (Expo 55, RN 0.83.6, nuntius's `transact()` wiring and polyfills copied, fresh `authorize` per session), release APK `apps/seeker-probe/iussum-probe-release.apk` (30,700,943 B, sha256 `a8a9f6299103ed26975741651ad0b258c30ff2d00813a20b88371eb20bbd52b8`), installed on the Seeker `the Seeker` (Android 16). SHORT (162 B) at 16:27, MULTILINE (150 B) at 16:33:12, LONG (741 B) at 16:33:36, each approved with natX.
+- `signMessages` accepted all three free-text payloads and returned **64 bytes = a detached ed25519 signature**; the account is `ASCQRp616JVQKMpynYfcPVdKPext719WUf7CuFcnnatX` (label `DAPP`, base64 address decoded to base58 and compared).
+- **All three signatures verified in Node** (`probes/verify-seedvault.mjs`, `{"ok":true,"layout":"signature only"}`), each with a negative control (message plus one byte → `{"ok":false}`).
+- **The Verify sheet never shows the message.** For every message: about 1 s of a "Message ⓘ" loading skeleton with Approve disabled, then "Confirm that you are authorized to sign transactions with this wallet." (plus Wallet DAPP, Application ochinimus.app) with Approve enabled, until the person approves. Evidence: `docs/seedvault/sv-multiline-long.mp4`, the four stills `multiline-*.png`, `long-*.png`, `recording-contact-sheet-1fps.png`, and the SHORT frames in `docs/seedvault/frames/`.
+- Consequence: what-you-see-is-what-you-sign does not hold through `signMessages` on this device; the summary line has to be shown by the iussum app itself (as nuntius's `describeMandate` is), or the signed payload has to be something Seed Vault renders.
+- UNTESTED: why the box does not fill (SIWS-formatted message? `signIn`? the ⓘ text), and whether a transaction carrying the summary line as a Memo is rendered. Tests are in SEED-VAULT.md.
 
 ## G0.4 Delegation — `docs/ALLOWANCE.md`
 
@@ -86,7 +86,7 @@ Research agent, read through a fetch summariser, every claim with a URL. `VERDIC
 
 | UNTESTED | test |
 |---|---|
-| What Seed Vault's Message box shows (full / truncated / hex), for SHORT, MULTILINE, LONG | tap each while `adb shell screenrecord` runs; read frames |
+| Why Seed Vault's Message box stays empty, and whether a SIWS-shaped message, `signIn`, or a Memo transaction is rendered | sign each variant on the Seeker with `screenrecord` running (SEED-VAULT.md) |
 | A Subscriptions pull through an allow-listed facilitator on devnet (only localnet) | needs an operator to allow-list `De1egAFM…`, or run our own facilitator on devnet |
 | Why payai's deployed verify rejected a 100,000 CU limit that 2.28.0 accepts | ask payai or diff behaviour with controlled CU values |
 | Extension size limits at the facilitators; extension echo in the settle response | send a ~1 KB `info`; inspect `PAYMENT-RESPONSE` |
@@ -101,7 +101,7 @@ Research agent, read through a fetch summariser, every claim with a URL. `VERDIC
 - Path `/Volumes/D/iussum`, branch `main`, local only: no push, no remote, no GitHub repo. Phase 0 committed as `seekdaseek <ochinimus@gmail.com>` (repo-local config); the commit hash and `git log -1 --format='%an <%ae>'` are in the closing message after the commit.
 - Keys: `.secrets/{principal,agent,seller}.json`, mode 600, gitignored (`git check-ignore` confirmed; the commit contains no `.secrets/` path). Throw-away devnet keys; none is a Seed Vault key, none is a treasury key. No key value printed.
 - Not committed (gitignored): `node_modules`, `dist`, `android/build`, `*.apk`, `.secrets/`. The probe APK is therefore only on disk at `apps/seeker-probe/iussum-probe-release.apk`.
-- Touched outside the repo: nothing in `/Volumes/D/nuntius` (read with cat/cp only, no git, no writes); nothing on the VPS; no mainnet transaction; no deploy or publish. `~/.cache/nuntius-localnet` read only. The localnet validator is stopped. The probe is installed on the Seeker as `app.ochinimus.iussumprobe`.
+- Touched outside the repo: nothing in `/Volumes/D/nuntius` (read with cat/cp only, no git, no writes); nothing on the VPS; no mainnet transaction; no deploy or publish. `~/.cache/nuntius-localnet` read only. The localnet validator is stopped. The probe is installed on the Seeker as `app.ochinimus.iussumprobe`; the Seeker was used for G0.3 only, no key on it was touched beyond natX signing the three probe messages.
 - Devnet state left behind: the principal's USDC account still has the Subscriptions authority as delegate (grant from stage b); the agent's SPL delegation was revoked.
 - `LOG.md` has a dated line for each step.
 
