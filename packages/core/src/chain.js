@@ -2,7 +2,7 @@
 import { TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
 import { fails, registerCheck } from './guard.js';
 
-export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck'].map(registerCheck);
+export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain.self_transfer', 'chain.missing_balance_zero'].map(registerCheck);
 
 export function makeRpc(url, { retries = 8, fetchImpl = fetch } = {}) {
   let id = 0;
@@ -67,6 +67,9 @@ export function parseDebits(tx) {
     if (ix.programId !== TOKEN_PROGRAM_ADDRESS || !DEBIT_TYPES.has(ix.parsed?.type)) return;
     const i = ix.parsed.info ?? {}, kind = ix.parsed.type;
     const burn = kind === 'burn' || kind === 'burnChecked';
+    // SPL Token returns early on a transfer whose source is its destination: nothing moves and the delegated amount is not lowered, so it is
+    // neither a debit nor a credit (Addendum F, N3)
+    if (!burn && fails('chain.self_transfer', i.source === i.destination)) return;
     const source = burn ? i.account : i.source;
     const amount = i.tokenAmount?.amount ?? i.amount;
     out.push({ kind, source, destination: burn ? null : i.destination, mint: i.mint ?? mintOf(source), amount: String(amount), decimals: i.tokenAmount?.decimals ?? null, authority: i.authority ?? i.multisigAuthority ?? null, top, pos, dest_owner: burn ? null : ownerOf(i.destination), source_owner: ownerOf(source) });
@@ -91,7 +94,10 @@ export function reconcileAccount(payment, account) {
   const moved = payment.debits.filter((d) => d.source === account).reduce((a, d) => a + BigInt(d.amount), 0n)
     - payment.credits.filter((c) => c.destination === account).reduce((a, c) => a + BigInt(c.amount), 0n);
   const b = payment.balances[account];
-  const dropped = b ? (b.pre !== null && b.pre !== undefined && b.post !== null && b.post !== undefined ? BigInt(b.pre) - BigInt(b.post) : null) : 0n;
+  // a balance entry missing on one side means the account was created (no pre) or closed (no post) in this transaction: it counts as 0 there
+  // (Addendum F, N5). CloseAccount needs a zero balance for a token account, and any other mismatch still fails closed.
+  const has = (v) => v !== null && v !== undefined;
+  const dropped = !b ? 0n : (has(b.pre) && has(b.post)) || fails('chain.missing_balance_zero', true) ? BigInt(b.pre ?? 0) - BigInt(b.post ?? 0) : null;
   return { ok: dropped !== null && dropped === moved, moved, dropped };
 }
 

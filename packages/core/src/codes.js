@@ -33,6 +33,8 @@ export const R = Object.freeze({
   // Phase 1.2 (Addendum E)
   debit_not_x402: 'debit_not_x402',
   destination_mismatch: 'destination_mismatch',
+  // Phase 1.3 (Addendum F)
+  receipt_equivocation: 'receipt_equivocation',
 });
 // Violations a seller can see before it settles. The period budget is not among them: a seller cannot see other sellers' payments.
 export const SELLER_VISIBLE = new Set([R.amount_over_cap, R.pay_to_not_allowed, R.resource_not_allowed, R.asset_mismatch, R.network_mismatch, R.mandate_not_yet_valid, R.mandate_expired, R.agent_mismatch]);

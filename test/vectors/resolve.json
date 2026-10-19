@@ -10606,7 +10606,7 @@
   }
  },
  {
-  "name": "one agent debit plus another TransferChecked from a different account in the same transaction cannot be judged: tx_mismatch",
+  "name": "one agent debit plus another TransferChecked from a different account in the same transaction is not the x402 shape: debit_not_x402, agent operator",
   "kind": "resolve",
   "input": {
    "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
@@ -10890,11 +10890,12 @@
    }
   },
   "expect": {
-   "verdict": "invalid",
-   "reason": "tx_mismatch",
-   "liable": null,
-   "deltaFields": [
-    "transfers"
+   "verdict": "valid",
+   "reason": "debit_not_x402",
+   "liable": "agent_operator",
+   "deltaCodes": [
+    "debit_not_x402",
+    "debit_not_x402"
    ]
   }
  },

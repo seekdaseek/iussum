@@ -71,7 +71,7 @@ test('B5 a payment that was never created (signing failed) releases its reservat
 });
 // lost response + the chain: held -> released only when the blockhash is expired AND no transaction carrying the agent's signature is on chain
 async function lostThenAsk({ blockHeight, onChain }, tc) {
-  const t = await setup('20000', { period_budget: '30000', per_payment_max: '20000' }, { rpcExtra: { call: async (m) => { if (m === 'getBlockHeight') return blockHeight; throw new Error(`unexpected rpc call ${m}`); } } });
+  const t = await setup('20000', { period_budget: '30000', per_payment_max: '20000' }, { rpcExtra: { call: async (m) => { if (m === 'isBlockhashValid') return { context: { slot: 1 }, value: blockHeight <= 100 }; throw new Error(`unexpected rpc call ${m}`); } } });
   tc.after(() => t.close());
   const sent = dropFirstResponse();
   const a = await t.make();
@@ -88,7 +88,7 @@ async function lostThenAsk({ blockHeight, onChain }, tc) {
   const r2 = await out(a.fetch(t.seller.url));
   return { r2, a };
 }
-test('B5 held stays held while the blockhash can still land (block height below lastValidBlockHeight)', async (tc) => {
+test('B5 held stays held while the blockhash can still land (the chain says it is still valid)', async (tc) => {
   assert.equal((await lostThenAsk({ blockHeight: 50, onChain: false }, tc)).r2, 'period_over_budget');
 });
 test('B5 held is released when the blockhash has expired and no transaction with the agent\'s signature is on chain', async (tc) => {

@@ -1,8 +1,8 @@
 // The resolver service: fetches the evidence, calls the pure resolve(), stores the decided verdict, and (demo simplification) pays the refund
 // from a refund-float wallet when the seller is liable. In production the seller would refund itself on a signed ruling; here the float
 // stands in for the seller's own refund key so the demo shows money actually moving back.
-import { resolve, parsePayment, agentSpendHistory, createGrantChecker, fillBlockIndices, validateMandate, mandateId, canonicalize, sha256Hex, periodStart, R, fails, registerCheck } from '@iussum/core';
-export const RESOLVER_SERVICE_CHECKS = ['resolver.duplicate', 'resolver.refund_seller_only', 'resolver.refund_retry', 'resolver.refund_pending_guard', 'resolver.refund_decimals', 'resolver.provisional', 'resolver.provisional_needs_receipt', 'resolver.replace_binds_mandate'].map(registerCheck);
+import { resolve, verifyReceipt, parsePayment, agentSpendHistory, createGrantChecker, fillBlockIndices, validateMandate, mandateId, canonicalize, sha256Hex, periodStart, R, fails, registerCheck } from '@iussum/core';
+export const RESOLVER_SERVICE_CHECKS = ['resolver.duplicate', 'resolver.refund_seller_only', 'resolver.refund_retry', 'resolver.refund_pending_guard', 'resolver.refund_decimals', 'resolver.provisional', 'resolver.provisional_needs_receipt', 'resolver.replace_binds_mandate', 'resolver.history_to_grant', 'resolver.equivocation'].map(registerCheck);
 const sha = (x) => (x ? sha256Hex(canonicalize(x)) : null);
 // A rejected dispute (artifacts do not verify, evidence missing or incomplete, mandate mismatch or superseded) is not a decision about the
 // payment and may be resubmitted; a decided one is stored.
@@ -25,6 +25,7 @@ export function createResolver({ rpc, network, sellerKey, store, sendRefund = nu
       if (fails('resolver.refund_pending_guard', now() - (s.refund_pending_at ?? 0) < PENDING_GRACE_S)) return { refund_tx: null, refund_state: 'pending', refund_pending: s.refund_pending };
     }
     const t = payment.transfers[0];
+    if (!t) throw new Error('the payment has no TransferChecked to refund');
     const sig = await sendRefund({ to: t.source_owner, mint: t.mint, amount: t.amount, decimals: fails('resolver.refund_decimals', true) ? t.decimals : 6, reason: `dispute ${tx_sig}` }, { onSigned: (p) => store.setPending(tx_sig, p, now()) });
     store.setRefund(tx_sig, sig);
     return { refund_tx: sig };
@@ -41,11 +42,14 @@ export function createResolver({ rpc, network, sellerKey, store, sendRefund = nu
     if (mandateOk && grant?.ok && payment.found && !payment.err) {
       // the source account FIRST, with the slot it was read at: the allowance cross-check counts debits up to that slot (Addendum E, C1)
       try { const ctx = await rpc.getAccountContext(grant.source); allowance = { slot: ctx.slot, account: ctx.value }; } catch { allowance = null; }
-      const startsAt = payment.block_time != null ? periodStart(mandate, payment.block_time) : null;
-      history = await agentSpendHistory(rpc, { source: grant.source, agent: mandate.agent, mint: mandate.asset, until: grant_tx, stopAtTime: startsAt });
-      Object.assign(blockIdx, history.blockIdx);
+      // Is the grant still current? (first: it decides how far back the history must reach)
       try { superseded = await checker.supersededBy(grant.source, grant_tx); }
       catch (e) { return { early: { verdict: 'invalid', tier: 1, reason: R.history_incomplete, delta: [{ field: 'supersession scan', authorized: 'complete', actual: e.message }], liable: null, time_source: null } }; }
+      // While the grant is current the allowance cross-check (C1) compares ALL debits since the grant with the allowance that is left, so the
+      // history must reach the grant: no cut at the start of the period (Addendum F, N1). A superseded grant skips C1, and the period is enough.
+      const startsAt = superseded && payment.block_time != null ? periodStart(mandate, payment.block_time) : null;
+      history = await agentSpendHistory(rpc, { source: grant.source, agent: mandate.agent, mint: mandate.asset, until: grant_tx, stopAtTime: fails('resolver.history_to_grant', true) ? startsAt : (payment.block_time != null ? periodStart(mandate, payment.block_time) : null) });
+      Object.assign(blockIdx, history.blockIdx);
       // order the transactions that are compared (S7): the block is read only where two relevant transactions share a slot
       try { await fillBlockIndices(rpc, [{ slot: grant.grant_slot, tx_sig: grant_tx }, { slot: payment.slot, tx_sig }, ...(superseded ? [{ slot: superseded.slot, tx_sig: superseded.sig }] : []), ...history.entries], blockIdx); }
       catch { /* an unknown order is detected where it matters and gives history_incomplete */ }
@@ -53,11 +57,33 @@ export function createResolver({ rpc, network, sellerKey, store, sendRefund = nu
     return { e: { tx_sig, network, mandate, grant_tx, grant, receipt, seller_pubkey, payment, history, superseded, blockIdx, allowance }, payment };
   }
 
+  // Receipt equivocation (Addendum F, N4): the seller holds its own receipt key, so it could sign a second receipt and file it first. Two receipts for
+  // one payment that verify against the same seller key and differ in any signed field are the seller's doing: an honest gate signs exactly one per
+  // settlement. Returns the stored receipt when `receipt` equivocates against it.
+  const bodyHash = (r) => { const { signature: _s, ...b } = r; return sha256Hex(canonicalize(b)); };
+  async function equivocatesWith(stored, receipt, tx_sig) {
+    if (!stored?.receipt_json || !receipt || receipt.tx_sig !== tx_sig || stored.verdict.reason === R.receipt_equivocation) return null;
+    const prev = JSON.parse(stored.receipt_json);
+    if (prev.tx_sig !== tx_sig || bodyHash(prev) === bodyHash(receipt)) return null;
+    if (receipt.seller !== prev.seller || !verifyReceipt(receipt, await sellerKey(receipt.pay_to)).ok) return null;
+    return prev;
+  }
+
   async function decide(bundle) {
     const { tx_sig, mandate, receipt } = bundle;
     const stored = store.get(tx_sig);
     // A verdict decided WITHOUT a receipt is provisional (Addendum E, B4): whoever files first must not pick the evidence. A later dispute that
     // carries a receipt may re-judge it. A verdict decided with a verifying receipt is final.
+    const prevReceipt = fails('resolver.equivocation', true) ? await equivocatesWith(stored, receipt, tx_sig) : null;
+    if (prevReceipt) {
+      const payment = parsePayment(await rpc.getTransaction(tx_sig));
+      if (!payment.found || payment.err) return { verdict: 'invalid', tier: 1, reason: R.tx_not_found, delta: [{ field: 'tx_sig', authorized: 'a successful transaction', actual: 'not found' }], liable: null, time_source: null };
+      const verdict = { verdict: 'valid', tier: 1, reason: R.receipt_equivocation, liable: 'seller', time_source: null, mandate_id: stored.verdict.mandate_id ?? null, delta: [{ code: R.receipt_equivocation, field: 'receipt', authorized: 'one receipt per settlement', actual: `two different receipts signed by ${receipt.seller} for ${tx_sig}: ${bodyHash(prevReceipt).slice(0, 16)}… and ${bodyHash(receipt).slice(0, 16)}…` }] };
+      if (!store.replaceAny(tx_sig, { mandate_sha: sha(bundle.mandate), receipt_sha: sha(receipt), verdict, now: now(), receipt })) return dup(store.get(tx_sig));
+      const flags = { provisional: false, replaced: store.get(tx_sig).replaced };
+      if (sendRefund) { try { return { ...verdict, ...flags, ...(await payRefund(tx_sig, payment)) }; } catch (e) { return { ...verdict, ...flags, refund_tx: null, refund_error: e.message }; } }
+      return { ...verdict, ...flags, refund_tx: null };
+    }
     const replacing = Boolean(stored && decided(stored.verdict) && fails('resolver.provisional', stored.provisional) && fails('resolver.provisional_needs_receipt', receipt));
     if (fails('resolver.duplicate', stored && decided(stored.verdict) && !replacing)) {
       // a refund that failed after the verdict was reserved is retried here, idempotently
@@ -76,7 +102,7 @@ export function createResolver({ rpc, network, sellerKey, store, sendRefund = nu
     const verdict = resolve(g.e);
     // decide, reserve the tx_sig in the store FIRST, and only the request that reserved it may pay a refund
     if (decided(verdict)) {
-      const entry = { mandate_sha: sha(mandate), receipt_sha: sha(receipt), verdict, refund_tx: null, now: now(), provisional: !receipt };
+      const entry = { mandate_sha: sha(mandate), receipt_sha: sha(receipt), verdict, refund_tx: null, now: now(), provisional: !receipt, receipt };
       if (replacing) {
         // only a verdict decided with a receipt that verifies and binds THIS mandate replaces the provisional one
         if (fails('resolver.replace_binds_mandate', !receipt || receipt.mandate_id !== verdict.mandate_id)) return dup(stored);

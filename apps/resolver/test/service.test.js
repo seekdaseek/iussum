@@ -97,10 +97,11 @@ test('http: POST /dispute returns the verdict JSON and GET /v/:tx a plain human 
     assert.equal((await fetch(`${base}/dispute`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status, 400);
   } finally { srv.close(); }
 });
-test('only hashes and verdicts are stored: the stored row holds no mandate or receipt body', async () => {
+test('only hashes, verdicts and the seller-signed receipt are stored: the stored row holds no mandate body', async () => {
   const t = build();
   await t.service.dispute(t.bundle);
   const row = t.store.get(PAY);
   assert.match(row.mandate_sha, /^[0-9a-f]{64}$/); assert.match(row.receipt_sha, /^[0-9a-f]{64}$/);
-  assert.ok(!JSON.stringify(row).includes(A.agent), 'no agent address in the stored row');
+  assert.ok(!JSON.stringify({ ...row, receipt_json: undefined }).includes(A.agent), 'no agent address in the stored row (the receipt body, kept to detect a second receipt, names the payer)');
+  assert.equal(JSON.parse(row.receipt_json).tx_sig, PAY);
 });

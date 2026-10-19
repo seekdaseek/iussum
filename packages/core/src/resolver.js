@@ -14,7 +14,7 @@ import { validateMandate, mandateId, scopeViolations, periodSpendAt } from './ma
 import { verifyReceipt } from './receipt.js';
 import { reconcileAccount, comparePositions, PositionUnknown, allowanceCheck } from './chain.js';
 
-export const RESOLVER_CHECKS = ['resolver.receipt_tx', 'resolver.chain_amount', 'resolver.chain_pay_to', 'resolver.chain_payer', 'resolver.chain_asset', 'resolver.agent_debit', 'resolver.after_grant', 'resolver.reconcile', 'resolver.debit_not_x402', 'resolver.allowance', 'resolver.mandate_presented', 'resolver.seller_visible', 'resolver.single_transfer', 'resolver.period_since_grant', 'resolver.mandate_mismatch', 'resolver.superseded', 'resolver.history_complete', 'resolver.history_found', 'resolver.no_receipt_judged'].map(registerCheck);
+export const RESOLVER_CHECKS = ['resolver.receipt_tx', 'resolver.chain_amount', 'resolver.chain_pay_to', 'resolver.chain_payer', 'resolver.chain_asset', 'resolver.agent_debit', 'resolver.after_grant', 'resolver.reconcile', 'resolver.debit_not_x402', 'resolver.allowance', 'resolver.mandate_presented', 'resolver.seller_visible', 'resolver.period_since_grant', 'resolver.mandate_mismatch', 'resolver.superseded', 'resolver.history_complete', 'resolver.history_found', 'resolver.no_receipt_judged'].map(registerCheck);
 const out = (verdict, reason, liable, extra = {}) => ({ verdict, tier: 1, reason, delta: [], liable, time_source: null, ...extra });
 const nul = (reason, extra) => out('invalid', reason, null, extra);
 
@@ -54,20 +54,20 @@ export function resolve(e) {
     const mine = payment.debits.filter((d) => d.source === grant.source && d.authority === mandate.agent);
     if (fails('resolver.agent_debit', mine.length === 0)) return nul(R.tx_mismatch, { mandate_id: mid, delta: [{ field: 'source', authorized: `${grant.source} debited by ${mandate.agent}`, actual: payment.debits.length ? payment.debits.map((d) => `${d.source} by ${d.authority}`).join('; ') : 'no debit' }] });
     if (fails('resolver.after_grant', comparePositions(here, { slot: grant.grant_slot, tx_sig: grant_tx }, blockIdx) <= 0)) return nul(R.tx_mismatch, { mandate_id: mid, delta: [{ field: 'time', authorized: 'a payment after the grant transaction', actual: `payment at slot ${payment.slot} is not after the grant at slot ${grant.grant_slot}` }] });
-    // anything but ONE top-level TransferChecked cannot have gone through x402 or a seller gate: the agent operator's (Addendum E, B1e)
-    if (fails('resolver.debit_not_x402', !(mine.length === 1 && mine[0].top && mine[0].kind === 'transferChecked'))) {
-      return { verdict: 'valid', tier: 1, reason: R.debit_not_x402, liable: 'agent_operator', mandate_id: mid, time_source: payment.block_time != null ? 'block' : null, delta: mine.map((d) => ({ code: R.debit_not_x402, field: 'debit', authorized: 'one top-level TransferChecked made through x402', actual: `${d.kind} ${d.amount} ${d.destination ? `to ${d.dest_owner ?? d.destination}` : '(burn)'}${d.top ? '' : ' by CPI'}` })) };
+    // The x402 path needs the WHOLE transaction to be the x402 shape: exactly one token debit in it, top level or by CPI, and it is the agent's
+    // TransferChecked out of the granted account. Anything else that carries an agent debit of the source cannot have gone through x402 or a seller
+    // gate: the agent operator's (Addendum E B1e, Addendum F N2). A facilitator cannot add instructions without breaking the agent's signature.
+    const x402Shape = payment.debits.length === 1 && mine.length === 1 && mine[0].top && mine[0].kind === 'transferChecked';
+    if (fails('resolver.debit_not_x402', !x402Shape)) {
+      return { verdict: 'valid', tier: 1, reason: R.debit_not_x402, liable: 'agent_operator', mandate_id: mid, time_source: payment.block_time != null ? 'block' : null, delta: payment.debits.map((d) => ({ code: R.debit_not_x402, field: 'debit', authorized: 'one top-level TransferChecked made through x402, and nothing else in the transaction', actual: `${d.kind} ${d.amount} from ${d.source === grant.source ? 'the granted account' : d.source} ${d.destination ? `to ${d.dest_owner ?? d.destination}` : '(burn)'}${d.top ? '' : ' by CPI'}` })) };
     }
-    return judgeX402(e, mid, mine[0], rec);
+    return judgeX402(e, mid, mine[0]);
   } catch (err) { if (err instanceof PositionUnknown) return unknownPos(err); throw err; }
 }
 
 // the x402 path: one top-level TransferChecked out of the granted account, signed by the agent
-function judgeX402(e, mid, debit, _rec) {
+function judgeX402(e, mid, x) {
   const { tx_sig, network, mandate, grant_tx, grant, receipt, payment, history, blockIdx = {}, allowance } = e;
-  const t = payment.transfers;
-  if (fails('resolver.single_transfer', t.length !== 1)) return nul(R.tx_mismatch, { mandate_id: mid, delta: [{ field: 'transfers', authorized: '1 TransferChecked', actual: String(t.length) }] });
-  const x = t[0];
   if (receipt) {
     const mismatch = [];
     if (fails('resolver.receipt_tx', receipt.tx_sig !== tx_sig)) mismatch.push({ field: 'tx_sig', authorized: tx_sig, actual: receipt.tx_sig });

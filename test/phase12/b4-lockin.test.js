@@ -41,7 +41,7 @@ test('B4 a verdict decided WITH a verifying receipt is final: a later dispute is
   const t = build('10000');
   const first = await t.svc.dispute(bundle(rcpt('10000')));
   assert.equal(first.reason, 'in_scope'); assert.ok(!first.provisional);
-  const second = await t.svc.dispute(bundle(rcpt('10000', { resource: 'https://not-allowed.example/x' })));
+  const second = await t.svc.dispute(bundle(rcpt('10000'))); // the same receipt again (a DIFFERENT receipt for the payment is receipt_equivocation, Phase 1.3)
   assert.equal(second.reason, 'duplicate_dispute'); assert.equal(second.original_reason, 'in_scope');
 });
 test('B4 a receipt that does not verify, or binds another mandate, cannot replace a provisional verdict', async () => {

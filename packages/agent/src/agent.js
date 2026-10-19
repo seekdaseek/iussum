@@ -14,7 +14,7 @@ import { getTransactionDecoder, getBase58Decoder, pipe, createTransactionMessage
 import { getTransferCheckedInstruction, TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
 import { assertOnlyComputeBudgetChanged } from './txguard.js';
 
-export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance'].map(registerCheck);
+export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid'].map(registerCheck);
 const MARK = 'IUSSUM_REFUSAL:';
 const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export class IussumRefusal extends Error {
@@ -32,7 +32,7 @@ export async function createAgent(cfg) {
   const checker = createGrantChecker(rpc);
   const source = mandate ? await principalAta(mandate.principal, mandate.asset) : cfg.source;
   const ledger = []; // [{amount, t, sig}] payments of this agent that are SPENT: rebuilt from chain at start, then consumed reservations
-  const reservations = []; // {id, amount, t, state: held|consumed|released, created, agentSig, lastValid, sig}: each moves exactly once, out of held
+  const reservations = []; // {id, amount, t, state: held|consumed|released, created, agentSig, blockhash, sig}: each moves exactly once, out of held
   let nextReservation = 0;
   let ledgerComplete = true, ledgerReason = null;
   const requested = new AsyncLocalStorage(); // { url, ids }: the URL this fetch actually asked for (never what the seller says it is) and its reservations
@@ -45,11 +45,14 @@ export async function createAgent(cfg) {
   if (mandate && !isMutated('agent.ledger_rebuild')) {
     let ctx = null, superseded = null, scanFailed = null;
     try { ctx = await rpc.getAccountContext(source); } catch (e) { scanFailed = `the source account could not be read: ${e.message}`; }
-    const h = await agentSpendHistory(rpc, { source, agent: signer.address, mint: mandate.asset, until: grant_tx, stopAtTime: periodStart(mandate, now()) });
+    // is the grant current? That decides how far back the history must reach: while it is, the cross-check compares ALL debits since the grant, so no
+    // cut at the start of the period (Addendum F, N1)
+    try { superseded = await checker.supersededBy(source, grant_tx); } catch (e) { scanFailed = scanFailed ?? `could not verify the grant is current: ${e.message}`; }
+    const cut = superseded || !fails('agent.history_to_grant', true) ? periodStart(mandate, now()) : null;
+    const h = await agentSpendHistory(rpc, { source, agent: signer.address, mint: mandate.asset, until: grant_tx, stopAtTime: cut });
     ledgerComplete = h.complete; ledgerReason = h.reason;
     for (const e of h.entries) ledger.push({ amount: e.amount, t: e.block_time ?? now(), sig: e.tx_sig });
     if (ledgerComplete && fails('agent.rebuild_allowance', true)) {
-      try { superseded = await checker.supersededBy(source, grant_tx); } catch (e) { scanFailed = `could not verify the grant is current: ${e.message}`; }
       if (scanFailed) { ledgerComplete = false; ledgerReason = scanFailed; }
       else if (!superseded) {
         const ac = allowanceCheck({ mandate, entries: h.entries, account: ctx.value, slot: ctx.slot });
@@ -64,7 +67,8 @@ export async function createAgent(cfg) {
   const scheme = {
     scheme: 'exact',
     async createPaymentPayload(x402Version, req) {
-      const bh = req.extra?.recentBlockhash ? { blockhash: req.extra.recentBlockhash, lastValidBlockHeight: BigInt(req.extra.lastValidBlockHeight ?? 0) } : await getBlockhash();
+      // the blockhash is the agent's OWN, never one named in the 402: a seller that names one can claim an early expiry and keep the payload (Addendum F, N12)
+      const bh = !fails('agent.own_blockhash', true) && req.extra?.recentBlockhash ? { blockhash: req.extra.recentBlockhash, lastValidBlockHeight: BigInt(req.extra.lastValidBlockHeight ?? 0) } : await getBlockhash();
       const decimals = fails('agent.decimals', true) ? await assetDecimals(req) : 6;
       const destination = fails('agent.destination_ata', true) ? await destinationAta(req.payTo, req.asset) : (req.destination ?? (await destinationAta(req.payTo, req.asset)));
       const ix = getTransferCheckedInstruction({ source, mint: req.asset, destination, authority: signer, amount: BigInt(req.amount), decimals }, { programAddress: TOKEN_PROGRAM_ADDRESS });
@@ -76,7 +80,7 @@ export async function createAgent(cfg) {
       if (fails('agent.tx_guard', true)) assertOnlyComputeBudgetChanged(sent, signed);
       // the reservation of this payment learns that a payload exists, which agent signature it carries and until which block it can land
       const mine = requested.getStore()?.ids.map((id) => reservations[id]).findLast((r) => r.state === 'held' && !r.created);
-      if (mine) { mine.created = true; mine.lastValid = BigInt(bh.lastValidBlockHeight ?? 0); mine.agentSig = agentSignature(signed); }
+      if (mine) { mine.created = true; mine.blockhash = bh.blockhash; mine.agentSig = agentSignature(signed); }
       return { x402Version, payload: { transaction: signed } };
     },
   };
@@ -104,15 +108,20 @@ export async function createAgent(cfg) {
     const bytes = sigs[signer.address];
     return bytes ? getBase58Decoder().decode(bytes) : null;
   }
-  // Resolve held reservations from the chain. A held payment may still land until its blockhash expires, so it counts as spent until the
-  // chain PROVES otherwise: block height above lastValidBlockHeight AND no transaction carrying the agent's signature from that payload.
-  // Anything that cannot be read leaves it held (fail closed).
+  // Resolve held reservations from the chain. A held payment may still land until its blockhash expires, so it counts as spent until the chain
+  // PROVES otherwise: the chain says that payload's blockhash is no longer valid (isBlockhashValid false) AND no transaction carrying the agent's
+  // signature from that payload is on chain. Anything that cannot be read leaves it held (fail closed).
   async function settleHeld() {
-    const open = reservations.filter((r) => r.state === 'held' && r.created && r.lastValid > 0n);
+    const open = reservations.filter((r) => r.state === 'held' && r.created && r.blockhash);
     if (!open.length) return;
-    let height;
-    try { height = BigInt(await rpc.call('getBlockHeight', [{ commitment: 'confirmed' }])); } catch { return; }
-    const expired = open.filter((r) => height > r.lastValid);
+    const expired = [];
+    for (const r of open) {
+      try {
+        const v = await rpc.call('isBlockhashValid', [r.blockhash, { commitment: 'confirmed' }]);
+        const invalid = (v?.value ?? v) === false;
+        if (!fails('agent.blockhash_valid', !invalid)) expired.push(r); // still valid (or unknown): the payload can still land
+      } catch { /* cannot tell: stays held */ }
+    }
     if (!expired.length) return;
     const h = await agentSpendHistory(rpc, { source, agent: signer.address, mint: mandate.asset, until: grant_tx, stopAtTime: periodStart(mandate, now()) });
     if (!h.complete) return;
@@ -153,7 +162,7 @@ export async function createAgent(cfg) {
       }
       if (reason) return { abort: true, reason: MARK + JSON.stringify({ reason, delta }) };
       if (isMutated('agent.reserve_atomic')) await new Promise((r) => setTimeout(r, 50)); // mutation: let other payments run their check between this one's check and its reservation
-      const res = { id: nextReservation++, amount: BigInt(r.amount), t, state: 'held', created: false, agentSig: null, lastValid: 0n, sig: null };
+      const res = { id: nextReservation++, amount: BigInt(r.amount), t, state: 'held', created: false, agentSig: null, blockhash: null, sig: null };
       reservations.push(res);
       store?.ids.push(res.id);
     });

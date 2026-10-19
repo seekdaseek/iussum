@@ -13,7 +13,7 @@ async function run(fake, tc) {
   const seller = await startSeller({ facilitator, mode: 'off', now: () => NOW, price: '20000' });
   tc.after(() => { facilitator.close(); seller.close(); });
   const s = await newScenario(seller, { mandate: { period_budget: '30000', per_payment_max: '20000' } });
-  seller.rpc.call = async (m) => { if (m === 'getBlockHeight') return 1000; if (m === 'isBlockhashValid') return { value: true }; throw new Error(`unexpected ${m}`); }; // the chain: height 1000, every blockhash still valid
+  seller.rpc.call = async (m) => { if (m === 'isBlockhashValid') return { context: { slot: 1 }, value: true }; throw new Error(`unexpected ${m}`); }; // the chain: every blockhash is still valid
   let withheld = null, n = 0, sentBlockhash = null;
   globalThis.fetch = async (req) => {
     if (req.headers.get('payment-signature') && n++ === 0) { withheld = req.headers.get('payment-signature'); return new Response('{}', { status: 502 }); } // the seller keeps payload 1 and answers 502
