@@ -19,6 +19,7 @@ It is pronounced YOOS-sum (Latin *iussum*, "an order, an authorisation"), and wr
    - **No receipt** (most sellers will never run iussum): everything the chain proves is still judged. A violation is the agent operator's (R3), a clean payment the principal's; what the seller was asked for (the resource) is listed as `unjudged`.
    - **The disputer does not choose the mandate.** A receipt that binds a mandate id fixes it (`mandate_mismatch` otherwise), and a mandate that a later grant on the same account superseded before the payment slot is rejected as `mandate_superseded`; both are liable null and resubmittable.
    - A payment is judged at its own position in the chain (slot, then its index in the block). A repeat dispute returns the stored verdict (`duplicate_dispute`) and never pays a second refund.
+   - A seller that signs two different receipts for one payment is liable for it (`receipt_equivocation`).
    - **Provisional verdicts.** A verdict decided without a seller receipt is stored as provisional, so whoever files first does not pick the evidence. A later dispute that carries a receipt which verifies against the seller key and binds the same mandate replaces it (the replaced verdict stays in the record, and the refund is paid if the seller is liable). A verdict decided with a verifying receipt is final. The response and `/v/:tx` say which it is.
 
 ## What the person saw (read this before quoting it)
@@ -31,7 +32,7 @@ Requires **Node 24 or newer** (`engines` says `>=24`; `node:sqlite` and a depend
 
 ```bash
 npm ci
-npm test                 # 307 tests, no network
+npm test                 # 331 tests (600 random histories among them), no network
 npm run mutation         # breaks each of the checks one at a time and requires a test to fail
 npm run demo:devnet      # thirteen scenarios on devnet with real USDC and a real facilitator (needs funded throw-away keys, see JUDGE_GUIDE.md)
 ```
@@ -70,6 +71,8 @@ Devnet and localnet only. No mainnet transaction, deploy or publish has been mad
 
 - The period budget is enforced by the agent and attributed by the resolver. It is not enforced on chain: the allowance (`total_cap`) is.
 - SPL Token only. A Token-2022 `ApproveChecked` fails the grant check.
+- While a grant is current, a dispute reads the account's whole history since the grant (the allowance cross-check needs every debit), so its cost grows with the account's activity. Anyone can add history to the account with dust credits.
+- The agent's reservations live in memory. A restart rebuilds the ledger from the chain, so a payload a seller kept and lands later, within its blockhash lifetime, is not known to a restarted agent.
 - `/dispute` is open to anyone, because principal-signed disputes are Phase 2. A verdict without a receipt is therefore provisional.
 
 ## Sources

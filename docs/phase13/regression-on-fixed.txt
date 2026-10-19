@@ -1,0 +1,27 @@
+✔ N1 50 in-scope payments in period 0, then an honest in-scope payment in period 1: in_scope, principal
+✔ N1 150 in-scope payments in period 0, then an honest in-scope payment in period 1: in_scope, principal
+✔ N1 anyone can push the history past one page with dust credits; an honest payment is still judged
+✔ N1 an honest agent restarted in period 1 after 150 in-scope payments in period 0 still pays
+✔ N12 control: with the agent's own blockhash the second payment is refused and the total stays at the budget
+✔ N12 a seller that says lastValidBlockHeight=1 cannot make the agent release the reservation: the second payment is refused and the total stays at the budget
+✔ N2 control: 40000 to a seller not on the list is pay_to_not_allowed, agent operator
+✔ N2 plus 1 unit from the agent's own token account in the same transaction: debit_not_x402, agent operator, stored (the operator cannot step out of R3)
+✔ N3 after one agent self-transfer (transferChecked) an in-scope P1 and an out-of-scope P2 are still judged
+✔ N3 a disputed transaction whose only agent instruction on the source is a self-transfer (transferChecked) is tx_mismatch, liable null: nothing moved
+✔ N3 after one agent self-transfer (transfer) an in-scope P1 and an out-of-scope P2 are still judged
+✔ N3 a disputed transaction whose only agent instruction on the source is a self-transfer (transfer) is tx_mismatch, liable null: nothing moved
+✔ N3 parseDebits skips a transfer whose source equals its destination, but not a burn
+✔ N4 the seller files first with a second receipt it signed (an in-scope resource); the principal's genuine receipt gets receipt_equivocation, seller liable, one refund
+✔ N4 the seller files first with a second receipt it signed (a null mandate_id); the principal's genuine receipt gets receipt_equivocation, seller liable, one refund
+✔ N4 the genuine receipt is final and refunded; a second, different receipt the seller signs later turns it into receipt_equivocation without a second refund
+✔ N4 the same receipt filed twice is a duplicate, not an equivocation; a receipt signed by another key is not an equivocation
+✔ N5 control: the earlier out-of-scope payment is still pay_to_not_allowed, agent operator
+✔ N5 the principal later empties and closes the account: the earlier out-of-scope payment is still pay_to_not_allowed, agent operator
+✔ N5 an account created in the transaction (no pre balance) counts as 0 before; a real mismatch still fails closed
+✔ property I1: 600 random histories, every dispute gets the model's verdict on a readable chain (seeds 1..600)
+✔ property I2: RPC faults give the model's verdict or no verdict, never a different decided verdict (600 histories)
+✔ property I3: at most one refund per payment, and only on a seller-liable verdict (200 histories)
+✔ property I4: the agent never settles more than period_budget under concurrency, lost responses, seller blockhash fields and restarts (60 seeds)
+ℹ tests 24
+ℹ pass 24
+ℹ fail 0

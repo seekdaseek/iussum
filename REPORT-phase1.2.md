@@ -131,7 +131,7 @@ Stated because they change what the suite asserts:
 
 - The Seeker-signed grant through the iussum app (Phase 2), a recognised-domain Seed Vault flow, third-party sellers that adopt the middleware, and anything on mainnet.
 - The release of a held reservation on a real chain (blockhash expiry with no landing): tested with a stubbed RPC only. Consume-on-landing is also stub-only.
-- Two transactions in the same slot on a real chain: the `getBlock` read was checked on devnet, but no demo scenario produced a same-slot tie, so the tie-break is tested on the simulated chain only.
+- Scenario 12 of run 1 settled two payments in the same slot (512887669: `3HpUJSUT…` and `4ezptd8k…`), but no dispute was filed on them, so the tie-break was tested on the simulated chain only.
 - A Token-2022 grant on chain: vector only.
 - `/dispute` is open to anyone; a principal-signed dispute is Phase 2. A provisional verdict can be wrong until a receipt is filed.
 - The period budget is enforced by the agent and attributed by the resolver. It is not enforced on chain; only `total_cap` is.

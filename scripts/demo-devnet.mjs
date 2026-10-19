@@ -236,6 +236,17 @@ async function s12() {
   const st = (await ctx.rpc.call('getSignatureStatuses', [sigs, { searchTransactionHistory: true }])).value;
   expect('all three are confirmed on chain without error', st.map((x) => [x?.confirmationStatus === 'confirmed' || x?.confirmationStatus === 'finalized', x?.err ?? null]), sigs.map(() => [true, null]));
   expect('the principal paid exactly 0.03 USDC (3 x 0.01)', String(before - (await usdc(ctx, keys.principal.address))), '30000');
+  // Phase 1.3: dispute each of the three payments. If two of them sit in the same slot, the resolver must read the block to order them.
+  const slots = []; for (const sg of sigs) slots.push((await ctx.rpc.getTransaction(sg)).slot);
+  step(`slots of the three payments: ${slots.join(', ')}`);
+  const reads = []; const orig = ctx.rpc.getBlockSignatures; ctx.rpc.getBlockSignatures = async (sl) => { reads.push(sl); return orig(sl); };
+  const verdicts = [];
+  for (const r of ok) { const v = await dispute({ tx_sig: r.value.receipt.tx_sig, mandate: g.m, grant_tx: g.grant_tx, receipt: r.value.receipt }); showVerdict(v); verdicts.push([v.reason, v.liable]); }
+  ctx.rpc.getBlockSignatures = orig;
+  expect('a dispute on each of the three settled payments is in_scope, principal', verdicts, [['in_scope', 'principal'], ['in_scope', 'principal'], ['in_scope', 'principal']]);
+  const shared = new Set(slots).size < slots.length;
+  step(`two payments in the same slot: ${shared ? 'YES' : 'no'}; getBlock read for slot(s): ${[...new Set(reads)].join(', ') || 'none'}`);
+  if (shared) expect('payments that share a slot were ordered by reading the block', reads.length > 0, true);
 }
 async function s13() {
   head(13, 'provisional verdict: the liable seller files first without the receipt; the principal\'s later dispute with the receipt replaces it and gets the refund');

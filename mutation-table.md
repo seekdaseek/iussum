@@ -1,33 +1,38 @@
-baseline: 307 tests, 307 pass, 0 fail
-checks mutated: 98, survived (vacuous): 0
+baseline: 331 tests, 331 pass, 0 fail
+checks mutated: 104, survived (vacuous): 0
 
 | check skipped | tests that fail | first failing test |
 |---|---|---|
 | `agent.attach_mandate` | 15 | an in-scope payment goes through, attaches extensions.iussum.info, and is recorded in the ledger |
+| `agent.blockhash_valid` | 4 | B5 held stays held while the blockhash can still land (the chain says it is still valid) |
 | `agent.decimals` | 1 | F11: the agent builds TransferChecked with the mint's decimals (9), not a constant 6 |
 | `agent.destination_ata` | 1 | S6 even without local checks the agent signs the associated token account of payTo, not the destination the 402 names |
 | `agent.destination_mismatch` | 1 | S6 a requirement whose destination is not the associated token account of payTo is refused locally (destination_mismatch) and never signed |
 | `agent.grant` | 2 | refuses locally: grant revoked (grant_inactive) |
 | `agent.history_complete` | 2 | F7: if the ledger cannot be rebuilt completely the agent refuses to pay (history_incomplete) |
-| `agent.hold_until_proven` | 3 | B5 a payment that settled but whose response was lost still counts: the next one is refused locally |
+| `agent.history_to_grant` | 1 | N1 an honest agent restarted in period 1 after 150 in-scope payments in period 0 still pays |
+| `agent.hold_until_proven` | 4 | B5 a payment that settled but whose response was lost still counts: the next one is refused locally |
 | `agent.landed_consumed` | 1 | B5 held becomes consumed (still counted) when the chain shows the lost payment landed |
-| `agent.ledger` | 4 | refuses locally: its own running period spend would cross period_budget (second payment) |
-| `agent.ledger_rebuild` | 3 | F7: a restarted agent rebuilds its ledger from chain and refuses the payment that would cross the period budget |
-| `agent.period` | 7 | refuses locally: its own running period spend would cross period_budget (second payment) |
+| `agent.ledger` | 5 | refuses locally: its own running period spend would cross period_budget (second payment) |
+| `agent.ledger_rebuild` | 4 | F7: a restarted agent rebuilds its ledger from chain and refuses the payment that would cross the period budget |
+| `agent.own_blockhash` | 1 | property I4: the agent never settles more than period_budget under concurrency, lost responses, seller blockhash fields and restarts (60 seeds) |
+| `agent.period` | 10 | refuses locally: its own running period spend would cross period_budget (second payment) |
 | `agent.rebuild_allowance` | 1 | C1 the agent's ledger rebuild uses the same check: a restarted agent whose history misses a debit refuses to pay (history_incomplete) |
 | `agent.release_on_expiry` | 1 | B5 held is released when the blockhash has expired and no transaction with the agent's signature is on chain |
 | `agent.release_uncreated` | 1 | B5 a payment that was never created (signing failed) releases its reservation: the next payment goes through |
 | `agent.requested_url` | 1 | review 1: a seller that OMITS resource.url does not stop an in-scope payment: the agent judges the URL it requested |
 | `agent.requested_url_present` | 1 | review 1: a payment that was not created through agent.fetch has no requested URL and is refused (resource_mismatch) |
-| `agent.reserve_atomic` | 1 | B5 five concurrent payments against a budget that fits three: exactly three settle, two are refused locally with period_over_budget |
-| `agent.reserve_held` | 3 | B5 five concurrent payments against a budget that fits three: exactly three settle, two are refused locally with period_over_budget |
+| `agent.reserve_atomic` | 2 | B5 five concurrent payments against a budget that fits three: exactly three settle, two are refused locally with period_over_budget |
+| `agent.reserve_held` | 6 | B5 five concurrent payments against a budget that fits three: exactly three settle, two are refused locally with period_over_budget |
 | `agent.resource_mismatch` | 1 | F8: a seller that DECLARES an allowed resource.url while the agent asked for another URL is refused as resource_mismatch |
 | `agent.scope` | 7 | refuses locally: amount over per_payment_max |
 | `agent.tx_guard` | 1 | payer path guard: a signer that changes the amount is rejected, ComputeBudget-only changes are not required |
 | `agent_mismatch` | 2 | scope: payer is not the agent |
 | `allowance.crosscheck` | 4 | allowanceCheck: debits since the grant add up to total_cap minus what is still delegated; counts only entries up to the read slot |
-| `amount_over_cap` | 12 | refuses locally: amount over per_payment_max |
+| `amount_over_cap` | 14 | refuses locally: amount over per_payment_max |
 | `asset_mismatch` | 3 | scope: asset differs |
+| `chain.missing_balance_zero` | 3 | N5 the principal later empties and closes the account: the earlier out-of-scope payment is still pay_to_not_allowed, agent operator |
+| `chain.self_transfer` | 7 | N3 after one agent self-transfer (transferChecked) an in-scope P1 and an out-of-scope P2 are still judged |
 | `grant.active_amount` | 1 | grant active: delegated amount 0 |
 | `grant.active_delegate` | 2 | grant active: delegate replaced after the grant |
 | `grant.active_owner_mint` | 1 | grant active: account of another owner |
@@ -54,24 +59,26 @@ checks mutated: 98, survived (vacuous): 0
 | `mandate_expired` | 5 | refuses locally: mandate expired |
 | `mandate_not_yet_valid` | 3 | refuses locally: mandate not yet valid |
 | `network_mismatch` | 2 | scope: network differs |
-| `pay_to_not_allowed` | 23 | R2: out of scope with the mandate presented: seller liable, refund paid to the principal for the full amount |
-| `period_over_budget` | 13 | period overrun across two sellers: the crossing payment is the agent operator's, and no seller refund is paid |
+| `pay_to_not_allowed` | 30 | R2: out of scope with the mandate presented: seller liable, refund paid to the principal for the full amount |
+| `period_over_budget` | 15 | period overrun across two sellers: the crossing payment is the agent operator's, and no seller refund is paid |
 | `receipt.shape` | 1 | receipt: mandate_id set but grant_tx null is malformed |
 | `receipt.signature` | 3 | R4: a tampered receipt is rejected, liable null, nothing stored, and a corrected dispute can be resubmitted |
-| `resolver.after_grant` | 3 | resolve: a payment before the grant: tx_mismatch, liable null (resubmit with the mandate that was current) |
-| `resolver.agent_debit` | 3 | resolve: a payment the agent did not sign (authority is the thief) is not under this mandate: tx_mismatch, liable null (not the agent operator) |
+| `resolver.after_grant` | 4 | resolve: a payment before the grant: tx_mismatch, liable null (resubmit with the mandate that was current) |
+| `resolver.agent_debit` | 7 | resolve: a payment the agent did not sign (authority is the thief) is not under this mandate: tx_mismatch, liable null (not the agent operator) |
 | `resolver.allowance` | 3 | resolve: the debits found do not add up to the allowance that is gone: history_incomplete, liable null |
 | `resolver.chain_amount` | 2 | resolve: receipt amount differs from chain (tx_mismatch) |
 | `resolver.chain_asset` | 1 | resolve: receipt asset differs from chain mint |
 | `resolver.chain_pay_to` | 1 | resolve: receipt pay_to differs from the chain destination owner |
 | `resolver.chain_payer` | 1 | resolve: receipt payer differs from the chain authority |
-| `resolver.debit_not_x402` | 10 | resolve: two debits by the agent in one transaction cannot have gone through x402: debit_not_x402, agent operator |
-| `resolver.duplicate` | 4 | a repeat dispute returns the stored verdict as duplicate_dispute and never refunds twice |
+| `resolver.debit_not_x402` | 14 | resolve: two debits by the agent in one transaction cannot have gone through x402: debit_not_x402, agent operator |
+| `resolver.duplicate` | 5 | a repeat dispute returns the stored verdict as duplicate_dispute and never refunds twice |
+| `resolver.equivocation` | 3 | N4 the seller files first with a second receipt it signed (an in-scope resource); the principal's genuine receipt gets receipt_equivocation, seller liable, one refund |
 | `resolver.history_complete` | 4 | resolve: history not shown to be complete: history_incomplete, never in_scope |
 | `resolver.history_found` | 1 | resolve: the disputed payment is not in the history: history_incomplete |
+| `resolver.history_to_grant` | 2 | N1 150 in-scope payments in period 0, then an honest in-scope payment in period 1: in_scope, principal |
 | `resolver.mandate_mismatch` | 2 | resolve: receipt bound to a different mandate id than the dispute carries: mandate_mismatch, liable null (the disputer does not choose the mandate) |
-| `resolver.mandate_presented` | 11 | R3: out of scope with no mandate presented: agent operator liable, no refund from the seller |
-| `resolver.no_receipt_judged` | 4 | resolve: no receipt and nothing out of scope on chain: invalid, principal, resource unjudged |
+| `resolver.mandate_presented` | 18 | R3: out of scope with no mandate presented: agent operator liable, no refund from the seller |
+| `resolver.no_receipt_judged` | 8 | resolve: no receipt and nothing out of scope on chain: invalid, principal, resource unjudged |
 | `resolver.period_since_grant` | 1 | resolve: spend made before the grant (an earlier grant) is not counted against this mandate |
 | `resolver.provisional` | 2 | B4 resource outside the prefix: the seller filing first without the receipt is provisional, and the principal's later dispute with the receipt replaces it and gets the refund |
 | `resolver.provisional_needs_receipt` | 2 | B4 resource outside the prefix: the seller filing first without the receipt is provisional, and the principal's later dispute with the receipt replaces it and gets the refund |
@@ -80,20 +87,19 @@ checks mutated: 98, survived (vacuous): 0
 | `resolver.refund_decimals` | 1 | F11: the refund uses the decimals of the disputed payment (9), read from the chain |
 | `resolver.refund_pending_guard` | 1 | F9: a refund signed but not confirmed is not resent while it can still land, and is adopted if it did land |
 | `resolver.refund_retry` | 3 | F9: a refund that failed after the verdict was reserved is retried on the next dispute, once |
-| `resolver.refund_seller_only` | 9 | R2: out of scope with the mandate presented: seller liable, refund paid to the principal for the full amount |
+| `resolver.refund_seller_only` | 10 | R2: out of scope with the mandate presented: seller liable, refund paid to the principal for the full amount |
 | `resolver.replace_binds_mandate` | 1 | B4 a verifying receipt that binds NO mandate cannot replace a provisional verdict (it must bind the same mandate) |
-| `resolver.seller_visible` | 11 | period overrun across two sellers: the crossing payment is the agent operator's, and no seller refund is paid |
-| `resolver.single_transfer` | 1 | resolve: one agent debit plus another TransferChecked from a different account in the same transaction cannot be judged: tx_mismatch |
-| `resolver.superseded` | 3 | resolve: mandate superseded before the payment slot: mandate_superseded, liable null |
+| `resolver.seller_visible` | 12 | period overrun across two sellers: the crossing payment is the agent operator's, and no seller refund is paid |
+| `resolver.superseded` | 4 | resolve: mandate superseded before the payment slot: mandate_superseded, liable null |
 | `resource.https_only` | 2 | S8 http://example.com/ is refused |
 | `resource.no_userinfo` | 1 | resource: credentials in the URL are refused even when the host matches |
 | `resource.origin_exact` | 9 | resource: host-only prefix does not match api.x.com.evil.io |
 | `resource.path_boundary` | 8 | refuses locally: resource outside the prefix |
-| `resource_not_allowed` | 14 | refuses locally: resource outside the prefix |
+| `resource_not_allowed` | 18 | refuses locally: resource outside the prefix |
 | `seller.enforce` | 15 | enforce: amount over per_payment_max answers 403 and nothing settles |
 | `seller.mandate_invalid` | 1 | enforce: an invalid mandate document is refused |
 | `seller.observe_passes` | 3 | observe: an out-of-scope payment settles, and the receipt still records what was presented |
-| `seller.off_skips` | 4 | a naive agent (localChecks off) sends the payment anyway |
+| `seller.off_skips` | 5 | a naive agent (localChecks off) sends the payment anyway |
 | `seller.origin_required` | 1 | F5: createSellerGate refuses to start without a canonical origin |
 | `seller.payment_source` | 1 | F6: a payment from another token account than the grant's source is grant_mismatch in enforce |
 | `seller.payment_unreadable` | 1 | enforce: an unreadable payment transaction is refused before x402 sees it |
