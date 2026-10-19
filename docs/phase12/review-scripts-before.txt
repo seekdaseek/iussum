@@ -1,0 +1,33 @@
+### d1-history.mjs
+control          | P2 (true spend 110000 > budget 100000): period_over_budget/agent_operator | dispute of H itself: in_scope/principal stored=2
+transfer         | P2 (true spend 110000 > budget 100000): in_scope/principal | dispute of H itself: tx_mismatch/null stored=1
+burnChecked      | P2 (true spend 110000 > budget 100000): in_scope/principal | dispute of H itself: tx_mismatch/null stored=1
+cpi              | P2 (true spend 110000 > budget 100000): in_scope/principal | dispute of H itself: tx_mismatch/null stored=1
+twoTransfers     | P2 (true spend 110000 > budget 100000): period_over_budget/agent_operator | dispute of H itself: tx_mismatch/null stored=1
+unreadable       | P2 (true spend 110000 > budget 100000): in_scope/principal | dispute of H itself: tx_not_found/null stored=1
+sameSlotAsGrant  | P2 (true spend 110000 > budget 100000): in_scope/principal | dispute of H itself: history_incomplete/null stored=1
+### d2-agent-mismatch.mjs
+principal pays 100 slots BEFORE the grant: verdict=valid reason=pay_to_not_allowed liable=agent_operator codes=agent_mismatch,pay_to_not_allowed stored=1
+principal pays after the grant: verdict=valid reason=pay_to_not_allowed liable=agent_operator codes=agent_mismatch,pay_to_not_allowed stored=1
+### d3-lockin.mjs
+resource outside prefix (seller-visible only via receipt)
+  receipt filed first : resource_not_allowed/seller refunds=1
+  seller files first  : in_scope/principal; principal then: duplicate_dispute (orig in_scope)/principal refunds=0
+amount over per_payment_max
+  receipt filed first : amount_over_cap/seller refunds=1
+  seller files first  : amount_over_cap/agent_operator; principal then: duplicate_dispute (orig amount_over_cap)/agent_operator refunds=0
+### d4-agent.mjs
+(a) 5 concurrent fetches, 10000 each, period_budget 30000: 200,200,200,200,200 | settled=5 (=50000) | ledger entries=5
+    next sequential fetch: period_over_budget | settled total=50000
+(b) budget 30000, price 20000; 1st response lost after settle: fetch failed: socket hang up; ledger=1; 2nd: 200 | settled total=40000
+(c) declared payTo=sellerA (allowed); agent result=402; signed TransferChecked destination=thief's ATA (sellerA ATA would be GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps)
+### d5-agent-pending.mjs
+A=200 B=200: settled=20000, ledger=10000
+then 3 sequential fetches: 200,200,period_over_budget -> settled total=40000 vs period_budget 30000
+(b) 1st: "fetch failed: socket hang up" (settled=20000, ledger entries=0); 2nd: 200 -> settled total=40000 vs period_budget 30000
+### d6-supersede-unreadable.mjs
+seller/agent grant check of superseded M1: G2 unreadable -> ok=true; same checker after RPC recovers -> ok=true; fresh checker -> ok=false (superseded by G2xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+resolver, P (40000) judged with superseded M1 while G2 unreadable: in_scope/principal stored=1; later dispute under the real M2: duplicate_dispute (orig in_scope)/principal
+### d7-sameslot-order.mjs
+A (executed 1st, 20000): spent 110000 over=true -> agent_operator
+B (executed 2nd, 90000): spent 90000 over=false -> principal

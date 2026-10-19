@@ -26,12 +26,16 @@ export function grantTx(m, o = {}) {
   const keys = [key(principal, true, true), key(SRC, false, true), key(info.delegate), key(info.mint), ...(o.signers ?? []).map((p) => key(p, true, false))];
   return { slot: 1000, blockTime: T0 + 10, meta: { err: o.err ?? null }, transaction: { message: { accountKeys: keys, instructions: ixs, ...(o.lookup ? { addressTableLookups: [{ accountKey: A.thief, readonlyIndexes: [], writableIndexes: [] }] } : {}) } } };
 }
+// pre/post token balances as a real getTransaction returns them (uiTokenAmount.amount), so the movement can be reconciled
+const START = 5_000_000n;
+const bal = (accountIndex, mint, owner, amount) => ({ accountIndex, mint, owner, uiTokenAmount: { amount: String(amount), decimals: 6 } });
 export function payTx(o = {}) {
   const payTo = o.payTo ?? A.sellerA, mint = o.mint ?? A.asset, authority = o.authority ?? A.agent;
   const dest = o.dest ?? DEST[payTo];
+  const moved = o.moved !== undefined ? BigInt(o.moved) : o.noTransfer ? 0n : BigInt(o.amount ?? '10000') * (o.twoTransfers ? 2n : 1n);
   const keys = [key('2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4', true, true), key(authority, true), key(o.source ?? SRC, false, true), key(dest, false, true), key(mint)];
   const tc = { programId: TOKEN_PROGRAM_ADDRESS, program: 'spl-token', parsed: { type: 'transferChecked', info: { authority, destination: dest, mint, source: o.source ?? SRC, tokenAmount: { amount: o.amount ?? '10000', decimals: o.decimals ?? 6, uiAmount: 0, uiAmountString: '0' } } } };
-  return { slot: o.slot ?? 2000, blockTime: o.blockTime === undefined ? T0 + 100 : o.blockTime, meta: { err: o.err ?? null, postTokenBalances: [{ accountIndex: 2, mint, owner: A.principal }, { accountIndex: 3, mint, owner: payTo }] }, transaction: { message: { accountKeys: keys, instructions: [{ programId: COMPUTE_BUDGET, accounts: [], data: 'x' }, { programId: COMPUTE_BUDGET, accounts: [], data: 'y' }, ...(o.noTransfer ? [] : [tc]), ...(o.twoTransfers ? [tc] : [])] } } };
+  return { slot: o.slot ?? 2000, blockTime: o.blockTime === undefined ? T0 + 100 : o.blockTime, meta: { err: o.err ?? null, preTokenBalances: [bal(2, mint, A.principal, START), bal(3, mint, payTo, 0n)], postTokenBalances: [bal(2, mint, A.principal, START - moved), bal(3, mint, payTo, moved)] }, transaction: { message: { accountKeys: keys, instructions: [{ programId: COMPUTE_BUDGET, accounts: [], data: 'x' }, { programId: COMPUTE_BUDGET, accounts: [], data: 'y' }, ...(o.noTransfer ? [] : [tc]), ...(o.twoTransfers ? [tc] : [])] } } };
 }
 export const SIG = (c) => c.repeat(88);
 export function receipt(o = {}) {
