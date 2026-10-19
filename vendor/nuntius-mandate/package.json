@@ -1,0 +1,10 @@
+{
+  "name": "iussum-vendor-nuntius-mandate",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Copy of nuntius server/src mandate-chain.ts and its localnet test, closure only. Source of truth stays in /Volumes/D/nuntius (read-only).",
+  "scripts": { "test:localnet": "export LOCALNET_RPC=${LOCALNET_RPC:-http://127.0.0.1:8899}; tsc && node --test --test-reporter=spec \"dist/**/*.test.js\"" },
+  "dependencies": { "@solana-program/system": "0.13.0", "@solana-program/token": "0.15.0", "@solana/kit": "7.1.1", "@solana/subscriptions": "0.5.0" },
+  "devDependencies": { "@types/node": "26.5.0", "typescript": "5.9.3" }
+}

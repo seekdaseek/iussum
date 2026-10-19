@@ -1,0 +1,11 @@
+.secrets/
+node_modules/
+dist/
+build/
+.gradle/
+.cxx/
+local.properties
+*.keystore
+.env*
+*.apk
+/vendor/*/dist/

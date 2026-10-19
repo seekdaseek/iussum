@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "iussum probe",
+    "slug": "iussum-probe",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": { "package": "app.ochinimus.iussumprobe", "versionCode": 1 }
+  }
+}

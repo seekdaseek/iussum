@@ -1,0 +1,167 @@
+{
+ "at": "2026-10-19T12:59:22.524Z",
+ "rpc": "localnet",
+ "x402svm": "2.28.0",
+ "results": [
+  {
+   "step": "a0 delegate before",
+   "expect": "none",
+   "got": {
+    "delegate": null,
+    "delegatedAmount": null
+   }
+  },
+  {
+   "step": "a1 ApproveChecked 1.000000 to agent",
+   "expect": "landed",
+   "got": "ok",
+   "sig": "3bFfV6eNXpdj8uiGaduZ6G4W1bVVoVYJb1sRFKR9qUj4RtCjoa95sEDK4pME9kmXijez7hzRZSSzdmczQYtLiCSL"
+  },
+  {
+   "step": "a1 delegate after",
+   "expect": "agent / 1000000",
+   "got": {
+    "delegate": "Dx5z1AixUSpUYNHXYypkmGLTQmeK51Rt2nVANyALRp6E",
+    "delegatedAmount": "1000000"
+   }
+  },
+  {
+   "step": "a2 facilitator verify: delegate-signed TransferChecked in cap",
+   "expect": "isValid true, payer=agent",
+   "got": {
+    "isValid": true,
+    "payer": "Dx5z1AixUSpUYNHXYypkmGLTQmeK51Rt2nVANyALRp6E",
+    "payerIsAgent": true
+   }
+  },
+  {
+   "step": "a3 facilitator settle",
+   "expect": "success",
+   "got": {
+    "success": true,
+    "transaction": "3UqvbHsUPvRqRLZrHENFoMBCE998ATgc7ARyKPJFYgmPdcCK6BPmBiY7FmqW2rQrZrgRG4yFfHWn2JUL7pygqTS5",
+    "payer": "Dx5z1AixUSpUYNHXYypkmGLTQmeK51Rt2nVANyALRp6E"
+   }
+  },
+  {
+   "step": "a3 seller balance",
+   "expect": "10000",
+   "got": "10000"
+  },
+  {
+   "step": "a4 facilitator verify: over the approved cap (2.0 vs 0.99)",
+   "expect": "isValid false",
+   "got": {
+    "isValid": false,
+    "invalidReason": "invalid_exact_svm_transaction_simulation_failed"
+   }
+  },
+  {
+   "step": "a5 Revoke",
+   "expect": "landed",
+   "got": "ok",
+   "sig": "2AY6kJu7dJVa2YA3BY8Jm1FY9XDDRJcPqwHATxv55C8GrLrTh1ShiB8sYSyhJKwAhQTUBp86nuWi6JrLeZB2MNhU"
+  },
+  {
+   "step": "a6 facilitator verify after revoke",
+   "expect": "isValid false",
+   "got": {
+    "isValid": false,
+    "invalidReason": "invalid_exact_svm_transaction_simulation_failed"
+   }
+  },
+  {
+   "step": "c0 agent is SPL delegate again",
+   "expect": "agent / 1000000",
+   "got": {
+    "delegate": "Dx5z1AixUSpUYNHXYypkmGLTQmeK51Rt2nVANyALRp6E",
+    "delegatedAmount": "1000000"
+   }
+  },
+  {
+   "step": "c1 Subscriptions grant (init authority + recurring delegation) signed by owner",
+   "expect": "landed",
+   "got": "ok",
+   "sig": "3AWiLfo76ztNSCtUxpqHnkBF6fEj5VwbBSiaTeEQhgoboMSu947WTVvwpWNNRUsVpfWaC5YnbrAUVGUEK7Jk89Y2"
+  },
+  {
+   "step": "c2 SPL delegate after Subscriptions grant",
+   "expect": "authority PDA, NOT agent",
+   "got": {
+    "delegate": "8Mp3EzhqUcDwQxiURRuaYtNjvhj7yB1GYJ4FPihkEude",
+    "delegatedAmount": "12000000",
+    "authorityPda": "8Mp3EzhqUcDwQxiURRuaYtNjvhj7yB1GYJ4FPihkEude",
+    "agentWasDisplaced": true
+   }
+  },
+  {
+   "step": "c3 facilitator verify: agent SPL-delegate transfer after displacement",
+   "expect": "isValid false",
+   "got": {
+    "isValid": false,
+    "invalidReason": "invalid_exact_svm_transaction_simulation_failed"
+   }
+  },
+  {
+   "step": "b1 default options (smart-wallet path off): verify",
+   "expect": "see got",
+   "got": {
+    "isValid": false,
+    "invalidReason": "invalid_exact_svm_payload_no_transfer_instruction",
+    "payer": "",
+    "payerIsAgent": false
+   }
+  },
+  {
+   "step": "b2 enableSmartWalletVerification, default allowed programs: verify",
+   "expect": "see got",
+   "got": {
+    "isValid": false,
+    "invalidReason": "invalid_exact_svm_smart_wallet_program_not_allowed: De1egAFMkMWZSN5rYXRj9CAdheBamobVNubTsi9avR44",
+    "payer": "",
+    "payerIsAgent": false
+   }
+  },
+  {
+   "step": "b3 enableSmartWalletVerification + De1egAFM added to smartWalletAllowedPrograms: verify",
+   "expect": "see got",
+   "got": {
+    "isValid": true,
+    "payer": "8Mp3EzhqUcDwQxiURRuaYtNjvhj7yB1GYJ4FPihkEude",
+    "payerIsAgent": false
+   }
+  },
+  {
+   "step": "b4 settle with De1egAFM allow-listed",
+   "expect": "see got",
+   "got": {
+    "success": true,
+    "transaction": "3D2A8AxXK2E4iHKUKz7q6HE2ohmBF51EUfjkUVe2xPPtYHBfg6PvjNAC7G7jrVsCps8LfRGPWJTKdBLMmhXJbEqr",
+    "payer": "8Mp3EzhqUcDwQxiURRuaYtNjvhj7yB1GYJ4FPihkEude",
+    "sellerDelta": "10000"
+   }
+  },
+  {
+   "step": "d1 ApproveChecked(agent) after Subscriptions grant",
+   "expect": "landed",
+   "got": "ok",
+   "sig": "3h5gs6xykYMA92Medx9TEXk6RfXoeCaH6tQz4pkRZoabMjKCjrPQrYr3DsAoApUdBtaDJyU3E3EYKAzSEs2ddQrr"
+  },
+  {
+   "step": "d2 SPL delegate now",
+   "expect": "agent (authority PDA displaced)",
+   "got": {
+    "delegate": "Dx5z1AixUSpUYNHXYypkmGLTQmeK51Rt2nVANyALRp6E",
+    "delegatedAmount": "1000000"
+   }
+  },
+  {
+   "step": "d3 Subscriptions pull verify after the displacement (allow-listed facilitator)",
+   "expect": "isValid false",
+   "got": {
+    "isValid": false,
+    "invalidReason": "invalid_exact_svm_smart_wallet_simulation_failed: Smart wallet simulation failed: {\"InstructionError\":[\"2\",{\"Custom\":\"4\"}]}"
+   }
+  }
+ ]
+}
