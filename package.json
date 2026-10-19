@@ -2,6 +2,7 @@
   "name": "iussum",
   "version": "0.2.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "Authority for agent payments: a signed grant, a seller check, a resolver that assigns liability from the artifacts.",
   "workspaces": [
