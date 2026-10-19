@@ -6,3 +6,4 @@ export * from './grant.js';
 export * from './receipt.js';
 export * from './chain.js';
 export * from './resolver.js';
+export * from './resource.js';

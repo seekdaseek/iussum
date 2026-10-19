@@ -17,7 +17,7 @@ export function decodePayment(base64Tx) {
     const d = ix.data;
     if (!d || d[0] !== 12 || d.length < 10) continue; // TransferChecked
     const idx = ix.accountIndices;
-    transfers.push({ source: accounts[idx[0]], mint: accounts[idx[1]], destination: accounts[idx[2]], authority: accounts[idx[3]], amount: new DataView(d.buffer, d.byteOffset, d.byteLength).getBigUint64(1, true).toString() });
+    transfers.push({ source: accounts[idx[0]], mint: accounts[idx[1]], destination: accounts[idx[2]], authority: accounts[idx[3]], amount: new DataView(d.buffer, d.byteOffset, d.byteLength).getBigUint64(1, true).toString(), decimals: d[9] });
   }
   if (transfers.length !== 1) throw new Error(`expected exactly one TransferChecked, found ${transfers.length}`);
   return transfers[0];

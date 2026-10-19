@@ -13,7 +13,7 @@ import { summaryLine, mandateId } from './mandate.js';
 
 export const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export const MEMO_V2 = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
-export const GRANT_CHECKS = ['grant.tx_err', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint'].map(registerCheck);
+export const GRANT_CHECKS = ['grant.tx_err', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.scan_failed'].map(registerCheck);
 
 export async function principalAta(principal, asset) {
   const [ata] = await findAssociatedTokenPda({ mint: asset, owner: principal, tokenProgram: TOKEN_PROGRAM_ADDRESS });
@@ -60,10 +60,50 @@ export function inspectGrantActive(account, mandate) {
   return { ok: true, delegated: info.delegatedAmount.amount };
 }
 
+// A grant is current only if nothing after it changed the delegation of its source account (Addendum C, fix 1). Instructions that change the
+// delegate or the account: Approve, ApproveChecked, Revoke, SetAuthority, CloseAccount. The agent's own TransferChecked payments do not count.
+export const SUPERSEDING = new Set(['approve', 'approveChecked', 'revoke', 'setAuthority', 'closeAccount']);
+export function supersedes(tx, source) {
+  if (!tx || tx.meta?.err) return false;
+  for (const ix of tx.transaction?.message?.instructions ?? []) {
+    if (ix.programId !== TOKEN_PROGRAM_ADDRESS || !SUPERSEDING.has(ix.parsed?.type)) continue;
+    const i = ix.parsed.info ?? {};
+    if (i.source === source || i.account === source) return true;
+  }
+  return false;
+}
+// Scan the signatures of `source` that are newer than `since` (exclusive), paginating with `before` until the page is not full. Returns the
+// newest signature seen and the EARLIEST superseding transaction, or throws if a page cannot be read (the caller fails closed).
+export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPages = 1000 } = {}) {
+  let before, newest = null, earliest = null;
+  for (let pages = 0; ; pages++) {
+    if (pages >= maxPages) throw new Error('too many pages to scan');
+    const page = await rpc.getSignaturesForAddress(source, { until: since, ...(before ? { before } : {}), limit: pageSize });
+    if (pages === 0 && page.length) newest = page[0].signature;
+    for (const e of page) {
+      if (e.err) continue;
+      const tx = await rpc.getTransaction(e.signature);
+      if (supersedes(tx, source) && (!earliest || tx.slot < earliest.slot || (tx.slot === earliest.slot && e.signature < earliest.sig))) earliest = { sig: e.signature, slot: tx.slot };
+    }
+    if (page.length < pageSize) return { newest, superseded: earliest };
+    before = page[page.length - 1].signature;
+  }
+}
+
 // rpc = { getTransaction(sig), getAccountInfoParsed(addr) }. The immutable part is cached by (grant_tx, mandate id).
 export function createGrantChecker(rpc) {
   const cache = new Map();
+  const scans = new Map(); // `${source}:${grantTx}` -> { since, superseded }: later calls only scan what is newer than the last scan
+  async function supersededBy(source, grantTx) {
+    const k = `${source}:${grantTx}`;
+    const st = scans.get(k) ?? { since: grantTx, superseded: null };
+    if (st.superseded) return st.superseded;
+    const r = await scanSupersede(rpc, source, st.since);
+    scans.set(k, { since: r.newest ?? st.since, superseded: r.superseded });
+    return r.superseded;
+  }
   return {
+    supersededBy,
     async check(mandate, grantTx, { active = true } = {}) {
       if (typeof grantTx !== 'string' || grantTx.length < 80) return bad(R.grant_not_found, 'no grant_tx');
       const key = `${grantTx}:${mandateId(mandate)}`;
@@ -71,7 +111,12 @@ export function createGrantChecker(rpc) {
       if (!s) { s = await inspectGrantTx(await rpc.getTransaction(grantTx), mandate); if (s.ok || s.reason === R.grant_mismatch) cache.set(key, s); }
       if (!s.ok || !active) return s;
       const live = inspectGrantActive(await rpc.getAccountInfoParsed(s.source), mandate);
-      return live.ok ? { ...s, ...live } : live;
+      if (!live.ok) return live;
+      let sup;
+      try { sup = await supersededBy(s.source, grantTx); }
+      catch (e) { return fails('grant.scan_failed', true) ? bad(R.grant_inactive, `could not verify the grant is current: ${e.message}`) : { ...s, ...live }; }
+      if (fails('grant.superseded', sup)) return bad(R.grant_inactive, `superseded by ${sup.sig}`);
+      return { ...s, ...live };
     },
   };
 }

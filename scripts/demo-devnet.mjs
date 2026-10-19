@@ -141,7 +141,7 @@ async function s6() {
   try { await (await agentFor(g)).fetch(sellers.A.url()); expect('diligent agent refuses', 'paid', 'refused'); } catch (e) { expect('a diligent agent refuses locally too', [e instanceof IussumRefusal, e.reason], [true, 'grant_inactive']); }
 }
 async function s7() {
-  head(7, 'CONTROL: payer-side caps only, no seller check. Same wallet, same on-chain cap.');
+  head(7, 'CONTROL: payer-side caps only, no seller check: the chain alone decides, the seller is not liable, the resource is unjudged');
   const g = await newMandate({}, ['A']);
   sellers.C.gate.setMode('off');
   const res = await (await agentFor(g, { localChecks: 'caps' })).fetch(sellers.C.url());
@@ -151,8 +151,8 @@ async function s7() {
   const tx = JSON.parse(Buffer.from(pr, 'base64').toString()).transaction;
   step(`payment tx ${tx} (no receipt exists: the seller signed nothing)`);
   const v = await dispute({ tx_sig: tx, mandate: g.m, grant_tx: g.grant_tx, receipt: null }); showVerdict(v);
-  expect('the resolver cannot assign liability', [v.verdict, v.reason, v.liable], ['invalid', 'receipt_missing', null]);
-  step('what is missing, exactly: the seller receipt, i.e. any signed proof of what the seller was shown. The on-chain cap bounds the loss (<= 1.00 USDC) but nobody can show whether the seller saw the limits, so no one can be held liable.');
+  expect('the chain alone proves the payer went outside the mandate: agent operator liable (R3), resource unjudged', [v.verdict, v.reason, v.liable, v.unjudged, v.refund_tx ?? null], ['valid', 'pay_to_not_allowed', 'agent_operator', ['resource'], null]);
+  step('what the control cannot do: hold the SELLER liable. It signed nothing, so nobody can show it was shown the limits (no refund from it), and what it was asked for (the resource) is not on chain. The on-chain cap (<= 1.00 USDC) bounds the loss; the agent operator pays.');
   sellers.C.gate.setMode('observe');
 }
 async function s8() {
@@ -181,7 +181,27 @@ async function s9() {
   catch (e) { expect('9b: the agent refuses the payment that would cross the budget, before signing', [e instanceof IussumRefusal, e.reason], [true, 'period_over_budget']); }
 }
 
-const scenarios = [s1, s2, s3, s4, s5, s6, s7, s8, s9];
+async function s10() {
+  head(10, 'a narrower re-grant supersedes the old mandate: the old one is refused, the seller cannot pick it in a dispute');
+  const g1 = await newMandate({}, ['A', 'C']);                                   // M1: broad, allows seller C
+  const g2 = await newMandate({ total_cap: '500000', per_payment_max: '20000' }, ['A']); // M2: narrower, same agent; this ApproveChecked replaces M1's
+  const stale = await (await agentFor(g1, { localChecks: false })).fetch(sellers.A.url());
+  const body = await stale.json();
+  step(`agent still carrying M1 at seller A (enforce): HTTP ${stale.status} ${body.reason}: ${body.delta?.[0]?.actual}`);
+  expect('M1 is no longer current', [stale.status, body.reason, /^superseded by /.test(body.delta?.[0]?.actual ?? '')], [403, 'grant_inactive', true]);
+  const ok = await (await agentFor(g2, { localChecks: false })).fetch(sellers.A.url());
+  expect('M2 (current) is accepted at seller A', ok.status, 200);
+  const paid = await (await agentFor(g2, { localChecks: false })).fetch(sellers.C.url());
+  expect('observe-mode seller C settles an out-of-scope payment under M2 (C saw M2)', [paid.status, paid.receipt.mandate_id === mandateId(g2.m)], [200, true]);
+  const r = paid.receipt;
+  step(`payment tx ${r.tx_sig}`);
+  const mine = await dispute({ tx_sig: r.tx_sig, mandate: g1.m, grant_tx: g1.grant_tx, receipt: r }); showVerdict(mine);
+  expect('a dispute carrying the OLDER, broader mandate M1 is rejected (the disputer does not choose the mandate)', [mine.reason, mine.liable], ['mandate_mismatch', null]);
+  const good = await dispute({ tx_sig: r.tx_sig, mandate: g2.m, grant_tx: g2.grant_tx, receipt: r }); showVerdict(good);
+  expect('the principal\'s dispute with M2 is judged, not a duplicate: seller C liable, refunded', [good.verdict, good.reason, good.liable, !!good.refund_tx], ['valid', 'pay_to_not_allowed', 'seller', true]);
+}
+
+const scenarios = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10];
 for (const f of scenarios) { try { await f(); } catch (e) { results.push({ scenario: current, label: 'scenario threw', ok: false, actual: String(e.stack ?? e) }); say(`    FAIL scenario threw: ${e.stack ?? e}`); } }
 say('\n=== Summary');
 for (const sc of [...new Set(results.map((r) => r.scenario))]) { const rs = results.filter((r) => r.scenario === sc); say(`${rs.every((r) => r.ok) ? 'PASS' : 'FAIL'}  ${sc}  (${rs.filter((r) => r.ok).length}/${rs.length} checks)`); }

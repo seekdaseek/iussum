@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { canonicalize, mandateId, summaryLine, validateMandate, scopeViolations, inspectGrantTx, inspectGrantActive, verifyReceipt, resolve, parsePayment } from '@iussum/core';
+import { resourceAllowed, canonicalize, mandateId, summaryLine, validateMandate, scopeViolations, inspectGrantTx, inspectGrantActive, verifyReceipt, resolve, parsePayment } from '@iussum/core';
 
 const DIR = new URL('../../../test/vectors/', import.meta.url);
 const load = (n) => JSON.parse(fs.readFileSync(new URL(`${n}.json`, DIR), 'utf8'));
@@ -24,6 +24,7 @@ function checkResolve(v, got) {
   if (x.deltaCodes) assert.deepEqual(got.delta.map((d) => d.code).sort(), [...x.deltaCodes].sort());
   if (x.deltaFields) assert.deepEqual(got.delta.map((d) => d.field).sort(), [...x.deltaFields].sort());
   if (x.missing) assert.deepEqual(got.missing, x.missing);
+  if (x.unjudged) assert.deepEqual(got.unjudged, x.unjudged); else assert.equal(got.unjudged, undefined, 'nothing is unjudged when the receipt and the block time exist');
 }
 
 for (const v of load('jcs')) test(`jcs: ${v.name}`, () => assert.equal(canonicalize(v.input), v.expect));
@@ -32,6 +33,7 @@ for (const v of load('mandate')) test(`mandate: ${v.name}`, () => {
   else if (v.kind === 'summary') { const s = summaryLine(v.input); assert.equal(s, v.expect); assert.match(s, / id [0-9a-f]{64}$/); assert.ok(s.endsWith(mandateId(v.input))); }
   else assert.deepEqual(validateMandate(v.input), v.expect);
 });
+for (const v of load('resource')) test(`resource: ${v.name}`, () => assert.equal(resourceAllowed(v.input.prefixes, v.input.resource), v.expect));
 for (const v of load('scope')) test(`scope: ${v.name}`, () => assert.deepEqual(scopeViolations(v.input.mandate, v.input.payment).map((d) => d.code), v.expect));
 for (const v of load('grant')) test(`grant: ${v.name}`, async () => {
   const r = await inspectGrantTx(v.input.tx, v.input.mandate);

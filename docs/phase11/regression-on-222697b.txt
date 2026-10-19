@@ -1,0 +1,350 @@
+✖ F1: after M2 is granted, M1 (broader, older) fails the grant check with superseded by <sig> (8.590333ms)
+✔ F1: the agent's own payments after the grant do not supersede it (2.257083ms)
+✖ F1: a later approve on the source account supersedes the grant (1.89025ms)
+✖ F1: a later approveChecked on the source account supersedes the grant (1.724625ms)
+✖ F1: a later revoke on the source account supersedes the grant (1.492791ms)
+✖ F1: a later setAuthority on the source account supersedes the grant (1.513875ms)
+✖ F1: a later closeAccount on the source account supersedes the grant (1.606791ms)
+✖ F1: the superseding instruction is found when it is more than one page behind the newest signature (3.0405ms)
+✖ F1: the resolver rejects a mandate superseded before the payment slot as mandate_superseded, liable null, not stored (8.85ms)
+✔ F1: a payment made BEFORE the supersession is still judged under the mandate that was current then (3.679959ms)
+✖ F2: the payment that crosses the budget is period_over_budget even when 160 newer payments follow it (18.827084ms)
+✔ F2: payment 100 (exactly at the budget) is still in scope (6.58875ms)
+✖ F2: a disputed payment that is not in the history window yields history_incomplete, liable null, not stored (never in_scope) (5.013333ms)
+✖ F2: if a history page cannot be read, completeness cannot be shown: history_incomplete, liable null, not stored, resubmittable (6.095541ms)
+✖ F3: no receipt, pay_to outside the mandate: valid, agent_operator, resource unjudged (12.025167ms)
+✖ F3: no receipt, amount over the cap: valid, agent_operator (3.483834ms)
+✖ F3: no receipt, nothing the chain can prove is wrong: invalid, principal, resource unjudged (2.821333ms)
+✖ F3: no receipt and no mandate is still mandate_missing, liable null (0.841375ms)
+✖ F4: a seller files first with the older broader mandate: mandate_mismatch, not stored; the principal's own dispute is then judged, not a duplicate (14.862583ms)
+✖ F5: createSellerGate refuses to start without a canonical origin (12.764875ms)
+✖ F5: an agent that forges Host: <allowed origin> does not get an in-scope receipt (103.657083ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 3
+ℹ fail 18
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 461.730041
+
+✖ failing tests:
+
+test at test/regression/f1-superseded.test.js:22:1
+✖ F1: after M2 is granted, M1 (broader, older) fails the grant check with superseded by <sig> (8.590333ms)
+  AssertionError [ERR_ASSERTION]: M1 must not stay active
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///private/tmp/iussum-old/test/regression/f1-superseded.test.js:26:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/regression/f1-superseded.test.js:44:4
+✖ F1: a later approve on the source account supersedes the grant (1.89025ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///private/tmp/iussum-old/test/regression/f1-superseded.test.js:49:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/regression/f1-superseded.test.js:44:4
+✖ F1: a later approveChecked on the source account supersedes the grant (1.724625ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///private/tmp/iussum-old/test/regression/f1-superseded.test.js:49:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/regression/f1-superseded.test.js:44:4
+✖ F1: a later revoke on the source account supersedes the grant (1.492791ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///private/tmp/iussum-old/test/regression/f1-superseded.test.js:49:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/regression/f1-superseded.test.js:44:4
+✖ F1: a later setAuthority on the source account supersedes the grant (1.513875ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///private/tmp/iussum-old/test/regression/f1-superseded.test.js:49:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/regression/f1-superseded.test.js:44:4
+✖ F1: a later closeAccount on the source account supersedes the grant (1.606791ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///private/tmp/iussum-old/test/regression/f1-superseded.test.js:49:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/regression/f1-superseded.test.js:51:1
+✖ F1: the superseding instruction is found when it is more than one page behind the newest signature (3.0405ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///private/tmp/iussum-old/test/regression/f1-superseded.test.js:57:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/regression/f1-superseded.test.js:59:1
+✖ F1: the resolver rejects a mandate superseded before the payment slot as mandate_superseded, liable null, not stored (8.85ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'in_scope'
+  - 'mandate_superseded'
+  
+      at TestContext.<anonymous> (file:///private/tmp/iussum-old/test/regression/f1-superseded.test.js:66:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'in_scope',
+    expected: 'mandate_superseded',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/regression/f2-history.test.js:24:1
+✖ F2: the payment that crosses the budget is period_over_budget even when 160 newer payments follow it (18.827084ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'in_scope'
+  - 'period_over_budget'
+  
+      at TestContext.<anonymous> (file:///private/tmp/iussum-old/test/regression/f2-history.test.js:27:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'in_scope',
+    expected: 'period_over_budget',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/regression/f2-history.test.js:34:1
+✖ F2: a disputed payment that is not in the history window yields history_incomplete, liable null, not stored (never in_scope) (5.013333ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'in_scope'
+  - 'history_incomplete'
+  
+      at TestContext.<anonymous> (file:///private/tmp/iussum-old/test/regression/f2-history.test.js:37:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'in_scope',
+    expected: 'history_incomplete',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/regression/f2-history.test.js:39:1
+✖ F2: if a history page cannot be read, completeness cannot be shown: history_incomplete, liable null, not stored, resubmittable (6.095541ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'in_scope'
+  - 'history_incomplete'
+  
+      at TestContext.<anonymous> (file:///private/tmp/iussum-old/test/regression/f2-history.test.js:42:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'in_scope',
+    expected: 'history_incomplete',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/regression/f3-no-receipt.test.js:17:1
+✖ F3: no receipt, pay_to outside the mandate: valid, agent_operator, resource unjudged (12.025167ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'invalid' !== 'valid'
+  
+      at TestContext.<anonymous> (file:///private/tmp/iussum-old/test/regression/f3-no-receipt.test.js:19:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'invalid',
+    expected: 'valid',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/regression/f3-no-receipt.test.js:22:1
+✖ F3: no receipt, amount over the cap: valid, agent_operator (3.483834ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'invalid' !== 'valid'
+  
+      at TestContext.<anonymous> (file:///private/tmp/iussum-old/test/regression/f3-no-receipt.test.js:24:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'invalid',
+    expected: 'valid',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/regression/f3-no-receipt.test.js:26:1
+✖ F3: no receipt, nothing the chain can prove is wrong: invalid, principal, resource unjudged (2.821333ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'receipt_missing'
+  - 'in_scope'
+  
+      at TestContext.<anonymous> (file:///private/tmp/iussum-old/test/regression/f3-no-receipt.test.js:28:46)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'receipt_missing',
+    expected: 'in_scope',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/regression/f3-no-receipt.test.js:31:1
+✖ F3: no receipt and no mandate is still mandate_missing, liable null (0.841375ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'receipt_missing'
+  - 'mandate_missing'
+  
+      at TestContext.<anonymous> (file:///private/tmp/iussum-old/test/regression/f3-no-receipt.test.js:33:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'receipt_missing',
+    expected: 'mandate_missing',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/regression/f4-mandate-mismatch.test.js:13:1
+✖ F4: a seller files first with the older broader mandate: mandate_mismatch, not stored; the principal's own dispute is then judged, not a duplicate (14.862583ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'in_scope'
+  - 'mandate_mismatch'
+  
+      at TestContext.<anonymous> (file:///private/tmp/iussum-old/test/regression/f4-mandate-mismatch.test.js:21:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'in_scope',
+    expected: 'mandate_mismatch',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/regression/f5-host-header.test.js:41:1
+✖ F5: createSellerGate refuses to start without a canonical origin (12.764875ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///private/tmp/iussum-old/test/regression/f5-host-header.test.js:45:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /origin/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at test/regression/f5-host-header.test.js:50:1
+✖ F5: an agent that forges Host: <allowed origin> does not get an in-scope receipt (103.657083ms)
+  AssertionError [ERR_ASSERTION]: the seller must judge its real origin, not the Host header
+  
+  200 !== 403
+  
+      at TestContext.<anonymous> (file:///private/tmp/iussum-old/test/regression/f5-host-header.test.js:70:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 403,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

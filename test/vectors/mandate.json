@@ -210,6 +210,93 @@
   ]
  },
  {
+  "name": "a resource prefix with a query is refused",
+  "kind": "mandate-valid",
+  "input": {
+   "v": "iussum/0.2",
+   "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+   "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+   "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+   "total_cap": "1000000",
+   "per_payment_max": "50000",
+   "period_budget": "100000",
+   "period_seconds": 86400,
+   "allow": {
+    "pay_to": [
+     "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+    ],
+    "resource_prefix": [
+     "https://api.example.test/v1/?x=1"
+    ]
+   },
+   "not_before": 1800000000,
+   "expires_at": 1800604800,
+   "nonce": "00112233445566778899aabbccddeeff"
+  },
+  "expect": [
+   "allow.resource_prefix \"https://api.example.test/v1/?x=1\": must not contain a query or fragment"
+  ]
+ },
+ {
+  "name": "a resource prefix that is not an absolute http(s) URL is refused",
+  "kind": "mandate-valid",
+  "input": {
+   "v": "iussum/0.2",
+   "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+   "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+   "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+   "total_cap": "1000000",
+   "per_payment_max": "50000",
+   "period_budget": "100000",
+   "period_seconds": 86400,
+   "allow": {
+    "pay_to": [
+     "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+    ],
+    "resource_prefix": [
+     "api.example.test/v1/"
+    ]
+   },
+   "not_before": 1800000000,
+   "expires_at": 1800604800,
+   "nonce": "00112233445566778899aabbccddeeff"
+  },
+  "expect": [
+   "allow.resource_prefix \"api.example.test/v1/\": not an absolute http(s) URL"
+  ]
+ },
+ {
+  "name": "a resource prefix with credentials is refused",
+  "kind": "mandate-valid",
+  "input": {
+   "v": "iussum/0.2",
+   "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+   "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+   "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+   "total_cap": "1000000",
+   "per_payment_max": "50000",
+   "period_budget": "100000",
+   "period_seconds": 86400,
+   "allow": {
+    "pay_to": [
+     "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+    ],
+    "resource_prefix": [
+     "https://u:p@api.example.test/v1/"
+    ]
+   },
+   "not_before": 1800000000,
+   "expires_at": 1800604800,
+   "nonce": "00112233445566778899aabbccddeeff"
+  },
+  "expect": [
+   "allow.resource_prefix \"https://u:p@api.example.test/v1/\": must not contain credentials"
+  ]
+ },
+ {
   "name": "per_payment_max above total_cap is refused",
   "kind": "mandate-valid",
   "input": {

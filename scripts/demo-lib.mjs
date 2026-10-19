@@ -56,7 +56,10 @@ export async function usdc(ctx, owner) {
 
 // A demo seller on the real x402 stack with the iussum gate mounted ahead of paymentMiddleware.
 export async function startDemoSeller(ctx, { name, signer, mode }) {
-  const gate = createSellerGate({ mode, payTo: signer.address, asset: MINT, network: NETWORK, rpc: ctx.rpc, key: receiptKey(), log: (e) => { if (e.reason) console.log(`      [seller ${name}] mode=${e.mode} ${e.refuse ? 'REFUSES' : 'saw'} ${e.reason}`); } });
+  const srv = http.createServer();
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  const origin = `http://127.0.0.1:${srv.address().port}`; // the seller's own canonical origin: the resource it signs is origin + path, never the Host header
+  const gate = createSellerGate({ mode, payTo: signer.address, asset: MINT, network: NETWORK, rpc: ctx.rpc, origin, key: receiptKey(), log: (e) => { if (e.reason) console.log(`      [seller ${name}] mode=${e.mode} ${e.refuse ? 'REFUSES' : 'saw'} ${e.reason}`); } });
   const server = new x402ResourceServer(new HTTPFacilitatorClient({ url: FACILITATOR }));
   registerExactSvmScheme(server, { networks: [NETWORK] });
   const route = (amount) => ({ accepts: [{ scheme: 'exact', price: { amount, asset: MINT }, network: NETWORK, payTo: signer.address }], description: `demo ${amount}`, mimeType: 'application/json' });
@@ -65,9 +68,7 @@ export async function startDemoSeller(ctx, { name, signer, mode }) {
   app.use(gate.middleware);
   app.use(paymentMiddleware({ 'GET /v1/quote': route('10000'), 'GET /v1/mid': route('20000'), 'GET /v1/big': route('60000') }, server));
   for (const p of ['quote', 'mid', 'big']) app.get(`/v1/${p}`, (_req, res) => res.json({ ok: true, seller: name, item: p }));
-  const srv = http.createServer(app);
-  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
-  const origin = `http://127.0.0.1:${srv.address().port}`;
+  srv.on('request', app);
   return { name, origin, gate, address: signer.address, url: (p = 'quote') => `${origin}/v1/${p}`, close: () => srv.close() };
 }
 export { mandateId };

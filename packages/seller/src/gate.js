@@ -7,15 +7,18 @@
 import { createGrantChecker, scopeViolations, validateMandate, mandateId, signReceipt, receiptKey, offerHash, encodeReceipt, R, fails, registerCheck, isMutated } from '@iussum/core';
 import { decodePayment, readPaymentHeader } from './decode.js';
 
-export const SELLER_CHECKS = ['seller.enforce', 'seller.observe_passes', 'seller.off_skips', 'seller.require_mandate', 'seller.receipt_issued', 'seller.receipt_binds_mandate', 'seller.mandate_invalid', 'seller.payment_unreadable'].map(registerCheck);
+export const SELLER_CHECKS = ['seller.enforce', 'seller.observe_passes', 'seller.off_skips', 'seller.require_mandate', 'seller.receipt_issued', 'seller.receipt_binds_mandate', 'seller.mandate_invalid', 'seller.payment_unreadable', 'seller.payment_source', 'seller.origin_required', 'seller.resource_from_origin'].map(registerCheck);
 export const MODES = ['off', 'observe', 'enforce'];
 
 export function createSellerGate(cfg) {
   const { payTo, asset, network, rpc, key = receiptKey(), requireMandate = false, now = () => Math.floor(Date.now() / 1000), log = () => {} } = cfg;
+  // The resource is origin + path with the seller's OWN configured origin, never the Host header an agent can choose (Addendum C, fix 5).
+  const origin = cfg.origin;
+  if (fails('seller.origin_required', typeof origin !== 'string' || !/^https?:\/\//.test(origin) || new URL(origin).origin !== origin)) throw new Error('createSellerGate: `origin` is required and must be a canonical scheme://host[:port] (no path, no trailing slash), e.g. https://api.example.com');
   let mode = cfg.mode ?? 'enforce';
   if (!MODES.includes(mode)) throw new Error(`mode must be one of ${MODES.join(', ')}`);
   const checker = createGrantChecker(rpc);
-  const resourceUrl = cfg.resourceUrl ?? ((req) => `${req.protocol}://${req.get('host')}${req.originalUrl.split('?')[0]}`);
+  const resourceUrl = (req) => `${fails('seller.resource_from_origin', true) ? origin : `${req.protocol}://${req.get('host')}`}${req.originalUrl.split('?')[0]}`;
 
   async function evaluate(req, payload) {
     const out = { mandate: null, grant_tx: null, violations: [], payment: null };
@@ -30,6 +33,8 @@ export function createSellerGate(cfg) {
     if (fails('seller.mandate_invalid', errs.length > 0)) { out.violations.push({ code: R.mandate_invalid, field: 'mandate', authorized: 'valid', actual: errs.join('; ') }); return out; }
     const g = await checker.check(info.mandate, info.grant_tx, { active: true });
     if (!g.ok) out.violations.push({ code: g.reason, field: 'grant', authorized: 'an active ApproveChecked + Memo bound to the mandate id', actual: g.detail });
+    // the payment must come out of the granted account, otherwise it is not a payment under this mandate (Addendum C, fix 6)
+    else if (fails('seller.payment_source', out.payment.source !== g.source)) out.violations.push({ code: R.grant_mismatch, field: 'source', authorized: g.source, actual: out.payment.source });
     out.violations.push(...scopeViolations(info.mandate, { amount: out.payment.amount, pay_to: payTo, resource: resourceUrl(req), asset, network, payer: out.payment.authority, time: now() }));
     return out;
   }

@@ -7,7 +7,7 @@ import '@iussum/seller';
 import '@iussum/agent';
 import '@iussum/resolver';
 
-const files = fs.globSync('{packages,apps}/*/test/*.test.js');
+const files = [...fs.globSync('{packages,apps}/*/test/*.test.js'), ...fs.globSync('test/{regression,phase11}/*.test.js')];
 const run = (env) => {
   const r = spawnSync(process.execPath, ['--test', '--test-reporter=tap', ...files], { env: { ...process.env, ...env }, encoding: 'utf8' });
   const n = (k) => Number(new RegExp(`^# ${k} (\\d+)`, 'm').exec(r.stdout)?.[1] ?? NaN);

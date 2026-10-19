@@ -1,36 +1,71 @@
 // The resolver service: fetches the evidence, calls the pure resolve(), stores the decided verdict, and (demo simplification) pays the refund
 // from a refund-float wallet when the seller is liable. In production the seller would refund itself on a signed ruling; here the float
 // stands in for the seller's own refund key so the demo shows money actually moving back.
-import { resolve, parsePayment, agentSpendHistory, createGrantChecker, validateMandate, mandateId, canonicalize, sha256Hex, R, fails, registerCheck } from '@iussum/core';
-export const RESOLVER_SERVICE_CHECKS = ['resolver.duplicate', 'resolver.refund_seller_only'].map(registerCheck);
+import { resolve, parsePayment, agentSpendHistory, createGrantChecker, validateMandate, mandateId, canonicalize, sha256Hex, periodStart, R, fails, registerCheck } from '@iussum/core';
+export const RESOLVER_SERVICE_CHECKS = ['resolver.duplicate', 'resolver.refund_seller_only', 'resolver.refund_retry', 'resolver.refund_pending_guard', 'resolver.refund_decimals'].map(registerCheck);
 const sha = (x) => (x ? sha256Hex(canonicalize(x)) : null);
-const decided = (v) => v.liable !== null; // a rejected dispute (artifacts do not verify) is not a decision about the payment and may be resubmitted
+// A rejected dispute (artifacts do not verify, evidence missing or incomplete, mandate mismatch or superseded) is not a decision about the
+// payment and may be resubmitted; a decided one is stored.
+const decided = (v) => v.liable !== null;
+const PENDING_GRACE_S = 150; // a signed refund transaction may still land for about this long
 
-export function createResolver({ rpc, network, sellerKey, store, sendRefund = null, now = () => Math.floor(Date.now() / 1000), historyLimit = 50 }) {
+export function createResolver({ rpc, network, sellerKey, store, sendRefund = null, now = () => Math.floor(Date.now() / 1000) }) {
   const checker = createGrantChecker(rpc);
   const inflight = new Map();
+  const dup = (s, extra = {}) => ({ ...s.verdict, reason: R.duplicate_dispute, original_reason: s.verdict.reason, refund_tx: s.refund_tx, duplicate: true, ...extra });
+
+  // Pay the refund for a stored seller-liable verdict exactly once. Safe to call again after a failure: a signed-but-unconfirmed attempt is
+  // looked up on chain first, and only resent once it can no longer land.
+  async function payRefund(tx_sig, payment) {
+    const s = store.get(tx_sig);
+    if (s.refund_tx) return { refund_tx: s.refund_tx };
+    if (s.refund_pending) {
+      const st = (await rpc.call('getSignatureStatuses', [[s.refund_pending], { searchTransactionHistory: true }])).value[0];
+      if (st && !st.err && (st.confirmationStatus === 'confirmed' || st.confirmationStatus === 'finalized')) { store.setRefund(tx_sig, s.refund_pending); return { refund_tx: s.refund_pending }; }
+      if (fails('resolver.refund_pending_guard', now() - (s.refund_pending_at ?? 0) < PENDING_GRACE_S)) return { refund_tx: null, refund_state: 'pending', refund_pending: s.refund_pending };
+    }
+    const t = payment.transfers[0];
+    const sig = await sendRefund({ to: t.source_owner, mint: t.mint, amount: t.amount, decimals: fails('resolver.refund_decimals', true) ? t.decimals : 6, reason: `dispute ${tx_sig}` }, { onSigned: (p) => store.setPending(tx_sig, p, now()) });
+    store.setRefund(tx_sig, sig);
+    return { refund_tx: sig };
+  }
+  const owesRefund = (s) => s.verdict.verdict === 'valid' && s.verdict.liable === 'seller' && !s.refund_tx;
+
   async function decide({ tx_sig, mandate, grant_tx, receipt }) {
     const stored = store.get(tx_sig);
-    if (fails('resolver.duplicate', stored && decided(stored.verdict))) return { ...stored.verdict, reason: R.duplicate_dispute, original_reason: stored.verdict.reason, refund_tx: stored.refund_tx, duplicate: true };
+    if (fails('resolver.duplicate', stored && decided(stored.verdict))) {
+      // a refund that failed after the verdict was reserved is retried here, idempotently
+      if (fails('resolver.refund_retry', sendRefund && owesRefund(stored))) {
+        try {
+          const payment = parsePayment(await rpc.getTransaction(tx_sig));
+          const r = await payRefund(tx_sig, payment);
+          return dup(store.get(tx_sig), r);
+        } catch (e) { return dup(stored, { refund_error: e.message }); }
+      }
+      return dup(stored);
+    }
     const payment = parsePayment(await rpc.getTransaction(tx_sig));
     const mandateOk = mandate && validateMandate(mandate).length === 0;
     const grant = mandateOk && grant_tx ? await checker.check(mandate, grant_tx, { active: false }) : null;
     const seller_pubkey = receipt ? await sellerKey(receipt.pay_to) : null;
-    let history = null;
-    if (mandateOk && grant?.ok && payment.found && !payment.err) history = await agentSpendHistory(rpc, { source: grant.source, agent: mandate.agent, mint: mandate.asset, limit: historyLimit, until: grant_tx });
-    const verdict = resolve({ tx_sig, network, mandate, grant_tx, grant, receipt, seller_pubkey, payment, history });
+    let history = null, superseded = null;
+    if (mandateOk && grant?.ok && payment.found && !payment.err) {
+      const startsAt = payment.block_time != null ? periodStart(mandate, payment.block_time) : null;
+      history = await agentSpendHistory(rpc, { source: grant.source, agent: mandate.agent, mint: mandate.asset, until: grant_tx, stopAtTime: startsAt });
+      try { superseded = await checker.supersededBy(grant.source, grant_tx); }
+      catch (e) { return { verdict: 'invalid', tier: 1, reason: R.history_incomplete, delta: [{ field: 'supersession scan', authorized: 'complete', actual: e.message }], liable: null, time_source: null }; }
+    }
+    const verdict = resolve({ tx_sig, network, mandate, grant_tx, grant, receipt, seller_pubkey, payment, history, superseded });
     // decide, reserve the tx_sig in the store FIRST, and only the request that reserved it may pay a refund
     if (decided(verdict)) {
       const reserved = store.put(tx_sig, { mandate_sha: sha(mandate), receipt_sha: sha(receipt), verdict, refund_tx: null, now: now() });
-      if (!reserved) { const s = store.get(tx_sig); return { ...s.verdict, reason: R.duplicate_dispute, original_reason: s.verdict.reason, refund_tx: s.refund_tx, duplicate: true }; }
+      if (!reserved) return dup(store.get(tx_sig));
     }
-    let refund_tx = null;
     if (verdict.verdict === 'valid' && fails('resolver.refund_seller_only', verdict.liable === 'seller') && sendRefund) {
-      const t = payment.transfers[0];
-      refund_tx = await sendRefund({ to: mandate.principal, mint: t.mint, amount: t.amount, reason: `dispute ${tx_sig}` });
-      store.setRefund(tx_sig, refund_tx);
+      try { return { ...verdict, ...(await payRefund(tx_sig, payment)) }; }
+      catch (e) { return { ...verdict, refund_tx: null, refund_error: e.message }; }
     }
-    return { ...verdict, refund_tx };
+    return { ...verdict, refund_tx: null };
   }
   return {
     // concurrent disputes for the same tx_sig are serialised, so two requests cannot both pay a refund

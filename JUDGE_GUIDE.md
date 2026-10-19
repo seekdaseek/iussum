@@ -1,6 +1,6 @@
 # JUDGE_GUIDE: verify the claims in five minutes
 
-Everything runs on **devnet** (no mainnet transaction was made). Node 22 or newer.
+Everything runs on **devnet** (no mainnet transaction was made). Node 24 or newer.
 
 ## 1. The tests (30 seconds, no network)
 

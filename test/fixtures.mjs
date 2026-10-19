@@ -30,8 +30,8 @@ export function payTx(o = {}) {
   const payTo = o.payTo ?? A.sellerA, mint = o.mint ?? A.asset, authority = o.authority ?? A.agent;
   const dest = o.dest ?? DEST[payTo];
   const keys = [key('2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4', true, true), key(authority, true), key(o.source ?? SRC, false, true), key(dest, false, true), key(mint)];
-  const tc = { programId: TOKEN_PROGRAM_ADDRESS, program: 'spl-token', parsed: { type: 'transferChecked', info: { authority, destination: dest, mint, source: o.source ?? SRC, tokenAmount: { amount: o.amount ?? '10000', decimals: 6, uiAmount: 0, uiAmountString: '0' } } } };
-  return { slot: o.slot ?? 2000, blockTime: o.blockTime === undefined ? T0 + 100 : o.blockTime, meta: { err: o.err ?? null, postTokenBalances: [{ accountIndex: 3, mint, owner: payTo }] }, transaction: { message: { accountKeys: keys, instructions: [{ programId: COMPUTE_BUDGET, accounts: [], data: 'x' }, { programId: COMPUTE_BUDGET, accounts: [], data: 'y' }, ...(o.noTransfer ? [] : [tc]), ...(o.twoTransfers ? [tc] : [])] } } };
+  const tc = { programId: TOKEN_PROGRAM_ADDRESS, program: 'spl-token', parsed: { type: 'transferChecked', info: { authority, destination: dest, mint, source: o.source ?? SRC, tokenAmount: { amount: o.amount ?? '10000', decimals: o.decimals ?? 6, uiAmount: 0, uiAmountString: '0' } } } };
+  return { slot: o.slot ?? 2000, blockTime: o.blockTime === undefined ? T0 + 100 : o.blockTime, meta: { err: o.err ?? null, postTokenBalances: [{ accountIndex: 2, mint, owner: A.principal }, { accountIndex: 3, mint, owner: payTo }] }, transaction: { message: { accountKeys: keys, instructions: [{ programId: COMPUTE_BUDGET, accounts: [], data: 'x' }, { programId: COMPUTE_BUDGET, accounts: [], data: 'y' }, ...(o.noTransfer ? [] : [tc]), ...(o.twoTransfers ? [tc] : [])] } } };
 }
 export const SIG = (c) => c.repeat(88);
 export function receipt(o = {}) {

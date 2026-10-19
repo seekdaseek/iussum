@@ -283,6 +283,291 @@
   ]
  },
  {
+  "name": "host suffix attack: api.example.test.evil.io",
+  "kind": "scope",
+  "input": {
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "50000",
+    "period_budget": "100000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "payment": {
+    "amount": "10000",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "resource": "https://api.example.test.evil.io/v1/quote",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "time": 1800000100
+   }
+  },
+  "expect": [
+   "resource_not_allowed"
+  ]
+ },
+ {
+  "name": "path boundary: /v1 prefix does not match /v10",
+  "kind": "scope",
+  "input": {
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "50000",
+    "period_budget": "100000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "payment": {
+    "amount": "10000",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "resource": "https://api.example.test/v10/quote",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "time": 1800000100
+   }
+  },
+  "expect": [
+   "resource_not_allowed"
+  ]
+ },
+ {
+  "name": "userinfo trick: api.example.test@evil.io",
+  "kind": "scope",
+  "input": {
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "50000",
+    "period_budget": "100000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "payment": {
+    "amount": "10000",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "resource": "https://api.example.test@evil.io/v1/quote",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "time": 1800000100
+   }
+  },
+  "expect": [
+   "resource_not_allowed"
+  ]
+ },
+ {
+  "name": "dot segments are resolved before matching",
+  "kind": "scope",
+  "input": {
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "50000",
+    "period_budget": "100000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "payment": {
+    "amount": "10000",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "resource": "https://api.example.test/v1/../admin",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "time": 1800000100
+   }
+  },
+  "expect": [
+   "resource_not_allowed"
+  ]
+ },
+ {
+  "name": "another port",
+  "kind": "scope",
+  "input": {
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "50000",
+    "period_budget": "100000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "payment": {
+    "amount": "10000",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "resource": "https://api.example.test:8443/v1/quote",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "time": 1800000100
+   }
+  },
+  "expect": [
+   "resource_not_allowed"
+  ]
+ },
+ {
+  "name": "another scheme",
+  "kind": "scope",
+  "input": {
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "50000",
+    "period_budget": "100000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "payment": {
+    "amount": "10000",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "resource": "http://api.example.test/v1/quote",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "time": 1800000100
+   }
+  },
+  "expect": [
+   "resource_not_allowed"
+  ]
+ },
+ {
+  "name": "host case and the default port are normalised",
+  "kind": "scope",
+  "input": {
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "50000",
+    "period_budget": "100000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "payment": {
+    "amount": "10000",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "resource": "https://API.example.test:443/v1/quote",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "time": 1800000100
+   }
+  },
+  "expect": []
+ },
+ {
   "name": "asset differs",
   "kind": "scope",
   "input": {

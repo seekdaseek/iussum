@@ -5,7 +5,8 @@ import { mandateId, summaryLine, signReceipt, receiptKey, offerHash, canonicaliz
 import { TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
 import { A, T0, DAY, SRC, DEST, RES, SELLER_KEY, WRONG_KEY, mandate, M, MID, key, grantTx, payTx, SIG, receipt } from './fixtures.mjs';
 const OUT = new URL('./vectors/', import.meta.url);
-const base = () => ({ tx_sig: SIG('P'), network: A.net, mandate: M, grant_tx: SIG('G'), grant_tx_parsed: grantTx(M), receipt: receipt(), seller_pubkey: SELLER_KEY.publicKey, payment: payTx(), history: null });
+const H = (rows) => ({ complete: true, entries: rows.map(([tx_sig, slot, block_time, amount, dest_owner]) => ({ tx_sig, slot, block_time, amount, dest_owner })) });
+const base = () => ({ tx_sig: SIG('P'), network: A.net, mandate: M, grant_tx: SIG('G'), grant_tx_parsed: grantTx(M), receipt: receipt(), seller_pubkey: SELLER_KEY.publicKey, payment: payTx(), history: H([[SIG('P'), 2000, T0 + 100, '10000', A.sellerA]]), superseded: null });
 const R = (name, change, expect, note) => ({ name, kind: 'resolve', note, input: change(base()), expect });
 const exp = (verdict, reason, liable, more = {}) => ({ verdict, reason, liable, ...more });
 
@@ -26,6 +27,9 @@ vec.mandate = [
   { name: 'a number instead of a decimal string is refused', kind: 'mandate-valid', input: { ...M, total_cap: 1000000 }, expect: ['total_cap must be a positive decimal string'] },
   { name: 'unknown key is refused', kind: 'mandate-valid', input: { ...M, delegation: 'x' }, expect: ['unknown key delegation'] },
   { name: 'old v0.1 field principal_sig is refused', kind: 'mandate-valid', input: { ...M, principal_sig: 'x' }, expect: ['unknown key principal_sig'] },
+  { name: 'a resource prefix with a query is refused', kind: 'mandate-valid', input: mandate({ allow: { pay_to: [A.sellerA], resource_prefix: ['https://api.example.test/v1/?x=1'] } }), expect: ['allow.resource_prefix "https://api.example.test/v1/?x=1": must not contain a query or fragment'] },
+  { name: 'a resource prefix that is not an absolute http(s) URL is refused', kind: 'mandate-valid', input: mandate({ allow: { pay_to: [A.sellerA], resource_prefix: ['api.example.test/v1/'] } }), expect: ['allow.resource_prefix "api.example.test/v1/": not an absolute http(s) URL'] },
+  { name: 'a resource prefix with credentials is refused', kind: 'mandate-valid', input: mandate({ allow: { pay_to: [A.sellerA], resource_prefix: ['https://u:p@api.example.test/v1/'] } }), expect: ['allow.resource_prefix "https://u:p@api.example.test/v1/": must not contain credentials'] },
   { name: 'per_payment_max above total_cap is refused', kind: 'mandate-valid', input: mandate({ per_payment_max: '2000000' }), expect: ['per_payment_max exceeds total_cap'] },
   { name: 'expires_at not after not_before is refused', kind: 'mandate-valid', input: mandate({ expires_at: T0 }), expect: ['expires_at must be after not_before'] },
 ];
@@ -40,6 +44,13 @@ vec.scope = [
   S('pay_to not on the list', { pay_to: A.sellerC }, ['pay_to_not_allowed']),
   S('resource outside the prefix', { resource: 'https://evil.example/v1/quote' }, ['resource_not_allowed']),
   S('resource missing', { resource: null }, ['resource_not_allowed']),
+  S('host suffix attack: api.example.test.evil.io', { resource: 'https://api.example.test.evil.io/v1/quote' }, ['resource_not_allowed']),
+  S('path boundary: /v1 prefix does not match /v10', { resource: 'https://api.example.test/v10/quote' }, ['resource_not_allowed']),
+  S('userinfo trick: api.example.test@evil.io', { resource: 'https://api.example.test@evil.io/v1/quote' }, ['resource_not_allowed']),
+  S('dot segments are resolved before matching', { resource: 'https://api.example.test/v1/../admin' }, ['resource_not_allowed']),
+  S('another port', { resource: 'https://api.example.test:8443/v1/quote' }, ['resource_not_allowed']),
+  S('another scheme', { resource: 'http://api.example.test/v1/quote' }, ['resource_not_allowed']),
+  S('host case and the default port are normalised', { resource: 'https://API.example.test:443/v1/quote' }, []),
   S('asset differs', { asset: A.otherMint }, ['asset_mismatch']),
   S('network differs', { network: A.mainnet }, ['network_mismatch']),
   S('before not_before', { time: T0 - 1 }, ['mandate_not_yet_valid']),
@@ -47,6 +58,28 @@ vec.scope = [
   S('one second before expiry is valid', { time: T0 + 7 * DAY - 1 }, []),
   S('payer is not the agent', { payer: A.thief }, ['agent_mismatch']),
   S('several violations are all reported in fixed order', { amount: '60000', pay_to: A.sellerC, asset: A.otherMint }, ['asset_mismatch', 'amount_over_cap', 'pay_to_not_allowed']),
+];
+// ---------------- resource matching (Addendum C fix 10): parsed URLs, scheme/host/port exact, path prefix on a '/' boundary or exact
+const RV = (name, prefixes, resource, expect) => ({ name, kind: 'resource', input: { prefixes, resource }, expect });
+vec.resource = [
+  RV('exact origin, path under the prefix', ['https://api.x.com/v1/'], 'https://api.x.com/v1/quote', true),
+  RV('prefix without a trailing slash matches the exact path', ['https://api.x.com/v1'], 'https://api.x.com/v1', true),
+  RV('prefix without a trailing slash matches below a / boundary', ['https://api.x.com/v1'], 'https://api.x.com/v1/quote', true),
+  RV('prefix without a trailing slash does not match /v10', ['https://api.x.com/v1'], 'https://api.x.com/v10/quote', false),
+  RV('host-only prefix does not match api.x.com.evil.io', ['https://api.x.com'], 'https://api.x.com.evil.io/v1', false),
+  RV('host-only prefix does not match a longer host name', ['https://api.x.com'], 'https://api.x.community/v1', false),
+  RV('host-only prefix matches the whole site', ['https://api.x.com'], 'https://api.x.com/anything/here', true),
+  RV('credentials in the URL are refused even when the host matches', ['https://api.x.com/v1/'], 'https://u:p@api.x.com/v1/q', false),
+  RV('userinfo cannot smuggle another host', ['https://api.x.com/'], 'https://api.x.com@evil.io/', false),
+  RV('dot segments are resolved: /v1/../admin is /admin', ['https://api.x.com/v1/'], 'https://api.x.com/v1/../admin', false),
+  RV('percent-encoded dot segments are resolved too', ['https://api.x.com/v1/'], 'https://api.x.com/v1/%2e%2e/admin', false),
+  RV('another port', ['https://api.x.com/v1/'], 'https://api.x.com:8443/v1/q', false),
+  RV('explicit default port equals the implicit one', ['https://api.x.com/v1/'], 'https://api.x.com:443/v1/q', true),
+  RV('another scheme', ['https://api.x.com/v1/'], 'http://api.x.com/v1/q', false),
+  RV('host case is normalised', ['https://api.x.com/v1/'], 'https://API.X.COM/v1/q', true),
+  RV('query and fragment are ignored for matching', ['https://api.x.com/v1/'], 'https://api.x.com/v1/q?a=1#f', true),
+  RV('not a URL', ['https://api.x.com/v1/'], 'api.x.com/v1/q', false),
+  RV('second prefix on the list matches', ['https://a.example/', 'https://api.x.com/v1/'], 'https://api.x.com/v1/q', true),
 ];
 // ---------------- grant (inspectGrantTx), expectations by hand
 const G = (name, tx, expect, mand = M) => ({ name, kind: 'grant', input: { mandate: mand, tx }, expect });
@@ -112,12 +145,17 @@ vec.resolve = [
   R('no block time on chain: fall back to settled_at, say so', (b) => ({ ...b, payment: payTx({ blockTime: null }) }), exp('invalid', 'in_scope', 'principal', { time_source: 'receipt' })),
   R('wrong agent paid (authority is not the agent)', (b) => ({ ...b, receipt: receipt({ payer: A.thief }), payment: payTx({ authority: A.thief }) }), exp('valid', 'agent_mismatch', 'seller')),
   R('R3 receipt with no mandate binding, out of scope: agent operator', (b) => ({ ...b, receipt: receipt({ mandate_id: null, grant_tx: null, pay_to: A.sellerC }), payment: payTx({ payTo: A.sellerC }) }), exp('valid', 'pay_to_not_allowed', 'agent_operator')),
-  R('R3 receipt bound to a different mandate id: agent operator', (b) => ({ ...b, receipt: receipt({ mandate_id: 'ab'.repeat(32), pay_to: A.sellerC }), payment: payTx({ payTo: A.sellerC }) }), exp('valid', 'pay_to_not_allowed', 'agent_operator')),
+  R('receipt bound to a different mandate id than the dispute carries: mandate_mismatch, liable null (the disputer does not choose the mandate)', (b) => ({ ...b, receipt: receipt({ mandate_id: 'ab'.repeat(32), pay_to: A.sellerC }), payment: payTx({ payTo: A.sellerC }) }), exp('invalid', 'mandate_mismatch', null)),
+  R('mandate superseded before the payment slot: mandate_superseded, liable null', (b) => ({ ...b, superseded: { sig: SIG('S'), slot: 1500 } }), exp('invalid', 'mandate_superseded', null)),
+  R('mandate superseded AFTER the payment slot: still judged', (b) => ({ ...b, superseded: { sig: SIG('S'), slot: 2500 } }), exp('invalid', 'in_scope', 'principal')),
+  R('history not shown to be complete: history_incomplete, never in_scope', (b) => ({ ...b, history: { complete: false, entries: b.history.entries, reason: 'page 2 unreadable' } }), exp('invalid', 'history_incomplete', null)),
+  R('history missing (could not be read): history_incomplete', (b) => ({ ...b, history: null }), exp('invalid', 'history_incomplete', null)),
+  R('the disputed payment is not in the history: history_incomplete', (b) => ({ ...b, history: H([[SIG('Q'), 1999, T0 + 99, '10000', A.sellerA]]) }), exp('invalid', 'history_incomplete', null)),
   R('R3 receipt names another grant_tx than the dispute: not presented', (b) => ({ ...b, receipt: receipt({ grant_tx: SIG('H'), pay_to: A.sellerC }), payment: payTx({ payTo: A.sellerC }) }), exp('valid', 'pay_to_not_allowed', 'agent_operator')),
   R('R4 tampered receipt (amount edited after signing)', (b) => ({ ...b, receipt: { ...receipt(), amount: '1' } }), exp('invalid', 'signature_invalid', null)),
   R('R4 receipt signed by another key', (b) => ({ ...b, receipt: receipt({ key: WRONG_KEY }) }), exp('invalid', 'signature_invalid', null)),
   R('R4 seller key unknown to the resolver', (b) => ({ ...b, seller_pubkey: null }), exp('invalid', 'signature_invalid', null)),
-  R('R4 tampered mandate (does not match its grant memo)', (b) => ({ ...b, mandate: mandate({ per_payment_max: '50001' }) }), exp('invalid', 'grant_mismatch', null)),
+  R('R4 tampered mandate (does not match its grant memo)', (b) => { const T = mandate({ per_payment_max: '50001' }); return { ...b, mandate: T, receipt: receipt({ mandate_id: mandateId(T) }) }; }, exp('invalid', 'grant_mismatch', null)),
   R('R4 grant transaction not found', (b) => ({ ...b, grant_tx_parsed: null }), exp('invalid', 'grant_not_found', null)),
   R('R4 grant with an extra instruction', (b) => ({ ...b, grant_tx_parsed: grantTx(M, { extra: { programId: '11111111111111111111111111111111', program: 'system', parsed: { type: 'transfer', info: {} } } }) }), exp('invalid', 'grant_mismatch', null)),
   R('R4 invalid mandate document', (b) => ({ ...b, mandate: { ...M, total_cap: 5 } }), exp('invalid', 'mandate_invalid', null)),
@@ -130,13 +168,16 @@ vec.resolve = [
   R('receipt asset differs from chain mint', (b) => ({ ...b, receipt: receipt({ asset: A.otherMint }) }), exp('invalid', 'tx_mismatch', null, { deltaFields: ['asset'] })),
   R('payment is not out of the granted account (source differs)', (b) => ({ ...b, payment: payTx({ source: DEST[A.sellerB] }) }), exp('invalid', 'tx_mismatch', null, { deltaFields: ['source'] })),
   R('two transfers in one transaction cannot be judged', (b) => ({ ...b, payment: payTx({ twoTransfers: true }) }), exp('invalid', 'tx_mismatch', null)),
-  R('control: no receipt (seller never checked, nothing signed)', (b) => ({ ...b, receipt: null, payment: payTx({ payTo: A.sellerC }) }), exp('invalid', 'receipt_missing', null, { missing: ['seller receipt (what the seller saw)'] })),
+  R('no receipt (seller never checked): the chain alone proves pay_to out of scope: agent operator, resource unjudged', (b) => ({ ...b, receipt: null, payment: payTx({ payTo: A.sellerC }), history: H([[SIG('P'), 2000, T0 + 100, '10000', A.sellerC]]) }), exp('valid', 'pay_to_not_allowed', 'agent_operator', { unjudged: ['resource'] })),
+  R('no receipt and nothing out of scope on chain: invalid, principal, resource unjudged', (b) => ({ ...b, receipt: null }), exp('invalid', 'in_scope', 'principal', { unjudged: ['resource'] })),
+  R('no receipt and no block time: the window is unjudged too', (b) => ({ ...b, receipt: null, payment: payTx({ blockTime: null }) }), exp('invalid', 'in_scope', 'principal', { unjudged: ['resource', 'time'] })),
+  R('no receipt, amount over the cap: agent operator', (b) => ({ ...b, receipt: null, payment: payTx({ amount: '60000' }) }), exp('valid', 'amount_over_cap', 'agent_operator', { unjudged: ['resource'] })),
   R('no mandate supplied by the disputing party', (b) => ({ ...b, mandate: null }), exp('invalid', 'mandate_missing', null)),
   // recorded devnet response (payment 5KsYz26T..., settled through payai in Phase 0): the chain side is REAL, the mandate/grant/receipt are synthetic
   ...(() => {
     const REAL = '5KsYz26TFRGqzk7KdjUg8z2tGL6neRed37Cj211kYFgTX8ATNDKwXfqwuRnLzC8zTMDf2Z4QS7SweCd41Lrd2Hur';
     const MR = mandate({ not_before: recorded.blockTime - 1000, expires_at: recorded.blockTime + 7 * DAY }), MRID = mandateId(MR);
-    const bR = (rc) => ({ tx_sig: REAL, network: A.net, mandate: MR, grant_tx: SIG('G'), grant_tx_parsed: grantTx(MR), receipt: rc, seller_pubkey: SELLER_KEY.publicKey, payment: 'RECORDED', history: null });
+    const bR = (rc) => ({ tx_sig: REAL, network: A.net, mandate: MR, grant_tx: SIG('G'), grant_tx_parsed: grantTx(MR), receipt: rc, seller_pubkey: SELLER_KEY.publicKey, payment: 'RECORDED', history: H([[REAL, recorded.slot, recorded.blockTime, '10000', A.sellerA]]), superseded: null });
     const rr = (o) => receipt({ mandate_id: MRID, tx_sig: REAL, settled_at: recorded.blockTime, ...o });
     return [
       { name: 'recorded devnet payment: receipt amount differs from the real chain (tx_mismatch)', kind: 'resolve', note: 'test/vectors/recorded/payment-5KsYz26T.json is a real getTransaction response', input: bR(rr({ amount: '20000' })), expect: exp('invalid', 'tx_mismatch', null, { deltaFields: ['amount'] }) },
@@ -146,9 +187,9 @@ vec.resolve = [
   })(),
 ];
 // ---------------- period budget (Addendum B): one overrun split across two sellers
-const hist = (rows) => rows.map(([tx_sig, slot, bt, amount, dest_owner]) => ({ tx_sig, slot, block_time: bt, amount, dest_owner }));
+const hist = (rows) => H(rows);
 const PM = mandate({ period_budget: '30000', per_payment_max: '20000' }), PMID = mandateId(PM);
-const prBase = (txsig, pay_to, amount, history) => ({ tx_sig: txsig, network: A.net, mandate: PM, grant_tx: SIG('G'), grant_tx_parsed: grantTx(PM), receipt: receipt({ mandate_id: PMID, tx_sig: txsig, pay_to, amount }), seller_pubkey: SELLER_KEY.publicKey, payment: payTx({ payTo: pay_to, amount, blockTime: T0 + 100 }), history });
+const prBase = (txsig, pay_to, amount, history) => ({ tx_sig: txsig, network: A.net, mandate: PM, grant_tx: SIG('G'), grant_tx_parsed: grantTx(PM), receipt: receipt({ mandate_id: PMID, tx_sig: txsig, pay_to, amount }), seller_pubkey: SELLER_KEY.publicKey, payment: payTx({ payTo: pay_to, amount, blockTime: T0 + 100 }), history, superseded: null });
 const H2 = hist([[SIG('1'), 2001, T0 + 100, '20000', A.sellerA], [SIG('2'), 2002, T0 + 110, '20000', A.sellerB]]);
 vec.period = [
   { name: 'first payment of 20000 stays inside the 30000 budget', kind: 'resolve', input: prBase(SIG('1'), A.sellerA, '20000', H2), expect: exp('invalid', 'in_scope', 'principal') },

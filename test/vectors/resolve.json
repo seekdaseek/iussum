@@ -126,6 +126,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -200,7 +205,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -336,6 +353,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -410,7 +432,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "valid",
@@ -548,6 +582,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji"
@@ -622,7 +661,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "valid",
@@ -757,6 +808,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -831,7 +887,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "valid",
@@ -966,6 +1034,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -1040,7 +1113,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "valid",
@@ -1175,6 +1260,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -1249,7 +1339,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "valid",
@@ -1384,6 +1486,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -1458,7 +1565,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "valid",
@@ -1594,6 +1713,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -1668,7 +1792,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "valid",
@@ -1803,6 +1939,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -1877,7 +2018,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "valid",
@@ -2013,6 +2166,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -2087,7 +2245,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -2223,6 +2393,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -2297,7 +2472,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "valid",
@@ -2432,6 +2619,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji"
@@ -2506,7 +2698,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "valid",
@@ -2515,7 +2719,7 @@
   }
  },
  {
-  "name": "R3 receipt bound to a different mandate id: agent operator",
+  "name": "receipt bound to a different mandate id than the dispute carries: mandate_mismatch, liable null (the disputer does not choose the mandate)",
   "kind": "resolve",
   "input": {
    "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
@@ -2641,6 +2845,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji"
@@ -2715,12 +2924,1150 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
-   "verdict": "valid",
-   "reason": "pay_to_not_allowed",
-   "liable": "agent_operator"
+   "verdict": "invalid",
+   "reason": "mandate_mismatch",
+   "liable": null
+  }
+ },
+ {
+  "name": "mandate superseded before the payment slot: mandate_superseded, liable null",
+  "kind": "resolve",
+  "input": {
+   "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "50000",
+    "period_budget": "100000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+   "grant_tx_parsed": {
+    "slot": 1000,
+    "blockTime": 1800000010,
+    "meta": {
+     "err": null
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "approveChecked",
+         "info": {
+          "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "1000000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       },
+       {
+        "programId": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+        "program": "spl-memo",
+        "parsed": "iussum v0.2 | agent 4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi | asset 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU | total 1000000 | per payment 50000 | per 86400s 100000 | sellers 2 | resources 1 | from 2027-01-15T08:00:00.000Z until 2027-01-22T08:00:00.000Z | id 58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "HMypLP"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "3gJqkocMWaMm"
+       }
+      ]
+     }
+    }
+   },
+   "receipt": {
+    "v": "iussum/0.2",
+    "mandate_id": "58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3",
+    "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+    "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
+    "resource": "https://api.example.test/v1/quote",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "10000",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "settled_at": 1800000100,
+    "seller": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+    "signature": "/SR9s6Ja2vOeDtsFNFv3jh4hLY+DfHKKsvqJ2Rxr2zGX7E2c6zViDomZtTM/jF0gI18Gu47CT/XPr6HOzyvFAA=="
+   },
+   "seller_pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+   "payment": {
+    "slot": 2000,
+    "blockTime": 1800000100,
+    "meta": {
+     "err": null,
+     "postTokenBalances": [
+      {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+      }
+     ]
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": true,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "x"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "y"
+       },
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "transferChecked",
+         "info": {
+          "authority": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "destination": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "10000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   },
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": {
+    "sig": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
+    "slot": 1500
+   }
+  },
+  "expect": {
+   "verdict": "invalid",
+   "reason": "mandate_superseded",
+   "liable": null
+  }
+ },
+ {
+  "name": "mandate superseded AFTER the payment slot: still judged",
+  "kind": "resolve",
+  "input": {
+   "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "50000",
+    "period_budget": "100000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+   "grant_tx_parsed": {
+    "slot": 1000,
+    "blockTime": 1800000010,
+    "meta": {
+     "err": null
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "approveChecked",
+         "info": {
+          "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "1000000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       },
+       {
+        "programId": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+        "program": "spl-memo",
+        "parsed": "iussum v0.2 | agent 4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi | asset 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU | total 1000000 | per payment 50000 | per 86400s 100000 | sellers 2 | resources 1 | from 2027-01-15T08:00:00.000Z until 2027-01-22T08:00:00.000Z | id 58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "HMypLP"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "3gJqkocMWaMm"
+       }
+      ]
+     }
+    }
+   },
+   "receipt": {
+    "v": "iussum/0.2",
+    "mandate_id": "58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3",
+    "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+    "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
+    "resource": "https://api.example.test/v1/quote",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "10000",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "settled_at": 1800000100,
+    "seller": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+    "signature": "/SR9s6Ja2vOeDtsFNFv3jh4hLY+DfHKKsvqJ2Rxr2zGX7E2c6zViDomZtTM/jF0gI18Gu47CT/XPr6HOzyvFAA=="
+   },
+   "seller_pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+   "payment": {
+    "slot": 2000,
+    "blockTime": 1800000100,
+    "meta": {
+     "err": null,
+     "postTokenBalances": [
+      {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+      }
+     ]
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": true,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "x"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "y"
+       },
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "transferChecked",
+         "info": {
+          "authority": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "destination": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "10000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   },
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": {
+    "sig": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
+    "slot": 2500
+   }
+  },
+  "expect": {
+   "verdict": "invalid",
+   "reason": "in_scope",
+   "liable": "principal"
+  }
+ },
+ {
+  "name": "history not shown to be complete: history_incomplete, never in_scope",
+  "kind": "resolve",
+  "input": {
+   "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "50000",
+    "period_budget": "100000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+   "grant_tx_parsed": {
+    "slot": 1000,
+    "blockTime": 1800000010,
+    "meta": {
+     "err": null
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "approveChecked",
+         "info": {
+          "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "1000000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       },
+       {
+        "programId": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+        "program": "spl-memo",
+        "parsed": "iussum v0.2 | agent 4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi | asset 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU | total 1000000 | per payment 50000 | per 86400s 100000 | sellers 2 | resources 1 | from 2027-01-15T08:00:00.000Z until 2027-01-22T08:00:00.000Z | id 58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "HMypLP"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "3gJqkocMWaMm"
+       }
+      ]
+     }
+    }
+   },
+   "receipt": {
+    "v": "iussum/0.2",
+    "mandate_id": "58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3",
+    "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+    "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
+    "resource": "https://api.example.test/v1/quote",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "10000",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "settled_at": 1800000100,
+    "seller": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+    "signature": "/SR9s6Ja2vOeDtsFNFv3jh4hLY+DfHKKsvqJ2Rxr2zGX7E2c6zViDomZtTM/jF0gI18Gu47CT/XPr6HOzyvFAA=="
+   },
+   "seller_pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+   "payment": {
+    "slot": 2000,
+    "blockTime": 1800000100,
+    "meta": {
+     "err": null,
+     "postTokenBalances": [
+      {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+      }
+     ]
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": true,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "x"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "y"
+       },
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "transferChecked",
+         "info": {
+          "authority": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "destination": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "10000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   },
+   "history": {
+    "complete": false,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ],
+    "reason": "page 2 unreadable"
+   },
+   "superseded": null
+  },
+  "expect": {
+   "verdict": "invalid",
+   "reason": "history_incomplete",
+   "liable": null
+  }
+ },
+ {
+  "name": "history missing (could not be read): history_incomplete",
+  "kind": "resolve",
+  "input": {
+   "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "50000",
+    "period_budget": "100000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+   "grant_tx_parsed": {
+    "slot": 1000,
+    "blockTime": 1800000010,
+    "meta": {
+     "err": null
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "approveChecked",
+         "info": {
+          "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "1000000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       },
+       {
+        "programId": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+        "program": "spl-memo",
+        "parsed": "iussum v0.2 | agent 4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi | asset 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU | total 1000000 | per payment 50000 | per 86400s 100000 | sellers 2 | resources 1 | from 2027-01-15T08:00:00.000Z until 2027-01-22T08:00:00.000Z | id 58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "HMypLP"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "3gJqkocMWaMm"
+       }
+      ]
+     }
+    }
+   },
+   "receipt": {
+    "v": "iussum/0.2",
+    "mandate_id": "58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3",
+    "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+    "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
+    "resource": "https://api.example.test/v1/quote",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "10000",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "settled_at": 1800000100,
+    "seller": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+    "signature": "/SR9s6Ja2vOeDtsFNFv3jh4hLY+DfHKKsvqJ2Rxr2zGX7E2c6zViDomZtTM/jF0gI18Gu47CT/XPr6HOzyvFAA=="
+   },
+   "seller_pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+   "payment": {
+    "slot": 2000,
+    "blockTime": 1800000100,
+    "meta": {
+     "err": null,
+     "postTokenBalances": [
+      {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+      }
+     ]
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": true,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "x"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "y"
+       },
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "transferChecked",
+         "info": {
+          "authority": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "destination": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "10000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   },
+   "history": null,
+   "superseded": null
+  },
+  "expect": {
+   "verdict": "invalid",
+   "reason": "history_incomplete",
+   "liable": null
+  }
+ },
+ {
+  "name": "the disputed payment is not in the history: history_incomplete",
+  "kind": "resolve",
+  "input": {
+   "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "50000",
+    "period_budget": "100000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+   "grant_tx_parsed": {
+    "slot": 1000,
+    "blockTime": 1800000010,
+    "meta": {
+     "err": null
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "approveChecked",
+         "info": {
+          "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "1000000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       },
+       {
+        "programId": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+        "program": "spl-memo",
+        "parsed": "iussum v0.2 | agent 4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi | asset 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU | total 1000000 | per payment 50000 | per 86400s 100000 | sellers 2 | resources 1 | from 2027-01-15T08:00:00.000Z until 2027-01-22T08:00:00.000Z | id 58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "HMypLP"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "3gJqkocMWaMm"
+       }
+      ]
+     }
+    }
+   },
+   "receipt": {
+    "v": "iussum/0.2",
+    "mandate_id": "58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3",
+    "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+    "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
+    "resource": "https://api.example.test/v1/quote",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "10000",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "settled_at": 1800000100,
+    "seller": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+    "signature": "/SR9s6Ja2vOeDtsFNFv3jh4hLY+DfHKKsvqJ2Rxr2zGX7E2c6zViDomZtTM/jF0gI18Gu47CT/XPr6HOzyvFAA=="
+   },
+   "seller_pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+   "payment": {
+    "slot": 2000,
+    "blockTime": 1800000100,
+    "meta": {
+     "err": null,
+     "postTokenBalances": [
+      {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+      }
+     ]
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": true,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "x"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "y"
+       },
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "transferChecked",
+         "info": {
+          "authority": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "destination": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "10000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   },
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ",
+      "slot": 1999,
+      "block_time": 1800000099,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
+  },
+  "expect": {
+   "verdict": "invalid",
+   "reason": "history_incomplete",
+   "liable": null
   }
  },
  {
@@ -2850,6 +4197,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji"
@@ -2924,7 +4276,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "valid",
@@ -3059,6 +4423,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -3133,7 +4502,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -3268,6 +4649,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -3342,7 +4728,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -3477,6 +4875,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -3551,7 +4954,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -3664,7 +5079,7 @@
    },
    "receipt": {
     "v": "iussum/0.2",
-    "mandate_id": "58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3",
+    "mandate_id": "234b1be7e19b37af5c6dd0ff38e8b6f3d7bbeb89e6e7672689d9f82d4f05fb24",
     "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
     "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
     "resource": "https://api.example.test/v1/quote",
@@ -3676,7 +5091,7 @@
     "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
     "settled_at": 1800000100,
     "seller": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
-    "signature": "/SR9s6Ja2vOeDtsFNFv3jh4hLY+DfHKKsvqJ2Rxr2zGX7E2c6zViDomZtTM/jF0gI18Gu47CT/XPr6HOzyvFAA=="
+    "signature": "VCuu4sH4RG2Xr2WI0Q8TAsDxoFfZmQ2V4Q2gvdWk/+c6g7enEAXV7CG/BsTZkRnGF2+LfcAn5h3q8HhERwACDw=="
    },
    "seller_pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
    "payment": {
@@ -3685,6 +5100,11 @@
     "meta": {
      "err": null,
      "postTokenBalances": [
+      {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
       {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
@@ -3760,7 +5180,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -3823,6 +5255,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -3897,7 +5334,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -4040,6 +5489,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -4114,7 +5568,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -4249,6 +5715,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -4323,7 +5794,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -4454,7 +5937,19 @@
    "payment": {
     "found": false
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -4589,6 +6084,11 @@
      "err": "boom",
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -4663,7 +6163,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -4798,6 +6310,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -4872,7 +6389,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -5007,6 +6536,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -5081,7 +6615,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -5219,6 +6765,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -5293,7 +6844,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -5431,6 +6994,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -5505,7 +7073,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -5643,6 +7223,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -5717,7 +7302,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -5855,6 +7452,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -5929,7 +7531,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -6067,6 +7681,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -6160,7 +7779,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -6169,7 +7800,7 @@
   }
  },
  {
-  "name": "control: no receipt (seller never checked, nothing signed)",
+  "name": "no receipt (seller never checked): the chain alone proves pay_to out of scope: agent operator, resource unjudged",
   "kind": "resolve",
   "input": {
    "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
@@ -6280,6 +7911,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji"
@@ -6354,14 +7990,669 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji"
+     }
+    ]
+   },
+   "superseded": null
+  },
+  "expect": {
+   "verdict": "valid",
+   "reason": "pay_to_not_allowed",
+   "liable": "agent_operator",
+   "unjudged": [
+    "resource"
+   ]
+  }
+ },
+ {
+  "name": "no receipt and nothing out of scope on chain: invalid, principal, resource unjudged",
+  "kind": "resolve",
+  "input": {
+   "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "50000",
+    "period_budget": "100000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+   "grant_tx_parsed": {
+    "slot": 1000,
+    "blockTime": 1800000010,
+    "meta": {
+     "err": null
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "approveChecked",
+         "info": {
+          "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "1000000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       },
+       {
+        "programId": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+        "program": "spl-memo",
+        "parsed": "iussum v0.2 | agent 4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi | asset 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU | total 1000000 | per payment 50000 | per 86400s 100000 | sellers 2 | resources 1 | from 2027-01-15T08:00:00.000Z until 2027-01-22T08:00:00.000Z | id 58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "HMypLP"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "3gJqkocMWaMm"
+       }
+      ]
+     }
+    }
+   },
+   "receipt": null,
+   "seller_pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+   "payment": {
+    "slot": 2000,
+    "blockTime": 1800000100,
+    "meta": {
+     "err": null,
+     "postTokenBalances": [
+      {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+      }
+     ]
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": true,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "x"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "y"
+       },
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "transferChecked",
+         "info": {
+          "authority": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "destination": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "10000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   },
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
-   "reason": "receipt_missing",
-   "liable": null,
-   "missing": [
-    "seller receipt (what the seller saw)"
+   "reason": "in_scope",
+   "liable": "principal",
+   "unjudged": [
+    "resource"
+   ]
+  }
+ },
+ {
+  "name": "no receipt and no block time: the window is unjudged too",
+  "kind": "resolve",
+  "input": {
+   "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "50000",
+    "period_budget": "100000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+   "grant_tx_parsed": {
+    "slot": 1000,
+    "blockTime": 1800000010,
+    "meta": {
+     "err": null
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "approveChecked",
+         "info": {
+          "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "1000000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       },
+       {
+        "programId": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+        "program": "spl-memo",
+        "parsed": "iussum v0.2 | agent 4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi | asset 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU | total 1000000 | per payment 50000 | per 86400s 100000 | sellers 2 | resources 1 | from 2027-01-15T08:00:00.000Z until 2027-01-22T08:00:00.000Z | id 58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "HMypLP"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "3gJqkocMWaMm"
+       }
+      ]
+     }
+    }
+   },
+   "receipt": null,
+   "seller_pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+   "payment": {
+    "slot": 2000,
+    "blockTime": null,
+    "meta": {
+     "err": null,
+     "postTokenBalances": [
+      {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+      }
+     ]
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": true,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "x"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "y"
+       },
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "transferChecked",
+         "info": {
+          "authority": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "destination": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "10000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   },
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
+  },
+  "expect": {
+   "verdict": "invalid",
+   "reason": "in_scope",
+   "liable": "principal",
+   "unjudged": [
+    "resource",
+    "time"
+   ]
+  }
+ },
+ {
+  "name": "no receipt, amount over the cap: agent operator",
+  "kind": "resolve",
+  "input": {
+   "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "50000",
+    "period_budget": "100000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+   "grant_tx_parsed": {
+    "slot": 1000,
+    "blockTime": 1800000010,
+    "meta": {
+     "err": null
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "approveChecked",
+         "info": {
+          "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "1000000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       },
+       {
+        "programId": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+        "program": "spl-memo",
+        "parsed": "iussum v0.2 | agent 4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi | asset 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU | total 1000000 | per payment 50000 | per 86400s 100000 | sellers 2 | resources 1 | from 2027-01-15T08:00:00.000Z until 2027-01-22T08:00:00.000Z | id 58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "HMypLP"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "3gJqkocMWaMm"
+       }
+      ]
+     }
+    }
+   },
+   "receipt": null,
+   "seller_pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+   "payment": {
+    "slot": 2000,
+    "blockTime": 1800000100,
+    "meta": {
+     "err": null,
+     "postTokenBalances": [
+      {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+      }
+     ]
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": true,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "x"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "y"
+       },
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "transferChecked",
+         "info": {
+          "authority": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "destination": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "60000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   },
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
+  },
+  "expect": {
+   "verdict": "valid",
+   "reason": "amount_over_cap",
+   "liable": "agent_operator",
+   "unjudged": [
+    "resource"
    ]
   }
  },
@@ -6470,6 +8761,11 @@
      "err": null,
      "postTokenBalances": [
       {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+      },
+      {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
        "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
@@ -6544,7 +8840,19 @@
      }
     }
    },
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      "slot": 2000,
+      "block_time": 1800000100,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -6674,7 +8982,19 @@
    },
    "seller_pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
    "payment": "RECORDED",
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "5KsYz26TFRGqzk7KdjUg8z2tGL6neRed37Cj211kYFgTX8ATNDKwXfqwuRnLzC8zTMDf2Z4QS7SweCd41Lrd2Hur",
+      "slot": 512812332,
+      "block_time": 1792416301,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -6807,7 +9127,19 @@
    },
    "seller_pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
    "payment": "RECORDED",
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "5KsYz26TFRGqzk7KdjUg8z2tGL6neRed37Cj211kYFgTX8ATNDKwXfqwuRnLzC8zTMDf2Z4QS7SweCd41Lrd2Hur",
+      "slot": 512812332,
+      "block_time": 1792416301,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "invalid",
@@ -6936,7 +9268,19 @@
    },
    "seller_pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
    "payment": "RECORDED",
-   "history": null
+   "history": {
+    "complete": true,
+    "entries": [
+     {
+      "tx_sig": "5KsYz26TFRGqzk7KdjUg8z2tGL6neRed37Cj211kYFgTX8ATNDKwXfqwuRnLzC8zTMDf2Z4QS7SweCd41Lrd2Hur",
+      "slot": 512812332,
+      "block_time": 1792416301,
+      "amount": "10000",
+      "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+     }
+    ]
+   },
+   "superseded": null
   },
   "expect": {
    "verdict": "valid",

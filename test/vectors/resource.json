@@ -1,0 +1,201 @@
+[
+ {
+  "name": "exact origin, path under the prefix",
+  "kind": "resource",
+  "input": {
+   "prefixes": [
+    "https://api.x.com/v1/"
+   ],
+   "resource": "https://api.x.com/v1/quote"
+  },
+  "expect": true
+ },
+ {
+  "name": "prefix without a trailing slash matches the exact path",
+  "kind": "resource",
+  "input": {
+   "prefixes": [
+    "https://api.x.com/v1"
+   ],
+   "resource": "https://api.x.com/v1"
+  },
+  "expect": true
+ },
+ {
+  "name": "prefix without a trailing slash matches below a / boundary",
+  "kind": "resource",
+  "input": {
+   "prefixes": [
+    "https://api.x.com/v1"
+   ],
+   "resource": "https://api.x.com/v1/quote"
+  },
+  "expect": true
+ },
+ {
+  "name": "prefix without a trailing slash does not match /v10",
+  "kind": "resource",
+  "input": {
+   "prefixes": [
+    "https://api.x.com/v1"
+   ],
+   "resource": "https://api.x.com/v10/quote"
+  },
+  "expect": false
+ },
+ {
+  "name": "host-only prefix does not match api.x.com.evil.io",
+  "kind": "resource",
+  "input": {
+   "prefixes": [
+    "https://api.x.com"
+   ],
+   "resource": "https://api.x.com.evil.io/v1"
+  },
+  "expect": false
+ },
+ {
+  "name": "host-only prefix does not match a longer host name",
+  "kind": "resource",
+  "input": {
+   "prefixes": [
+    "https://api.x.com"
+   ],
+   "resource": "https://api.x.community/v1"
+  },
+  "expect": false
+ },
+ {
+  "name": "host-only prefix matches the whole site",
+  "kind": "resource",
+  "input": {
+   "prefixes": [
+    "https://api.x.com"
+   ],
+   "resource": "https://api.x.com/anything/here"
+  },
+  "expect": true
+ },
+ {
+  "name": "credentials in the URL are refused even when the host matches",
+  "kind": "resource",
+  "input": {
+   "prefixes": [
+    "https://api.x.com/v1/"
+   ],
+   "resource": "https://u:p@api.x.com/v1/q"
+  },
+  "expect": false
+ },
+ {
+  "name": "userinfo cannot smuggle another host",
+  "kind": "resource",
+  "input": {
+   "prefixes": [
+    "https://api.x.com/"
+   ],
+   "resource": "https://api.x.com@evil.io/"
+  },
+  "expect": false
+ },
+ {
+  "name": "dot segments are resolved: /v1/../admin is /admin",
+  "kind": "resource",
+  "input": {
+   "prefixes": [
+    "https://api.x.com/v1/"
+   ],
+   "resource": "https://api.x.com/v1/../admin"
+  },
+  "expect": false
+ },
+ {
+  "name": "percent-encoded dot segments are resolved too",
+  "kind": "resource",
+  "input": {
+   "prefixes": [
+    "https://api.x.com/v1/"
+   ],
+   "resource": "https://api.x.com/v1/%2e%2e/admin"
+  },
+  "expect": false
+ },
+ {
+  "name": "another port",
+  "kind": "resource",
+  "input": {
+   "prefixes": [
+    "https://api.x.com/v1/"
+   ],
+   "resource": "https://api.x.com:8443/v1/q"
+  },
+  "expect": false
+ },
+ {
+  "name": "explicit default port equals the implicit one",
+  "kind": "resource",
+  "input": {
+   "prefixes": [
+    "https://api.x.com/v1/"
+   ],
+   "resource": "https://api.x.com:443/v1/q"
+  },
+  "expect": true
+ },
+ {
+  "name": "another scheme",
+  "kind": "resource",
+  "input": {
+   "prefixes": [
+    "https://api.x.com/v1/"
+   ],
+   "resource": "http://api.x.com/v1/q"
+  },
+  "expect": false
+ },
+ {
+  "name": "host case is normalised",
+  "kind": "resource",
+  "input": {
+   "prefixes": [
+    "https://api.x.com/v1/"
+   ],
+   "resource": "https://API.X.COM/v1/q"
+  },
+  "expect": true
+ },
+ {
+  "name": "query and fragment are ignored for matching",
+  "kind": "resource",
+  "input": {
+   "prefixes": [
+    "https://api.x.com/v1/"
+   ],
+   "resource": "https://api.x.com/v1/q?a=1#f"
+  },
+  "expect": true
+ },
+ {
+  "name": "not a URL",
+  "kind": "resource",
+  "input": {
+   "prefixes": [
+    "https://api.x.com/v1/"
+   ],
+   "resource": "api.x.com/v1/q"
+  },
+  "expect": false
+ },
+ {
+  "name": "second prefix on the list matches",
+  "kind": "resource",
+  "input": {
+   "prefixes": [
+    "https://a.example/",
+    "https://api.x.com/v1/"
+   ],
+   "resource": "https://api.x.com/v1/q"
+  },
+  "expect": true
+ }
+]

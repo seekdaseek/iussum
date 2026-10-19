@@ -1,6 +1,6 @@
 # iussum
 
-Meta's Muse terms put all risk of financial loss on the user, who is "solely responsible for setting transaction limits", and cap Meta's own liability at the greater of $250 or twelve months of fees; Instinct's terms (revised 26 Aug 2026) make the agent's transactions binding on the user as if made directly, with the company's liability capped at the greater of $100 or six months of fees (as reported by vr.org on 30 Sep 2026 and amanwhoblogs.substack.com, cited from this project's brief and not re-read by the author). Cards have no dispute reason code that separates "my agent exceeded what I allowed" from fraud. iussum fills that gap for x402 payments on Solana: **what the person authorised is signed on chain, the seller can check it before it takes the money, and a dispute is decided from signed artifacts alone.**
+Meta's Muse supplemental terms (muse.ai/terms, last updated 8 Sep 2026) say the user bears "all risk of financial loss" from the agent's financial actions, that the user is solely responsible for setting limits and safeguards, and cap Meta's own liability at the greater of $250 or what the user paid in the previous twelve months; Instinct's terms of service (instinct.com/terms, revised 26 Aug 2026) make its actions "binding on you as if entered into directly by you" and cap its liability at the greater of $100 and, per two secondary sources, what the user paid in the previous six months (sources and how they were read are listed under "Sources" below). Cards have no dispute reason code that separates "my agent exceeded what I allowed" from fraud. iussum fills that gap for x402 payments on Solana: **what the person authorised is signed on chain, the seller can check it before it takes the money, and a dispute is decided from signed artifacts alone.**
 
 It is pronounced YOOS-sum (Latin *iussum*, "an order, an authorisation"), and written lowercase.
 
@@ -20,9 +20,11 @@ On the Seeker, Seed Vault showed the **token and the amount** for the grant tran
 
 ## Verify it
 
+Requires **Node 24 or newer** (`engines` says `>=24`; `node:sqlite` and a dependency need it, `npm ci` warns on Node 22).
+
 ```bash
 npm ci
-npm test                 # 155 tests, no network
+npm test                 # no network
 npm run mutation         # breaks each of the checks one at a time and requires a test to fail
 npm run demo:devnet      # nine scenarios on devnet with real USDC and a real facilitator (needs funded throw-away keys, see JUDGE_GUIDE.md)
 ```

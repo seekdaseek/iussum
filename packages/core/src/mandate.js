@@ -6,6 +6,7 @@ import { isAddress } from '@solana/kit';
 import { canonicalize, sha256Hex } from './jcs.js';
 import { fails, registerCheck } from './guard.js';
 import { R } from './codes.js';
+import { prefixErrors, resourceAllowed } from './resource.js';
 
 export const MANDATE_VERSION = 'iussum/0.2';
 const DEC = /^(0|[1-9][0-9]*)$/;
@@ -37,6 +38,7 @@ export function validateMandate(m) {
     if (!Array.isArray(a.pay_to) || a.pay_to.length === 0 || !a.pay_to.every((x) => typeof x === 'string' && isAddress(x))) e.push('allow.pay_to must be a non-empty array of addresses');
     else if (new Set(a.pay_to).size !== a.pay_to.length) e.push('allow.pay_to has duplicates');
     if (!Array.isArray(a.resource_prefix) || a.resource_prefix.length === 0 || !a.resource_prefix.every((x) => typeof x === 'string' && x.length > 0)) e.push('allow.resource_prefix must be a non-empty array of non-empty strings');
+    else for (const x of a.resource_prefix) { const pe = prefixErrors(x); if (pe) e.push(`allow.resource_prefix ${JSON.stringify(x)}: ${pe}`); }
   }
   if (e.length === 0 && BigInt(m.per_payment_max) > BigInt(m.total_cap)) e.push('per_payment_max exceeds total_cap');
   return e;
@@ -53,18 +55,21 @@ export function summaryLine(m) {
 }
 
 // Tier 1: pure scope check of one payment against a mandate. p = { amount, pay_to, resource, asset, network, payer, time }.
+export const periodStart = (m, t) => m.not_before + Math.floor((t - m.not_before) / m.period_seconds) * m.period_seconds;
 export const SCOPE_CHECKS = ['network_mismatch', 'asset_mismatch', 'mandate_not_yet_valid', 'mandate_expired', 'agent_mismatch', 'amount_over_cap', 'pay_to_not_allowed', 'resource_not_allowed'].map(registerCheck);
-export function scopeViolations(m, p) {
+// opts.judgeResource=false / judgeTime=false: the evidence for that field is not available (a dispute without a receipt has no resource);
+// the caller lists it as unjudged instead of guessing.
+export function scopeViolations(m, p, { judgeResource = true, judgeTime = true } = {}) {
   const v = [];
   const add = (code, field, authorized, actual) => v.push({ code, field, authorized, actual });
   if (fails(R.network_mismatch, p.network !== m.network)) add(R.network_mismatch, 'network', m.network, p.network);
   if (fails(R.asset_mismatch, p.asset !== m.asset)) add(R.asset_mismatch, 'asset', m.asset, p.asset);
-  if (fails(R.mandate_not_yet_valid, p.time < m.not_before)) add(R.mandate_not_yet_valid, 'time', `>= ${m.not_before}`, String(p.time));
-  if (fails(R.mandate_expired, p.time >= m.expires_at)) add(R.mandate_expired, 'time', `< ${m.expires_at}`, String(p.time));
+  if (judgeTime && fails(R.mandate_not_yet_valid, p.time < m.not_before)) add(R.mandate_not_yet_valid, 'time', `>= ${m.not_before}`, String(p.time));
+  if (judgeTime && fails(R.mandate_expired, p.time >= m.expires_at)) add(R.mandate_expired, 'time', `< ${m.expires_at}`, String(p.time));
   if (fails(R.agent_mismatch, p.payer !== m.agent)) add(R.agent_mismatch, 'payer', m.agent, p.payer);
   if (fails(R.amount_over_cap, BigInt(p.amount) > BigInt(m.per_payment_max))) add(R.amount_over_cap, 'amount', m.per_payment_max, String(p.amount));
   if (fails(R.pay_to_not_allowed, !m.allow.pay_to.includes(p.pay_to))) add(R.pay_to_not_allowed, 'pay_to', m.allow.pay_to.join(','), p.pay_to);
-  if (fails(R.resource_not_allowed, !(typeof p.resource === 'string' && m.allow.resource_prefix.some((x) => p.resource.startsWith(x))))) add(R.resource_not_allowed, 'resource', m.allow.resource_prefix.join(','), String(p.resource));
+  if (judgeResource && fails(R.resource_not_allowed, !resourceAllowed(m.allow.resource_prefix, p.resource))) add(R.resource_not_allowed, 'resource', m.allow.resource_prefix.join(','), String(p.resource));
   return v;
 }
 

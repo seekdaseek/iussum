@@ -15,7 +15,7 @@ test('parsePayment reads the real recorded devnet settlement (5KsYz26T)', () => 
   const p = parsePayment(recorded('payment-5KsYz26T'));
   assert.equal(p.found, true); assert.equal(p.err, null);
   assert.equal(p.transfers.length, 1);
-  assert.deepEqual({ ...p.transfers[0] }, { source: '6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe', destination: 'GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps', mint: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU', authority: '4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi', amount: '10000', dest_owner: '5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7' });
+  assert.deepEqual({ ...p.transfers[0] }, { source: '6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe', destination: 'GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps', mint: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU', authority: '4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi', amount: '10000', decimals: 6, dest_owner: '5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7', source_owner: 'BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU' });
 });
 test('parsePayment of null is not found', () => assert.deepEqual(parsePayment(null), { found: false }));
 test('real T1 grant (natX, v0.1 memo) parses: ApproveChecked + Memo + two ComputeBudget, natX sole signer', () => {
@@ -39,7 +39,7 @@ test('grant checker caches the immutable part and always re-reads the live accou
   const fixtures = JSON.parse(fs.readFileSync(new URL('grant.json', dir), 'utf8'));
   const ok = fixtures.find((f) => f.name.startsWith('minimal grant'));
   let txCalls = 0, accCalls = 0;
-  const rpc = { getTransaction: async () => { txCalls++; return ok.input.tx; }, getAccountInfoParsed: async () => { accCalls++; return { data: { parsed: { info: { owner: ok.input.mandate.principal, mint: ok.input.mandate.asset, delegate: ok.input.mandate.agent, delegatedAmount: { amount: '5' } } } } }; } };
+  const rpc = { getTransaction: async () => { txCalls++; return ok.input.tx; }, getSignaturesForAddress: async () => [], getAccountInfoParsed: async () => { accCalls++; return { data: { parsed: { info: { owner: ok.input.mandate.principal, mint: ok.input.mandate.asset, delegate: ok.input.mandate.agent, delegatedAmount: { amount: '5' } } } } }; } };
   const c = createGrantChecker(rpc);
   const sig = 'x'.repeat(88);
   assert.equal((await c.check(ok.input.mandate, sig)).ok, true);
@@ -52,3 +52,13 @@ test('periodIndex anchors at not_before', () => {
   assert.equal(periodIndex(m, 1000), 0); assert.equal(periodIndex(m, 1099), 0); assert.equal(periodIndex(m, 1100), 1);
 });
 test('periodSpendAt on an unknown tx is not found', () => assert.equal(periodSpendAt({ not_before: 0, period_seconds: 10, period_budget: '1' }, [], 'z').found, false));
+
+test('makeRpc retries the "Transaction <sig> not found" index-lag error of getSignaturesForAddress, and only that one', async () => {
+  const { makeRpc } = await import('@iussum/core');
+  let calls = 0;
+  const lag = async () => { calls++; return new Response(JSON.stringify(calls < 3 ? { jsonrpc: '2.0', id: 1, error: { code: -32000, message: 'Transaction abc not found' } } : { jsonrpc: '2.0', id: 1, result: [{ signature: 's' }] }), { status: 200 }); };
+  assert.deepEqual(await makeRpc('http://x', { fetchImpl: lag }).getSignaturesForAddress('addr', { until: 'abc' }), [{ signature: 's' }]);
+  assert.equal(calls, 3);
+  const other = async () => new Response(JSON.stringify({ jsonrpc: '2.0', id: 1, error: { code: -32602, message: 'Invalid param' } }), { status: 200 });
+  await assert.rejects(() => makeRpc('http://x', { fetchImpl: other }).getSignaturesForAddress('addr'), /Invalid param/);
+});

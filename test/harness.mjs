@@ -29,10 +29,11 @@ export async function startMockFacilitator() {
 }
 
 export function fakeRpc() {
-  const s = { grants: new Map(), account: null, calls: { getTransaction: 0, getAccountInfoParsed: 0 } };
+  const s = { grants: new Map(), account: null, newer: [], mints: new Map([[A.asset, 6]]), calls: { getTransaction: 0, getAccountInfoParsed: 0 } };
   return Object.assign(s, {
     async getTransaction(sig) { s.calls.getTransaction++; return s.grants.get(sig) ?? null; },
-    async getAccountInfoParsed() { s.calls.getAccountInfoParsed++; return s.account; },
+    async getAccountInfoParsed(addr) { s.calls.getAccountInfoParsed++; if (s.mints.has(addr)) return { data: { parsed: { info: { decimals: s.mints.get(addr) } } } }; return s.account; },
+    async getSignaturesForAddress() { return s.newer; }, // signatures newer than the grant on the source account (none unless a test sets them)
     async call() { throw new Error('unexpected rpc call'); },
   });
 }
@@ -40,9 +41,12 @@ export const liveAccount = (m, o = {}) => ({ data: { parsed: { info: { owner: m.
 export const GRANT_SIG = 'G'.repeat(88);
 
 // Start one seller. Returns { url, gate, rpc, facilitator, close, hits }.
-export async function startSeller({ mode = 'enforce', payTo = A.sellerA, price = '10000', requireMandate = false, now, facilitator }) {
+export async function startSeller({ mode = 'enforce', payTo = A.sellerA, price = '10000', requireMandate = false, now, facilitator, asset = A.asset }) {
   const rpc = fakeRpc();
-  const gate = createSellerGate({ mode, payTo, asset: A.asset, network: DEVNET, rpc, key: receiptKey(Buffer.alloc(32, 9)), requireMandate, now });
+  const srv = http.createServer();
+  const port = await listen(srv);
+  const origin = `http://127.0.0.1:${port}`;
+  const gate = createSellerGate({ mode, payTo, asset, network: DEVNET, rpc, key: receiptKey(Buffer.alloc(32, 9)), requireMandate, now, origin });
   const server = new x402ResourceServer(new HTTPFacilitatorClient({ url: facilitator.url }));
   registerExactSvmScheme(server, { networks: [DEVNET] });
   const app = express();
@@ -50,12 +54,10 @@ export async function startSeller({ mode = 'enforce', payTo = A.sellerA, price =
   app.use((req, _res, next) => { if (req.get('payment-signature')) hits.paymentHeader++; next(); });
   app.get('/.well-known/iussum.json', gate.wellKnown);
   app.use(gate.middleware);
-  app.use(paymentMiddleware({ 'GET /v1/quote': { accepts: [{ scheme: 'exact', price: { amount: price, asset: A.asset }, network: DEVNET, payTo }], description: 't', mimeType: 'application/json' }, 'GET /other/quote': { accepts: [{ scheme: 'exact', price: { amount: price, asset: A.asset }, network: DEVNET, payTo }], description: 't', mimeType: 'application/json' } }, server));
+  app.use(paymentMiddleware({ 'GET /v1/quote': { accepts: [{ scheme: 'exact', price: { amount: price, asset }, network: DEVNET, payTo }], description: 't', mimeType: 'application/json' }, 'GET /other/quote': { accepts: [{ scheme: 'exact', price: { amount: price, asset }, network: DEVNET, payTo }], description: 't', mimeType: 'application/json' } }, server));
   app.get('/v1/quote', (_req, res) => { hits.handler++; res.json({ ok: true }); });
   app.get('/other/quote', (_req, res) => { hits.handler++; res.json({ ok: true }); });
-  const srv = http.createServer(app);
-  const port = await listen(srv);
-  const origin = `http://127.0.0.1:${port}`;
+  srv.on('request', app);
   return { origin, url: `${origin}/v1/quote`, otherUrl: `${origin}/other/quote`, gate, rpc, hits, close: () => srv.close() };
 }
 
