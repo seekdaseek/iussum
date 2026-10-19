@@ -226,6 +226,10 @@ async function s12() {
   const ok = rs.filter((r) => r.status === 'fulfilled' && r.value.status === 200);
   const refused = rs.filter((r) => r.status === 'rejected' && r.reason instanceof IussumRefusal && r.reason.reason === 'period_over_budget');
   step(`outcomes: ${rs.map((r) => (r.status === 'fulfilled' ? r.value.status : r.reason.reason ?? r.reason.message)).join(', ')}`);
+  for (const r of rs) { // anything but a settled payment or the expected local refusal is printed in full
+    if (r.status === 'rejected' && r.reason.reason !== 'period_over_budget') step(`UNEXPECTED refusal ${r.reason.reason ?? r.reason.message}: ${JSON.stringify(r.reason.delta ?? null)}`);
+    if (r.status === 'fulfilled' && r.value.status !== 200) step(`UNEXPECTED HTTP ${r.value.status}: ${(await r.value.clone().text()).slice(0, 400)}`);
+  }
   expect('exactly three payments settled and two were refused locally with period_over_budget', [ok.length, refused.length], [3, 2]);
   const sigs = ok.map((r) => r.value.receipt.tx_sig);
   step(`settled transactions: ${sigs.join(' ')}`);

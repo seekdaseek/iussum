@@ -14,7 +14,7 @@ import { fillBlockIndices, comparePositions } from './chain.js';
 
 export const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export const MEMO_V2 = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
-export const GRANT_CHECKS = ['grant.tx_err', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.superseded_inner', 'grant.scan_failed', 'grant.scan_unreadable', 'grant.superseded_position'].map(registerCheck);
+export const GRANT_CHECKS = ['grant.tx_err', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.superseded_inner', 'grant.scan_failed', 'grant.scan_unreadable', 'grant.superseded_position', 'grant.coalesce_scans'].map(registerCheck);
 
 export async function principalAta(principal, asset) {
   const [ata] = await findAssociatedTokenPda({ mint: asset, owner: principal, tokenProgram: TOKEN_PROGRAM_ADDRESS });
@@ -119,8 +119,17 @@ export function createGrantChecker(rpc) {
     scans.set(k, { since: r.newest ?? st.since, superseded: r.superseded });
     return r.superseded;
   }
+  // Concurrent payments ask the same question at the same moment (is this grant still current?). One scan answers all of them; a call that
+  // arrives after it finished starts a new one, so nothing is cached beyond the incremental `since` marker.
+  const inflight = new Map();
+  const supersededOnce = (source, grantTx) => {
+    if (!fails('grant.coalesce_scans', true)) return supersededBy(source, grantTx);
+    const k = `${source}:${grantTx}`;
+    if (!inflight.has(k)) inflight.set(k, supersededBy(source, grantTx).finally(() => inflight.delete(k)));
+    return inflight.get(k);
+  };
   return {
-    supersededBy,
+    supersededBy: supersededOnce,
     async check(mandate, grantTx, { active = true } = {}) {
       if (typeof grantTx !== 'string' || grantTx.length < 80) return bad(R.grant_not_found, 'no grant_tx');
       const key = `${grantTx}:${mandateId(mandate)}`;
@@ -130,7 +139,7 @@ export function createGrantChecker(rpc) {
       const live = inspectGrantActive(await rpc.getAccountInfoParsed(s.source), mandate);
       if (!live.ok) return live;
       let sup;
-      try { sup = await supersededBy(s.source, grantTx); }
+      try { sup = await supersededOnce(s.source, grantTx); }
       catch (e) { return fails('grant.scan_failed', true) ? bad(R.grant_inactive, `could not verify the grant is current: ${e.message}`) : { ...s, ...live }; }
       if (fails('grant.superseded', sup)) return bad(R.grant_inactive, `superseded by ${sup.sig}`);
       return { ...s, ...live };

@@ -50,3 +50,15 @@ test('B2 the earliest superseding transaction is chosen by position, not by sign
   const r = await checker.check(M1, sig('G1'), { active: true });
   assert.equal(r.ok, false); assert.match(r.detail, new RegExp(`superseded by ${sig('Zfirst')}`));
 });
+test('B2 concurrent checks of one grant share one supersession scan (five concurrent payments do not make five scans), and a later call scans again', async () => {
+  const c = chainSim();
+  c.add('G1', grantAt(M1, 1000)); c.setAccount(SRC, live(M1));
+  const slow = c.getSignaturesForAddress.bind(c); c.getSignaturesForAddress = async (...a) => { await new Promise((r) => setTimeout(r, 40)); return slow(...a); }; // a real RPC takes time: the five checks overlap
+  const checker = createGrantChecker(c);
+  const rs = await Promise.all([1, 2, 3, 4, 5].map(() => checker.check(M1, sig('G1'), { active: true })));
+  assert.deepEqual(rs.map((r) => r.ok), [true, true, true, true, true]);
+  assert.equal(c.calls.getSignaturesForAddress, 1, 'one scan for five concurrent checks');
+  c.add('P', payAt(1100, { amount: '10000' }));
+  assert.equal((await checker.check(M1, sig('G1'), { active: true })).ok, true);
+  assert.equal(c.calls.getSignaturesForAddress, 2, 'a call after the scan finished scans only what is new');
+});
