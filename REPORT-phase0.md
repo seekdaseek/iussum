@@ -45,7 +45,7 @@ UNTESTED: nothing in TWINS.md was executed; aether's tests not run; the list of 
 
 ## G0.3 Seed Vault — `docs/SEED-VAULT.md`
 
-Probe `apps/seeker-probe/` (Expo 55, RN 0.83.6, nuntius's `transact()` wiring, fresh `authorize` per session), installed on the Seeker `the Seeker` (Android 16). First round (mainnet-chain-agnostic `signMessages`, three samples) and a second round on devnet (readable UI, one button per test; APK sha256 `3434e1ed0dd5b9cc0961a08e4bf81f61a4715bdc11f196aa171f7676171dd85d`). natX signed everything; nothing touched mainnet.
+Probe `apps/seeker-probe/` (Expo 55, RN 0.83.6, nuntius's `transact()` wiring, fresh `authorize` per session), installed on the Seeker (Android 16). First round (mainnet-chain-agnostic `signMessages`, three samples) and a second round on devnet (readable UI, one button per test; APK sha256 `3434e1ed0dd5b9cc0961a08e4bf81f61a4715bdc11f196aa171f7676171dd85d`). natX signed everything; nothing touched mainnet.
 - **signMessages (SHORT 162 B, MULTILINE 150 B, LONG 741 B):** all accepted, 64-byte detached ed25519 signatures, all verify in Node against natX with negative controls. The Verify sheet never shows the text: ~1 s "Message ⓘ" skeleton, then "Confirm that you are authorized to sign transactions with this wallet."
 - **T1, ApproveChecked (delegate `4ZUJeT13…`, 2.5 devnet USDC) + Memo (SHORT line), signAndSend:** landed on devnet. The Transaction sheet showed the mint `4zMM…ncDU`, **2.5**, Network fee 0.000045 SOL, two generic warnings, Wallet DAPP, Application ochinimus.app, and an "I trust this site" toggle that gates Approve. **It showed neither the delegate nor the memo text.** Seed Vault appended two ComputeBudget instructions.
 - **T1b, Revoke:** landed; the sheet showed the mint with "No change", fee 0.000025 SOL, the domain warning; it does not say a delegation is being removed. natX's USDC account then has no delegate.
@@ -90,9 +90,9 @@ Per Addendum A the Subscriptions grant / pull / over-cap / revoke steps were not
 
 The funding airdrop (read-only check done) `5UDJon9x7Fzb6GpJX1fBad2JsrvxPUGU9ZzxNfz35cikQjYrzU2fFJDjE7evhDxEQgeza18FyFXpngr84UFfer5S` is yours. The Seed Vault `signMessages` produced no transaction. Localnet signatures (not on any explorer; ledger in `/tmp`) are in `probes/g04-local-results.json` and ALLOWANCE.md.
 
-## G0.5 Merchant track — `docs/MERCHANT-TRACK.md`
+## G0.5 Merchant track (research document kept private)
 
-Research agent, read through a fetch summariser, every claim with a URL. `VERDICT: Don't build the merchant track now`: Shopify documents no agent marker on orders (`Order.attribution` is a per-app definition, WebMCP `update_checkout` ignores it); the only app built for agent orders (FLINT Sentry, free, Pro $29/mo, launched 2026-07-17) has 0 reviews; Shopify is silent on who bears agent-order disputes (generic Shopify Payments rule: merchant); "legitimate agent orders get flagged high-risk" NOT FOUND; Moldova Partner payout via Hyperwallet NOT FOUND (only a Partner Dashboard check settles it). Premises CONFIRMED: Muse/Shop Pay (announced 2026-09-21, secondary source), WebMCP checkout 2026-09-28, no merchant configuration required. UNREAD: AgentBlock listing (404), Shopify's own X post on Instinct, Hyperwallet country list (404).
+`VERDICT: Don't build the merchant track now`: Shopify documents no agent marker on orders, and the only app built for agent orders had 0 reviews. The research document is kept private; it is market research, not protocol work.
 
 ## Everything UNTESTED, with the test that would prove it
 
@@ -115,8 +115,8 @@ Research agent, read through a fetch summariser, every claim with a URL. `VERDIC
 - Not committed (gitignored): `node_modules`, `dist`, `android/build`, `*.apk`, `.secrets/`. The probe APK is therefore only on disk at `apps/seeker-probe/iussum-probe-release.apk`.
 - Touched outside the repo: nothing in `/Volumes/D/nuntius` (read with cat/cp only, no git, no writes); nothing on the VPS; no mainnet transaction; no deploy or publish. `~/.cache/nuntius-localnet` read only. The localnet validator is stopped. The probe is installed on the Seeker as `app.ochinimus.iussumprobe`; the Seeker was used for G0.3 only, no key on it was touched beyond natX signing the three probe messages.
 - Devnet state left behind: the principal's USDC account still has the Subscriptions authority as delegate (grant from stage b); the agent's SPL delegation was revoked.
-- `LOG.md` has a dated line for each step.
+- The working log (kept private) has a dated line for each step.
 
 ## Files
 
-`REPORT-phase0.md`, `LOG.md`, `TWINS.md`, `docs/{X402-SURFACE,ALLOWANCE,SEED-VAULT,MERCHANT-TRACK}.md`, `probes/{g02-local,g02-real,g04-local-facilitator,g04-live,verify-seedvault}.mjs`, `probes/g04-local-results.json`, `vendor/nuntius-mandate/`, `apps/seeker-probe/`, `apps/seeker-probe-native/`.
+`REPORT-phase0.md`, `TWINS.md`, `docs/{X402-SURFACE,ALLOWANCE,SEED-VAULT}.md`, `probes/{g02-local,g02-real,g04-local-facilitator,g04-live,verify-seedvault}.mjs`, `probes/g04-local-results.json`, `vendor/nuntius-mandate/`, `apps/seeker-probe/`, `apps/seeker-probe-native/`.

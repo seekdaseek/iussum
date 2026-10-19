@@ -2,7 +2,7 @@
 
 Question: does Seed Vault `signMessages` over an iussum summary line work, and what does the user see?
 
-## Status: all three samples run on the Seeker 2026-10-19 (SHORT 16:27, MULTILINE 16:33:12, LONG 16:33:36; device `the Seeker`, model "Seeker", Android 16). Signatures verified. **Finding: Seed Vault does not show the message text.**
+## Status: all three samples run on the Seeker 2026-10-19 (SHORT 16:27, MULTILINE 16:33:12, LONG 16:33:36; model "Seeker", Android 16). Signatures verified. **Finding: Seed Vault does not show the message text.**
 
 Release APK: `apps/seeker-probe/iussum-probe-release.apk` (30,700,943 bytes, sha256 `a8a9f6299103ed26975741651ad0b258c30ff2d00813a20b88371eb20bbd52b8`, package `app.ochinimus.iussumprobe`, arm64-v8a, signed with the Android debug certificate: a probe, never for a store). Installed with `adb install -r`, `Success`.
 

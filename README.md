@@ -43,7 +43,7 @@ npm run demo:devnet      # ten scenarios on devnet with real USDC and a real fac
 | `apps/resolver` | HTTP service: `POST /dispute`, `GET /v/:tx`, verdict store, demo refund executor |
 | `apps/seeker-probe` | the Phase 0 Seed Vault display probe (not part of the product) |
 | `test/vectors` | golden vectors, including a recorded real devnet payment |
-| `docs/` | Phase 0 and Phase 1 evidence: X402-SURFACE, SEED-VAULT, ALLOWANCE, MERCHANT-TRACK, FEEDBACK |
+| `docs/` | Phase 0 and Phase 1 evidence: X402-SURFACE, SEED-VAULT, ALLOWANCE, FEEDBACK |
 
 ## Demo output
 

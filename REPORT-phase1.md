@@ -101,7 +101,7 @@ Also covered: `grant_not_found` (the transaction does not exist, or no grant_tx 
 
 Not in the run outputs because they do not exist: payments the sellers refused (403) or the facilitator failed (402) have no signature. The 9b payment (0.02 USDC to seller A) is not printed by the script, so it is not listed.
 
-Devnet housekeeping, first step of Phase 1: the throw-away principal's USDC account had the Subscriptions authority as SPL delegate (G0.4 stage b). The first `ApproveChecked` of the demo replaced it, **which ended the old Subscriptions grant** (the delegation PDA is left on chain, unusable); logged in `LOG.md`. Final state read from devnet after the five runs: delegate = the agent `4ZUJeT13…`, delegated 980000. Setup transaction (token accounts for seller2, seller3, refund float; 0.5 USDC and 0.02 SOL to the float): `4Qsu3vCeWBSeUdwmDRAz5Edm9tfkKZMM2uDARPJfSUmoAGXeBBRnfeneEYtgcVat4b7oXRxiJmKRV9fGwBSKPhSC`.
+Devnet housekeeping, first step of Phase 1: the throw-away principal's USDC account had the Subscriptions authority as SPL delegate (G0.4 stage b). The first `ApproveChecked` of the demo replaced it, **which ended the old Subscriptions grant** (the delegation PDA is left on chain, unusable); logged in the private working log. Final state read from devnet after the five runs: delegate = the agent `4ZUJeT13…`, delegated 980000. Setup transaction (token accounts for seller2, seller3, refund float; 0.5 USDC and 0.02 SOL to the float): `4Qsu3vCeWBSeUdwmDRAz5Edm9tfkKZMM2uDARPJfSUmoAGXeBBRnfeneEYtgcVat4b7oXRxiJmKRV9fGwBSKPhSC`.
 
 **85 signatures, all `finalized` (checked with getSignatureStatuses): 45 grants, 30 payments, 5 refunds, 5 revokes.**
 
@@ -195,7 +195,7 @@ Devnet housekeeping, first step of Phase 1: the throw-away principal's USDC acco
 
 ## G0.5 verdict line (from Phase 0, unchanged)
 
-VERDICT: Don't build the merchant track now - the identification signal does not exist in Shopify's docs, the only built-for-agent-orders app (FLINT Sentry, free tier) already occupies it with zero reviews so demand is unproven, Shopify's liability stance is silent (generic: merchant pays), the core "high-risk flag" premise is unverified, and Moldova payout via Hyperwallet is NOT FOUND; revisit if Shopify ships a documented agent marker on orders or FLINT Sentry reaches real review volume.
+VERDICT: Don't build the merchant track now - the identification signal does not exist in Shopify's docs, the only built-for-agent-orders app (FLINT Sentry, free tier) already occupies it with zero reviews so demand is unproven, Shopify's liability stance is silent (generic: merchant pays), the core "high-risk flag" premise is unverified; revisit if Shopify ships a documented agent marker on orders or FLINT Sentry reaches real review volume.
 
 ## Changes from the brief, and judgement calls
 
@@ -225,4 +225,4 @@ VERDICT: Don't build the merchant track now - the identification signal does not
 | The Digest text for the README hook | read D.15.4.1.1 |
 | Concurrency beyond two simultaneous disputes; RPC failure paths other than retry on 429 and 5xx | load and fault tests |
 
-Docs written or updated in Phase 1: `README.md`, `JUDGE_GUIDE.md`, `TESTS.md`, `docs/FEEDBACK.md` (new). Phase 0 docs kept: `TWINS.md`, `docs/X402-SURFACE.md`, `docs/SEED-VAULT.md`, `docs/ALLOWANCE.md`, `docs/MERCHANT-TRACK.md`.
+Docs written or updated in Phase 1: `README.md`, `JUDGE_GUIDE.md`, `TESTS.md`, `docs/FEEDBACK.md` (new). Phase 0 docs kept: `TWINS.md`, `docs/X402-SURFACE.md`, `docs/SEED-VAULT.md`, `docs/ALLOWANCE.md`.
