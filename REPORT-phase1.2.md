@@ -13,7 +13,7 @@ Devnet and localnet only. Nothing was posted anywhere (the x402#3500 comment was
 | the seven review scripts | wrong outcome on `057ff14`, correct outcome after the fixes: both outputs below |
 | the new regression tests | 46 tests in `test/phase12`: on `057ff14` 32 fail and 12 pass (controls such as "a normal payment is judged", and guards for behaviour that did not exist yet, such as "a payment that was never created releases its reservation"): [docs/phase12/regression-on-057ff14.txt](docs/phase12/regression-on-057ff14.txt); after the fixes 46 pass: [docs/phase12/regression-on-fixed.txt](docs/phase12/regression-on-fixed.txt) |
 | five clean devnet runs | `demo-runs-1.2/run-1.txt` to `run-5.txt`, each `61/61 checks passed`, exit code 0; 160 signatures, every one checked with `getSignatureStatuses` (160 finalized, 0 missing, 0 with an error): [demo-runs-1.2/signatures.md](demo-runs-1.2/signatures.md) |
-| fresh clone of github.com/seekdaseek/iussum | see the last section (filled in after the push) |
+| fresh clone of github.com/seekdaseek/iussum | `npm ci && npm test` on a clone of `ff6e3d3`: **307 tests, 307 pass, 0 fail, 0 skipped**; no BRIEF, mp4, log, publish-report, merchant-research or review-script file in the tree or in any commit; all 20 commits authored and committed by `seekdaseek <ochinimus@gmail.com>`; no Co-Authored-By or Claude-Session line; repo PUBLIC, MIT |
 | sensitive scan over all public history | the Addendum D patterns plus the device serial, run over every commit; positive controls first (the pattern finds the serial in the private bundle and `4a8o45sk` in the private brief files). Result: the only hits are the `.env*` ignore line in `.gitignore` and the provider name in `vendor/nuntius-mandate` (unchanged and byte-identical, as the addendum says). The pattern list is not written into any tracked file |
 | relative links in tracked `.md` | all resolve to tracked files |
 
@@ -136,7 +136,3 @@ Stated because they change what the suite asserts:
 - `/dispute` is open to anyone; a principal-signed dispute is Phase 2. A provisional verdict can be wrong until a receipt is filed.
 - The period budget is enforced by the agent and attributed by the resolver. It is not enforced on chain; only `total_cap` is.
 - The resolver's RPC cost: every dispute scans the account history and reads the account; no load or rate-limit testing beyond the demo runs.
-
-## Fresh clone
-
-(Filled in after the push.)
