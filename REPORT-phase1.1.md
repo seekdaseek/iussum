@@ -1,5 +1,7 @@
 # REPORT: iussum Phase 1.1 (2026-10-19)
 
+Commit hashes cited below come from the private working history; see [docs/COMMITS.md](docs/COMMITS.md) for the matching public commits.
+
 Addendum C (sha256 e12857ae…): the twelve missing checks found by the gate review. **Stopped after the gate. Nothing pushed, nothing on mainnet, Phase 2 not started.** Mutation testing proves every check that exists is load-bearing; it could not find these because they did not exist, so each fix below comes with a regression test written first and a mutation row.
 
 ## Repo

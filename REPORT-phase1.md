@@ -1,5 +1,7 @@
 # REPORT: iussum Phase 1 (2026-10-19)
 
+Commit hashes cited below come from the private working history; see [docs/COMMITS.md](docs/COMMITS.md) for the matching public commits.
+
 Phase 1 per v3 section 6 as changed by Addendum B (sha256 d67c2456…). **Stopped at the Phase 1 gate. Phase 2, Phase 3 and everything on mainnet have not been started.** Devnet and localnet only; no mainnet transaction, deploy or publish.
 
 ## Repo

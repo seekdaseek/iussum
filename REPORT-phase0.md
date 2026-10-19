@@ -1,5 +1,7 @@
 # REPORT — iussum Phase 0 (2026-10-19, updated after the decisions and the live runs)
 
+Commit hashes cited below come from the private working history; see [docs/COMMITS.md](docs/COMMITS.md) for the matching public commits.
+
 Scope: Phase 0 only (G0.1 to G0.5), with Addendum A (sha256 `ff7bbbf4…`) applied to G0.3 and G0.4. Brief sha256 `0130e234…`. Phase 1 NOT started. Stopped here as instructed; the brief's "continue to Phase 1" was overridden.
 
 ## Decisions applied (from your reply)
