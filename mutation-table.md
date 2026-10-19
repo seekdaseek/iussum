@@ -1,5 +1,5 @@
-baseline: 298 tests, 298 pass, 0 fail
-checks mutated: 97, survived (vacuous): 4
+baseline: 306 tests, 306 pass, 0 fail
+checks mutated: 97, survived (vacuous): 0
 
 | check skipped | tests that fail | first failing test |
 |---|---|---|
@@ -10,7 +10,7 @@ checks mutated: 97, survived (vacuous): 4
 | `agent.grant` | 2 | refuses locally: grant revoked (grant_inactive) |
 | `agent.history_complete` | 2 | F7: if the ledger cannot be rebuilt completely the agent refuses to pay (history_incomplete) |
 | `agent.hold_until_proven` | 3 | B5 a payment that settled but whose response was lost still counts: the next one is refused locally |
-| `agent.landed_consumed` | 0 |  |
+| `agent.landed_consumed` | 1 | B5 held becomes consumed (still counted) when the chain shows the lost payment landed |
 | `agent.ledger` | 4 | refuses locally: its own running period spend would cross period_budget (second payment) |
 | `agent.ledger_rebuild` | 3 | F7: a restarted agent rebuilds its ledger from chain and refuses the payment that would cross the period budget |
 | `agent.period` | 7 | refuses locally: its own running period spend would cross period_budget (second payment) |
@@ -19,13 +19,13 @@ checks mutated: 97, survived (vacuous): 4
 | `agent.release_uncreated` | 1 | B5 a payment that was never created (signing failed) releases its reservation: the next payment goes through |
 | `agent.requested_url` | 1 | review 1: a seller that OMITS resource.url does not stop an in-scope payment: the agent judges the URL it requested |
 | `agent.requested_url_present` | 1 | review 1: a payment that was not created through agent.fetch has no requested URL and is refused (resource_mismatch) |
-| `agent.reserve_atomic` | 0 |  |
+| `agent.reserve_atomic` | 1 | B5 five concurrent payments against a budget that fits three: exactly three settle, two are refused locally with period_over_budget |
 | `agent.reserve_held` | 3 | B5 five concurrent payments against a budget that fits three: exactly three settle, two are refused locally with period_over_budget |
 | `agent.resource_mismatch` | 1 | F8: a seller that DECLARES an allowed resource.url while the agent asked for another URL is refused as resource_mismatch |
 | `agent.scope` | 7 | refuses locally: amount over per_payment_max |
 | `agent.tx_guard` | 1 | payer path guard: a signer that changes the amount is rejected, ComputeBudget-only changes are not required |
 | `agent_mismatch` | 2 | scope: payer is not the agent |
-| `allowance.crosscheck` | 3 | resolve: the debits found do not add up to the allowance that is gone: history_incomplete, liable null |
+| `allowance.crosscheck` | 4 | allowanceCheck: debits since the grant add up to total_cap minus what is still delegated; counts only entries up to the read slot |
 | `amount_over_cap` | 12 | refuses locally: amount over per_payment_max |
 | `asset_mismatch` | 3 | scope: asset differs |
 | `grant.active_amount` | 1 | grant active: delegated amount 0 |
@@ -80,9 +80,9 @@ checks mutated: 97, survived (vacuous): 4
 | `resolver.refund_pending_guard` | 1 | F9: a refund signed but not confirmed is not resent while it can still land, and is adopted if it did land |
 | `resolver.refund_retry` | 3 | F9: a refund that failed after the verdict was reserved is retried on the next dispute, once |
 | `resolver.refund_seller_only` | 9 | R2: out of scope with the mandate presented: seller liable, refund paid to the principal for the full amount |
-| `resolver.replace_binds_mandate` | 0 |  |
+| `resolver.replace_binds_mandate` | 1 | B4 a verifying receipt that binds NO mandate cannot replace a provisional verdict (it must bind the same mandate) |
 | `resolver.seller_visible` | 11 | period overrun across two sellers: the crossing payment is the agent operator's, and no seller refund is paid |
-| `resolver.single_transfer` | 0 |  |
+| `resolver.single_transfer` | 1 | resolve: one agent debit plus another TransferChecked from a different account in the same transaction cannot be judged: tx_mismatch |
 | `resolver.superseded` | 3 | resolve: mandate superseded before the payment slot: mandate_superseded, liable null |
 | `resource.https_only` | 2 | S8 http://example.com/ is refused |
 | `resource.no_userinfo` | 1 | resource: credentials in the URL are refused even when the host matches |
