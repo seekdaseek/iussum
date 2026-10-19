@@ -1,0 +1,29 @@
+✔ F1: after M2 is granted, M1 (broader, older) fails the grant check with superseded by <sig> (12.140792ms)
+✔ F1: the agent's own payments after the grant do not supersede it (1.79175ms)
+✔ F1: a later approve on the source account supersedes the grant (1.918875ms)
+✔ F1: a later approveChecked on the source account supersedes the grant (1.450167ms)
+✔ F1: a later revoke on the source account supersedes the grant (1.573458ms)
+✔ F1: a later setAuthority on the source account supersedes the grant (1.406042ms)
+✔ F1: a later closeAccount on the source account supersedes the grant (1.232334ms)
+✔ F1: the superseding instruction is found when it is more than one page behind the newest signature (3.910375ms)
+✔ F1: the resolver rejects a mandate superseded before the payment slot as mandate_superseded, liable null, not stored (6.371ms)
+✔ F1: a payment made BEFORE the supersession is still judged under the mandate that was current then (3.179208ms)
+✔ F2: the payment that crosses the budget is period_over_budget even when 160 newer payments follow it (21.350625ms)
+✔ F2: payment 100 (exactly at the budget) is still in scope (6.881375ms)
+✔ F2: a disputed payment that is not in the history window yields history_incomplete, liable null, not stored (never in_scope) (7.700916ms)
+✔ F2: if a history page cannot be read, completeness cannot be shown: history_incomplete, liable null, not stored, resubmittable (5.111417ms)
+✔ F3: no receipt, pay_to outside the mandate: valid, agent_operator, resource unjudged (13.778125ms)
+✔ F3: no receipt, amount over the cap: valid, agent_operator (3.244834ms)
+✔ F3: no receipt, nothing the chain can prove is wrong: invalid, principal, resource unjudged (2.295084ms)
+✔ F3: no receipt and no mandate is still mandate_missing, liable null (0.755083ms)
+✔ F4: a seller files first with the older broader mandate: mandate_mismatch, not stored; the principal's own dispute is then judged, not a duplicate (14.61025ms)
+✔ F5: createSellerGate refuses to start without a canonical origin (9.662334ms)
+✔ F5: an agent that forges Host: <allowed origin> does not get an in-scope receipt (67.757958ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 450.15025
