@@ -1,5 +1,5 @@
-baseline: 306 tests, 306 pass, 0 fail
-checks mutated: 97, survived (vacuous): 0
+baseline: 307 tests, 307 pass, 0 fail
+checks mutated: 98, survived (vacuous): 0
 
 | check skipped | tests that fail | first failing test |
 |---|---|---|
@@ -37,6 +37,7 @@ checks mutated: 97, survived (vacuous): 0
 | `grant.approve_mint` | 1 | grant: ApproveChecked mint is not the asset |
 | `grant.approve_owner` | 1 | grant: ApproveChecked owner is not the principal |
 | `grant.approve_source` | 1 | grant: ApproveChecked source is not the principal ATA |
+| `grant.coalesce_scans` | 1 | B2 concurrent checks of one grant share one supersession scan (five concurrent payments do not make five scans), and a later call scans again |
 | `grant.extra_instruction` | 5 | grant: an extra non-ComputeBudget instruction (a system transfer) |
 | `grant.fee_payer` | 1 | grant: fee payer is not the principal |
 | `grant.memo_count` | 2 | grant: no Memo |
