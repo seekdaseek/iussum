@@ -1,0 +1,1353 @@
+[
+ {
+  "name": "first payment of 20000 stays inside the 30000 budget",
+  "kind": "resolve",
+  "input": {
+   "tx_sig": "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "20000",
+    "period_budget": "30000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+   "grant_tx_parsed": {
+    "slot": 1000,
+    "blockTime": 1800000010,
+    "meta": {
+     "err": null
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "approveChecked",
+         "info": {
+          "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "1000000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       },
+       {
+        "programId": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+        "program": "spl-memo",
+        "parsed": "iussum v0.2 | agent 4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi | asset 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU | total 1000000 | per payment 20000 | per 86400s 30000 | sellers 2 | resources 1 | from 2027-01-15T08:00:00.000Z until 2027-01-22T08:00:00.000Z | id a424a42da947b9d5436dd2f41b648247d3d7b2f0934e0141ddd784c596a08794"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "HMypLP"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "3gJqkocMWaMm"
+       }
+      ]
+     }
+    }
+   },
+   "receipt": {
+    "v": "iussum/0.2",
+    "mandate_id": "a424a42da947b9d5436dd2f41b648247d3d7b2f0934e0141ddd784c596a08794",
+    "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+    "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
+    "resource": "https://api.example.test/v1/quote",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "20000",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "tx_sig": "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+    "settled_at": 1800000100,
+    "seller": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+    "signature": "SegINzCy2LPp0cXK1+3Ykik/Ko+K8aP5ilNFSUSPg8V9laTEy2NwpDGSp7AKSASwxSCBXx1mTw/oZDzSaSkyAw=="
+   },
+   "seller_pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+   "payment": {
+    "slot": 2000,
+    "blockTime": 1800000100,
+    "meta": {
+     "err": null,
+     "postTokenBalances": [
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+      }
+     ]
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": true,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "x"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "y"
+       },
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "transferChecked",
+         "info": {
+          "authority": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "destination": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "20000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   },
+   "history": [
+    {
+     "tx_sig": "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+     "slot": 2001,
+     "block_time": 1800000100,
+     "amount": "20000",
+     "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+    },
+    {
+     "tx_sig": "2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+     "slot": 2002,
+     "block_time": 1800000110,
+     "amount": "20000",
+     "dest_owner": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+    }
+   ]
+  },
+  "expect": {
+   "verdict": "invalid",
+   "reason": "in_scope",
+   "liable": "principal"
+  }
+ },
+ {
+  "name": "second payment (other seller) crosses the budget: agent operator, not the seller",
+  "kind": "resolve",
+  "input": {
+   "tx_sig": "2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "20000",
+    "period_budget": "30000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+   "grant_tx_parsed": {
+    "slot": 1000,
+    "blockTime": 1800000010,
+    "meta": {
+     "err": null
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "approveChecked",
+         "info": {
+          "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "1000000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       },
+       {
+        "programId": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+        "program": "spl-memo",
+        "parsed": "iussum v0.2 | agent 4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi | asset 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU | total 1000000 | per payment 20000 | per 86400s 30000 | sellers 2 | resources 1 | from 2027-01-15T08:00:00.000Z until 2027-01-22T08:00:00.000Z | id a424a42da947b9d5436dd2f41b648247d3d7b2f0934e0141ddd784c596a08794"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "HMypLP"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "3gJqkocMWaMm"
+       }
+      ]
+     }
+    }
+   },
+   "receipt": {
+    "v": "iussum/0.2",
+    "mandate_id": "a424a42da947b9d5436dd2f41b648247d3d7b2f0934e0141ddd784c596a08794",
+    "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+    "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
+    "resource": "https://api.example.test/v1/quote",
+    "pay_to": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "20000",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "tx_sig": "2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "settled_at": 1800000100,
+    "seller": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+    "signature": "zAROCSMeltB75/zp8DXOpHd8SyHkostAEmB+fCjOMiBAoq2m60M7wjp+NFpRhK4xcM0wzqxIaR3G3Lw4kJNAAA=="
+   },
+   "seller_pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+   "payment": {
+    "slot": 2000,
+    "blockTime": 1800000100,
+    "meta": {
+     "err": null,
+     "postTokenBalances": [
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+      }
+     ]
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": true,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "GyScGmXtyechnMVPNYquQ6o2jmVY8zaMTHpL2Yr1cZJm",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "x"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "y"
+       },
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "transferChecked",
+         "info": {
+          "authority": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "destination": "GyScGmXtyechnMVPNYquQ6o2jmVY8zaMTHpL2Yr1cZJm",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "20000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   },
+   "history": [
+    {
+     "tx_sig": "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+     "slot": 2001,
+     "block_time": 1800000100,
+     "amount": "20000",
+     "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+    },
+    {
+     "tx_sig": "2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+     "slot": 2002,
+     "block_time": 1800000110,
+     "amount": "20000",
+     "dest_owner": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+    }
+   ]
+  },
+  "expect": {
+   "verdict": "valid",
+   "reason": "period_over_budget",
+   "liable": "agent_operator",
+   "deltaCodes": [
+    "period_over_budget"
+   ]
+  }
+ },
+ {
+  "name": "a new period resets the spend",
+  "kind": "resolve",
+  "input": {
+   "tx_sig": "2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "20000",
+    "period_budget": "30000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+   "grant_tx_parsed": {
+    "slot": 1000,
+    "blockTime": 1800000010,
+    "meta": {
+     "err": null
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "approveChecked",
+         "info": {
+          "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "1000000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       },
+       {
+        "programId": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+        "program": "spl-memo",
+        "parsed": "iussum v0.2 | agent 4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi | asset 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU | total 1000000 | per payment 20000 | per 86400s 30000 | sellers 2 | resources 1 | from 2027-01-15T08:00:00.000Z until 2027-01-22T08:00:00.000Z | id a424a42da947b9d5436dd2f41b648247d3d7b2f0934e0141ddd784c596a08794"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "HMypLP"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "3gJqkocMWaMm"
+       }
+      ]
+     }
+    }
+   },
+   "receipt": {
+    "v": "iussum/0.2",
+    "mandate_id": "a424a42da947b9d5436dd2f41b648247d3d7b2f0934e0141ddd784c596a08794",
+    "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+    "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
+    "resource": "https://api.example.test/v1/quote",
+    "pay_to": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "20000",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "tx_sig": "2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "settled_at": 1800000100,
+    "seller": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+    "signature": "zAROCSMeltB75/zp8DXOpHd8SyHkostAEmB+fCjOMiBAoq2m60M7wjp+NFpRhK4xcM0wzqxIaR3G3Lw4kJNAAA=="
+   },
+   "seller_pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+   "payment": {
+    "slot": 2000,
+    "blockTime": 1800000100,
+    "meta": {
+     "err": null,
+     "postTokenBalances": [
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+      }
+     ]
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": true,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "GyScGmXtyechnMVPNYquQ6o2jmVY8zaMTHpL2Yr1cZJm",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "x"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "y"
+       },
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "transferChecked",
+         "info": {
+          "authority": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "destination": "GyScGmXtyechnMVPNYquQ6o2jmVY8zaMTHpL2Yr1cZJm",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "20000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   },
+   "history": [
+    {
+     "tx_sig": "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+     "slot": 2001,
+     "block_time": 1800000100,
+     "amount": "20000",
+     "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+    },
+    {
+     "tx_sig": "2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+     "slot": 2002,
+     "block_time": 1800086500,
+     "amount": "20000",
+     "dest_owner": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+    }
+   ]
+  },
+  "expect": {
+   "verdict": "invalid",
+   "reason": "in_scope",
+   "liable": "principal"
+  }
+ },
+ {
+  "name": "spend made before the grant (an earlier grant) is not counted against this mandate",
+  "kind": "resolve",
+  "input": {
+   "tx_sig": "2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "20000",
+    "period_budget": "30000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+   "grant_tx_parsed": {
+    "slot": 1000,
+    "blockTime": 1800000010,
+    "meta": {
+     "err": null
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "approveChecked",
+         "info": {
+          "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "1000000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       },
+       {
+        "programId": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+        "program": "spl-memo",
+        "parsed": "iussum v0.2 | agent 4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi | asset 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU | total 1000000 | per payment 20000 | per 86400s 30000 | sellers 2 | resources 1 | from 2027-01-15T08:00:00.000Z until 2027-01-22T08:00:00.000Z | id a424a42da947b9d5436dd2f41b648247d3d7b2f0934e0141ddd784c596a08794"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "HMypLP"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "3gJqkocMWaMm"
+       }
+      ]
+     }
+    }
+   },
+   "receipt": {
+    "v": "iussum/0.2",
+    "mandate_id": "a424a42da947b9d5436dd2f41b648247d3d7b2f0934e0141ddd784c596a08794",
+    "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+    "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
+    "resource": "https://api.example.test/v1/quote",
+    "pay_to": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "20000",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "tx_sig": "2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "settled_at": 1800000100,
+    "seller": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+    "signature": "zAROCSMeltB75/zp8DXOpHd8SyHkostAEmB+fCjOMiBAoq2m60M7wjp+NFpRhK4xcM0wzqxIaR3G3Lw4kJNAAA=="
+   },
+   "seller_pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+   "payment": {
+    "slot": 2000,
+    "blockTime": 1800000100,
+    "meta": {
+     "err": null,
+     "postTokenBalances": [
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+      }
+     ]
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": true,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "GyScGmXtyechnMVPNYquQ6o2jmVY8zaMTHpL2Yr1cZJm",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "x"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "y"
+       },
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "transferChecked",
+         "info": {
+          "authority": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "destination": "GyScGmXtyechnMVPNYquQ6o2jmVY8zaMTHpL2Yr1cZJm",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "20000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   },
+   "history": [
+    {
+     "tx_sig": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+     "slot": 900,
+     "block_time": 1800000050,
+     "amount": "30000",
+     "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+    },
+    {
+     "tx_sig": "2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+     "slot": 2002,
+     "block_time": 1800000110,
+     "amount": "20000",
+     "dest_owner": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+    }
+   ]
+  },
+  "expect": {
+   "verdict": "invalid",
+   "reason": "in_scope",
+   "liable": "principal"
+  }
+ },
+ {
+  "name": "ordering is by slot, not by listing order",
+  "kind": "resolve",
+  "input": {
+   "tx_sig": "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "20000",
+    "period_budget": "30000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+   "grant_tx_parsed": {
+    "slot": 1000,
+    "blockTime": 1800000010,
+    "meta": {
+     "err": null
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "approveChecked",
+         "info": {
+          "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "1000000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       },
+       {
+        "programId": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+        "program": "spl-memo",
+        "parsed": "iussum v0.2 | agent 4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi | asset 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU | total 1000000 | per payment 20000 | per 86400s 30000 | sellers 2 | resources 1 | from 2027-01-15T08:00:00.000Z until 2027-01-22T08:00:00.000Z | id a424a42da947b9d5436dd2f41b648247d3d7b2f0934e0141ddd784c596a08794"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "HMypLP"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "3gJqkocMWaMm"
+       }
+      ]
+     }
+    }
+   },
+   "receipt": {
+    "v": "iussum/0.2",
+    "mandate_id": "a424a42da947b9d5436dd2f41b648247d3d7b2f0934e0141ddd784c596a08794",
+    "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+    "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
+    "resource": "https://api.example.test/v1/quote",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "20000",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "tx_sig": "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+    "settled_at": 1800000100,
+    "seller": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+    "signature": "SegINzCy2LPp0cXK1+3Ykik/Ko+K8aP5ilNFSUSPg8V9laTEy2NwpDGSp7AKSASwxSCBXx1mTw/oZDzSaSkyAw=="
+   },
+   "seller_pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+   "payment": {
+    "slot": 2000,
+    "blockTime": 1800000100,
+    "meta": {
+     "err": null,
+     "postTokenBalances": [
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+      }
+     ]
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": true,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "x"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "y"
+       },
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "transferChecked",
+         "info": {
+          "authority": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "destination": "GvDNmYMmCvnzhgZVZ1XGxWznCgL3BvpEJBPfTvjL1yps",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "20000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   },
+   "history": [
+    {
+     "tx_sig": "2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+     "slot": 2002,
+     "block_time": 1800000110,
+     "amount": "20000",
+     "dest_owner": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+    },
+    {
+     "tx_sig": "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+     "slot": 2001,
+     "block_time": 1800000100,
+     "amount": "20000",
+     "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+    }
+   ]
+  },
+  "expect": {
+   "verdict": "invalid",
+   "reason": "in_scope",
+   "liable": "principal"
+  }
+ },
+ {
+  "name": "period overrun and a seller-visible violation together: seller still liable for the visible one",
+  "kind": "resolve",
+  "input": {
+   "tx_sig": "2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+   "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "20000",
+    "period_budget": "30000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+   "grant_tx_parsed": {
+    "slot": 1000,
+    "blockTime": 1800000010,
+    "meta": {
+     "err": null
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "approveChecked",
+         "info": {
+          "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "1000000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       },
+       {
+        "programId": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+        "program": "spl-memo",
+        "parsed": "iussum v0.2 | agent 4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi | asset 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU | total 1000000 | per payment 20000 | per 86400s 30000 | sellers 2 | resources 1 | from 2027-01-15T08:00:00.000Z until 2027-01-22T08:00:00.000Z | id a424a42da947b9d5436dd2f41b648247d3d7b2f0934e0141ddd784c596a08794"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "HMypLP"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "3gJqkocMWaMm"
+       }
+      ]
+     }
+    }
+   },
+   "receipt": {
+    "v": "iussum/0.2",
+    "mandate_id": "a424a42da947b9d5436dd2f41b648247d3d7b2f0934e0141ddd784c596a08794",
+    "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+    "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
+    "resource": "https://api.example.test/v1/quote",
+    "pay_to": "BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "20000",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "tx_sig": "2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "settled_at": 1800000100,
+    "seller": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+    "signature": "pBdAj2lcoEixAVM0lHU3li5gDbR6z/hqnuxIM/O9i08K9S7tSDjXZg5abvkWJ6v7Yk7RpHgb9v6fy/uW7yQaDA=="
+   },
+   "seller_pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+   "payment": {
+    "slot": 2000,
+    "blockTime": 1800000100,
+    "meta": {
+     "err": null,
+     "postTokenBalances": [
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji"
+      }
+     ]
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": true,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "EFq2eMDF1wCpfhbKhb7s1HBKuzvufad4Y8BLctXzwrB5",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "x"
+       },
+       {
+        "programId": "ComputeBudget111111111111111111111111111111",
+        "accounts": [],
+        "data": "y"
+       },
+       {
+        "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "program": "spl-token",
+        "parsed": {
+         "type": "transferChecked",
+         "info": {
+          "authority": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "destination": "EFq2eMDF1wCpfhbKhb7s1HBKuzvufad4Y8BLctXzwrB5",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "20000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   },
+   "history": [
+    {
+     "tx_sig": "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+     "slot": 2001,
+     "block_time": 1800000100,
+     "amount": "20000",
+     "dest_owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+    },
+    {
+     "tx_sig": "2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+     "slot": 2002,
+     "block_time": 1800000110,
+     "amount": "20000",
+     "dest_owner": "BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji"
+    }
+   ]
+  },
+  "expect": {
+   "verdict": "valid",
+   "reason": "pay_to_not_allowed",
+   "liable": "seller",
+   "deltaCodes": [
+    "pay_to_not_allowed",
+    "period_over_budget"
+   ]
+  }
+ }
+]

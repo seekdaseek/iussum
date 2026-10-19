@@ -1,0 +1,185 @@
+[
+ {
+  "name": "valid receipt verifies",
+  "kind": "receipt",
+  "input": {
+   "receipt": {
+    "v": "iussum/0.2",
+    "mandate_id": "58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3",
+    "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+    "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
+    "resource": "https://api.example.test/v1/quote",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "10000",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "settled_at": 1800000100,
+    "seller": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+    "signature": "/SR9s6Ja2vOeDtsFNFv3jh4hLY+DfHKKsvqJ2Rxr2zGX7E2c6zViDomZtTM/jF0gI18Gu47CT/XPr6HOzyvFAA=="
+   },
+   "pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9"
+  },
+  "expect": {
+   "ok": true
+  }
+ },
+ {
+  "name": "one changed field (amount) breaks the signature",
+  "kind": "receipt",
+  "input": {
+   "receipt": {
+    "v": "iussum/0.2",
+    "mandate_id": "58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3",
+    "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+    "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
+    "resource": "https://api.example.test/v1/quote",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "20000",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "settled_at": 1800000100,
+    "seller": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+    "signature": "/SR9s6Ja2vOeDtsFNFv3jh4hLY+DfHKKsvqJ2Rxr2zGX7E2c6zViDomZtTM/jF0gI18Gu47CT/XPr6HOzyvFAA=="
+   },
+   "pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9"
+  },
+  "expect": {
+   "ok": false
+  }
+ },
+ {
+  "name": "signature from another key",
+  "kind": "receipt",
+  "input": {
+   "receipt": {
+    "v": "iussum/0.2",
+    "mandate_id": "58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3",
+    "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+    "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
+    "resource": "https://api.example.test/v1/quote",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "10000",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "settled_at": 1800000100,
+    "seller": "9hSR6S7WPtxmTojgo6GG3k4yDPecgJY292j7xrsUGWBu",
+    "signature": "6oDwHq1IFqrC6rDxldBKuXW7kjUnU6WeW11zWC7ymS/YiPZI9XmRssvj2wrBy7AWyFA5TxXc3HXoFW5hirtJCg=="
+   },
+   "pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9"
+  },
+  "expect": {
+   "ok": false
+  }
+ },
+ {
+  "name": "receipt naming a different seller key than the trusted one",
+  "kind": "receipt",
+  "input": {
+   "receipt": {
+    "v": "iussum/0.2",
+    "mandate_id": "58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3",
+    "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+    "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
+    "resource": "https://api.example.test/v1/quote",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "10000",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "settled_at": 1800000100,
+    "seller": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+    "signature": "/SR9s6Ja2vOeDtsFNFv3jh4hLY+DfHKKsvqJ2Rxr2zGX7E2c6zViDomZtTM/jF0gI18Gu47CT/XPr6HOzyvFAA=="
+   },
+   "pubkey": "9hSR6S7WPtxmTojgo6GG3k4yDPecgJY292j7xrsUGWBu"
+  },
+  "expect": {
+   "ok": false
+  }
+ },
+ {
+  "name": "a receipt without mandate verifies and carries null/null",
+  "kind": "receipt",
+  "input": {
+   "receipt": {
+    "v": "iussum/0.2",
+    "mandate_id": null,
+    "grant_tx": null,
+    "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
+    "resource": "https://api.example.test/v1/quote",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "10000",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "settled_at": 1800000100,
+    "seller": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+    "signature": "D8OTqcdUcxA2dD9yDU0yCX3Ekkd0vdLAYxUAO5vGmtmvwIPeM3+o0YkWDHaHg6VPGDzF4LE3D/4awMTt9D0eBA=="
+   },
+   "pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9"
+  },
+  "expect": {
+   "ok": true
+  }
+ },
+ {
+  "name": "mandate_id set but grant_tx null is malformed",
+  "kind": "receipt",
+  "input": {
+   "receipt": {
+    "v": "iussum/0.2",
+    "mandate_id": "58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3",
+    "grant_tx": null,
+    "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
+    "resource": "https://api.example.test/v1/quote",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "10000",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "settled_at": 1800000100,
+    "seller": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+    "signature": "pIXgIifyJXxu7r5S2eDdQFCxRAKZ/VcHL4+cxWEhln4qzq0Jb7EODC53ScUlL/Zyl9VKE/e9TNjaEW60+nl0CA=="
+   },
+   "pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9"
+  },
+  "expect": {
+   "ok": false
+  }
+ },
+ {
+  "name": "unknown key in the receipt",
+  "kind": "receipt",
+  "input": {
+   "receipt": {
+    "v": "iussum/0.2",
+    "mandate_id": "58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3",
+    "grant_tx": "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+    "offer_hash": "d074954192474e9e47dd6b1e8be6fa229ee2f2370fd208f9a38ecf8e18311456",
+    "resource": "https://api.example.test/v1/quote",
+    "pay_to": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "amount": "10000",
+    "payer": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "tx_sig": "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "settled_at": 1800000100,
+    "seller": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9",
+    "signature": "/SR9s6Ja2vOeDtsFNFv3jh4hLY+DfHKKsvqJ2Rxr2zGX7E2c6zViDomZtTM/jF0gI18Gu47CT/XPr6HOzyvFAA==",
+    "extra": 1
+   },
+   "pubkey": "AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9"
+  },
+  "expect": {
+   "ok": false
+  }
+ }
+]

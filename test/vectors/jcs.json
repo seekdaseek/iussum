@@ -1,0 +1,51 @@
+[
+ {
+  "name": "key order and unicode (RFC 8785 3.2.3 order)",
+  "kind": "jcs",
+  "input": {
+   "1": "One",
+   "€": "Euro Sign",
+   "\r": "Carriage Return",
+   "דּ": "Hebrew Letter Dalet With Dagesh",
+   "😀": "Emoji: Grinning Face",
+   "": "Control",
+   "ö": "Latin Small Letter O With Diaeresis"
+  },
+  "expect": "{\"\\r\":\"Carriage Return\",\"1\":\"One\",\"\":\"Control\",\"ö\":\"Latin Small Letter O With Diaeresis\",\"€\":\"Euro Sign\",\"😀\":\"Emoji: Grinning Face\",\"דּ\":\"Hebrew Letter Dalet With Dagesh\"}"
+ },
+ {
+  "name": "nested objects and arrays keep array order, sort object keys",
+  "kind": "jcs",
+  "input": {
+   "b": [
+    3,
+    1,
+    2
+   ],
+   "a": {
+    "z": null,
+    "y": true,
+    "x": "ü"
+   }
+  },
+  "expect": "{\"a\":{\"x\":\"ü\",\"y\":true,\"z\":null},\"b\":[3,1,2]}"
+ },
+ {
+  "name": "integers serialise as ECMAScript numbers",
+  "kind": "jcs",
+  "input": {
+   "n": 1,
+   "m": 0,
+   "big": 9007199254740991
+  },
+  "expect": "{\"big\":9007199254740991,\"m\":0,\"n\":1}"
+ },
+ {
+  "name": "amounts above 2^53 stay decimal strings",
+  "kind": "jcs",
+  "input": {
+   "amount": "9007199254740993"
+  },
+  "expect": "{\"amount\":\"9007199254740993\"}"
+ }
+]

@@ -1,0 +1,14 @@
+{
+  "name": "iussum",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Authority for agent payments: a signed grant, a seller check, a resolver that assigns liability from the artifacts.",
+  "workspaces": ["packages/core", "packages/seller", "packages/agent", "apps/resolver"],
+  "scripts": {
+    "test": "node --test --test-reporter=spec packages/*/test/*.test.js apps/*/test/*.test.js",
+    "mutation": "node scripts/mutation.mjs",
+    "demo:devnet": "node scripts/demo-devnet.mjs"
+  },
+  "engines": { "node": ">=22" }
+}

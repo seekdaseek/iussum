@@ -1,0 +1,16 @@
+{
+  "name": "@iussum/resolver",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "dependencies": {
+    "@solana-program/token": "0.15.0",
+    "@solana/kit": "7.1.1",
+    "@iussum/core": "*",
+    "express": "4.22.3"
+  }
+}
