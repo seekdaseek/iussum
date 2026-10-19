@@ -13,7 +13,8 @@ export function createResolverApp(service) {
     res.type('text/plain');
     if (!s) return res.status(404).send(`No verdict stored for ${req.params.tx}.\n`);
     const v = s.verdict;
-    res.send([`iussum verdict for payment ${req.params.tx}`, '', `Dispute upheld: ${v.verdict === 'valid' ? 'yes' : 'no'}`, `Reason:         ${v.reason}`, `Liable:         ${v.liable}`, `Mandate id:     ${v.mandate_id ?? '-'}`, `Time used:      ${v.time_source ?? '-'}`, '', 'What differs from what the person authorised:', ...(v.delta.length ? v.delta.map((d) => `  ${d.code ?? d.field}: authorised ${d.authorized}, actual ${d.actual}`) : ['  nothing']), '', `Refund transaction: ${s.refund_tx ?? 'none'}`, ''].join('\n'));
+    res.send([`iussum verdict for payment ${req.params.tx}`, '', `Dispute upheld: ${v.verdict === 'valid' ? 'yes' : 'no'}`, `Reason:         ${v.reason}`, `Liable:         ${v.liable}`,
+      `Status:         ${s.provisional ? 'provisional: decided without a seller receipt; a later dispute with a verifying receipt replaces it' : 'final'}`, `Mandate id:     ${v.mandate_id ?? '-'}`, `Time used:      ${v.time_source ?? '-'}`, '', 'What differs from what the person authorised:', ...(v.delta.length ? v.delta.map((d) => `  ${d.code ?? d.field}: authorised ${d.authorized}, actual ${d.actual}`) : ['  nothing']), '', `Refund transaction: ${s.refund_tx ?? 'none'}`, ...(s.replaced.length ? [`Replaced verdicts kept in the record: ${s.replaced.length}`] : []), ''].join('\n'));
   });
   return app;
 }

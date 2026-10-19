@@ -2166,6 +2166,103 @@
   }
  },
  {
+  "name": "ApproveChecked on the Token-2022 program is not an SPL Token ApproveChecked: refused (SPL Token only)",
+  "kind": "grant",
+  "input": {
+   "mandate": {
+    "v": "iussum/0.2",
+    "principal": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+    "agent": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+    "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "total_cap": "1000000",
+    "per_payment_max": "50000",
+    "period_budget": "100000",
+    "period_seconds": 86400,
+    "allow": {
+     "pay_to": [
+      "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+      "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+     ],
+     "resource_prefix": [
+      "https://api.example.test/v1/"
+     ]
+    },
+    "not_before": 1800000000,
+    "expires_at": 1800604800,
+    "nonce": "00112233445566778899aabbccddeeff"
+   },
+   "tx": {
+    "slot": 1000,
+    "blockTime": 1800000010,
+    "meta": {
+     "err": null
+    },
+    "transaction": {
+     "message": {
+      "accountKeys": [
+       {
+        "pubkey": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "signer": true,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+        "signer": false,
+        "writable": true,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       },
+       {
+        "pubkey": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "signer": false,
+        "writable": false,
+        "source": "transaction"
+       }
+      ],
+      "instructions": [
+       {
+        "programId": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "program": "spl-token-2022",
+        "parsed": {
+         "type": "approveChecked",
+         "info": {
+          "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+          "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+          "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+          "source": "6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe",
+          "tokenAmount": {
+           "amount": "1000000",
+           "decimals": 6,
+           "uiAmount": 0,
+           "uiAmountString": "0"
+          }
+         }
+        }
+       },
+       {
+        "programId": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+        "program": "spl-memo",
+        "parsed": "iussum v0.2 | agent 4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi | asset 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU | total 1000000 | per payment 50000 | per 86400s 100000 | sellers 2 | resources 1 | from 2027-01-15T08:00:00.000Z until 2027-01-22T08:00:00.000Z | id 58a6ea187cfb69c20b487107f0c00746016e01f9444c321bb8c02cf773f8eba3"
+       }
+      ]
+     }
+    }
+   }
+  },
+  "expect": {
+   "ok": false,
+   "reason": "grant_mismatch",
+   "detailIncludes": "unexpected instruction"
+  }
+ },
+ {
   "name": "grant built for another mandate fails against this one (tampered mandate)",
   "kind": "grant",
   "input": {

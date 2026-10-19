@@ -124,16 +124,44 @@
     "blockTime": 1800000100,
     "meta": {
      "err": null,
-     "postTokenBalances": [
+     "preTokenBalances": [
       {
        "accountIndex": 2,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
-       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+       "uiTokenAmount": {
+        "amount": "5000000",
+        "decimals": 6
+       }
       },
       {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
-       "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+       "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+       "uiTokenAmount": {
+        "amount": "0",
+        "decimals": 6
+       }
+      }
+     ],
+     "postTokenBalances": [
+      {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+       "uiTokenAmount": {
+        "amount": "4980000",
+        "decimals": 6
+       }
+      },
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+       "uiTokenAmount": {
+        "amount": "20000",
+        "decimals": 6
+       }
       }
      ]
     },
@@ -224,7 +252,24 @@
      }
     ]
    },
-   "superseded": null
+   "superseded": null,
+   "allowance": {
+    "slot": 1000000000,
+    "account": {
+     "data": {
+      "parsed": {
+       "info": {
+        "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "delegatedAmount": {
+         "amount": "960000"
+        }
+       }
+      }
+     }
+    }
+   }
   },
   "expect": {
    "verdict": "invalid",
@@ -357,16 +402,44 @@
     "blockTime": 1800000100,
     "meta": {
      "err": null,
-     "postTokenBalances": [
+     "preTokenBalances": [
       {
        "accountIndex": 2,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
-       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+       "uiTokenAmount": {
+        "amount": "5000000",
+        "decimals": 6
+       }
       },
       {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
-       "owner": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+       "owner": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9",
+       "uiTokenAmount": {
+        "amount": "0",
+        "decimals": 6
+       }
+      }
+     ],
+     "postTokenBalances": [
+      {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+       "uiTokenAmount": {
+        "amount": "4980000",
+        "decimals": 6
+       }
+      },
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9",
+       "uiTokenAmount": {
+        "amount": "20000",
+        "decimals": 6
+       }
       }
      ]
     },
@@ -457,7 +530,24 @@
      }
     ]
    },
-   "superseded": null
+   "superseded": null,
+   "allowance": {
+    "slot": 1000000000,
+    "account": {
+     "data": {
+      "parsed": {
+       "info": {
+        "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "delegatedAmount": {
+         "amount": "960000"
+        }
+       }
+      }
+     }
+    }
+   }
   },
   "expect": {
    "verdict": "valid",
@@ -593,16 +683,44 @@
     "blockTime": 1800000100,
     "meta": {
      "err": null,
-     "postTokenBalances": [
+     "preTokenBalances": [
       {
        "accountIndex": 2,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
-       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+       "uiTokenAmount": {
+        "amount": "5000000",
+        "decimals": 6
+       }
       },
       {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
-       "owner": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+       "owner": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9",
+       "uiTokenAmount": {
+        "amount": "0",
+        "decimals": 6
+       }
+      }
+     ],
+     "postTokenBalances": [
+      {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+       "uiTokenAmount": {
+        "amount": "4980000",
+        "decimals": 6
+       }
+      },
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9",
+       "uiTokenAmount": {
+        "amount": "20000",
+        "decimals": 6
+       }
       }
      ]
     },
@@ -693,7 +811,24 @@
      }
     ]
    },
-   "superseded": null
+   "superseded": null,
+   "allowance": {
+    "slot": 1000000000,
+    "account": {
+     "data": {
+      "parsed": {
+       "info": {
+        "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "delegatedAmount": {
+         "amount": "960000"
+        }
+       }
+      }
+     }
+    }
+   }
   },
   "expect": {
    "verdict": "invalid",
@@ -826,16 +961,44 @@
     "blockTime": 1800000100,
     "meta": {
      "err": null,
-     "postTokenBalances": [
+     "preTokenBalances": [
       {
        "accountIndex": 2,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
-       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+       "uiTokenAmount": {
+        "amount": "5000000",
+        "decimals": 6
+       }
       },
       {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
-       "owner": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9"
+       "owner": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9",
+       "uiTokenAmount": {
+        "amount": "0",
+        "decimals": 6
+       }
+      }
+     ],
+     "postTokenBalances": [
+      {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+       "uiTokenAmount": {
+        "amount": "4980000",
+        "decimals": 6
+       }
+      },
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9",
+       "uiTokenAmount": {
+        "amount": "20000",
+        "decimals": 6
+       }
       }
      ]
     },
@@ -926,7 +1089,24 @@
      }
     ]
    },
-   "superseded": null
+   "superseded": null,
+   "allowance": {
+    "slot": 1000000000,
+    "account": {
+     "data": {
+      "parsed": {
+       "info": {
+        "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "delegatedAmount": {
+         "amount": "980000"
+        }
+       }
+      }
+     }
+    }
+   }
   },
   "expect": {
    "verdict": "invalid",
@@ -1059,16 +1239,44 @@
     "blockTime": 1800000100,
     "meta": {
      "err": null,
-     "postTokenBalances": [
+     "preTokenBalances": [
       {
        "accountIndex": 2,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
-       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+       "uiTokenAmount": {
+        "amount": "5000000",
+        "decimals": 6
+       }
       },
       {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
-       "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7"
+       "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+       "uiTokenAmount": {
+        "amount": "0",
+        "decimals": 6
+       }
+      }
+     ],
+     "postTokenBalances": [
+      {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+       "uiTokenAmount": {
+        "amount": "4980000",
+        "decimals": 6
+       }
+      },
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7",
+       "uiTokenAmount": {
+        "amount": "20000",
+        "decimals": 6
+       }
       }
      ]
     },
@@ -1159,7 +1367,24 @@
      }
     ]
    },
-   "superseded": null
+   "superseded": null,
+   "allowance": {
+    "slot": 1000000000,
+    "account": {
+     "data": {
+      "parsed": {
+       "info": {
+        "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "delegatedAmount": {
+         "amount": "960000"
+        }
+       }
+      }
+     }
+    }
+   }
   },
   "expect": {
    "verdict": "invalid",
@@ -1292,16 +1517,44 @@
     "blockTime": 1800000100,
     "meta": {
      "err": null,
-     "postTokenBalances": [
+     "preTokenBalances": [
       {
        "accountIndex": 2,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
-       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU"
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+       "uiTokenAmount": {
+        "amount": "5000000",
+        "decimals": 6
+       }
       },
       {
        "accountIndex": 3,
        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
-       "owner": "BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji"
+       "owner": "BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji",
+       "uiTokenAmount": {
+        "amount": "0",
+        "decimals": 6
+       }
+      }
+     ],
+     "postTokenBalances": [
+      {
+       "accountIndex": 2,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+       "uiTokenAmount": {
+        "amount": "4980000",
+        "decimals": 6
+       }
+      },
+      {
+       "accountIndex": 3,
+       "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "owner": "BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji",
+       "uiTokenAmount": {
+        "amount": "20000",
+        "decimals": 6
+       }
       }
      ]
     },
@@ -1392,7 +1645,24 @@
      }
     ]
    },
-   "superseded": null
+   "superseded": null,
+   "allowance": {
+    "slot": 1000000000,
+    "account": {
+     "data": {
+      "parsed": {
+       "info": {
+        "owner": "BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU",
+        "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+        "delegate": "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi",
+        "delegatedAmount": {
+         "amount": "960000"
+        }
+       }
+      }
+     }
+    }
+   }
   },
   "expect": {
    "verdict": "valid",

@@ -2,15 +2,19 @@
 // BEFORE signing, when a payment would break the mandate: grant check (incl. still-active), window, per-payment cap, pay_to and resource
 // allow-lists, asset, network, and its own running period spend (the period budget is the agent's to keep: a seller cannot see other sellers'
 // payments). localChecks:false builds a "naive" agent for the demo's controls.
+// Phase 1.2 (Addendum E): the period budget is RESERVED before signing, in the same synchronous step as the check, so concurrent payments cannot
+// all take the last unit. A reservation is held, then consumed (the payment-response reported success, or the chain shows it landed) or released
+// (the payment was never created, or its blockhash expired and no transaction carrying the agent's signature is on chain). Until then a held
+// reservation counts as spent. The agent pays the associated token account of the payTo it checked, never a destination the 402 names.
 import { x402Client } from '@x402/core/client';
 import { wrapFetchWithPayment } from '@x402/fetch';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { createGrantChecker, scopeViolations, mandateId, periodIndex, periodStart, decodeReceipt, normalizeResource, agentSpendHistory, mintDecimals, R, fails, isMutated, registerCheck, principalAta, assertMandate } from '@iussum/core';
-import { pipe, createTransactionMessage, setTransactionMessageFeePayer, appendTransactionMessageInstructions, setTransactionMessageLifetimeUsingBlockhash, partiallySignTransactionMessageWithSigners, compileTransaction, getBase64EncodedWireTransaction, getTransactionEncoder } from '@solana/kit';
+import { createGrantChecker, scopeViolations, mandateId, periodIndex, periodStart, decodeReceipt, normalizeResource, agentSpendHistory, allowanceCheck, mintDecimals, R, fails, isMutated, registerCheck, principalAta, assertMandate } from '@iussum/core';
+import { getTransactionDecoder, getBase58Decoder, pipe, createTransactionMessage, setTransactionMessageFeePayer, appendTransactionMessageInstructions, setTransactionMessageLifetimeUsingBlockhash, partiallySignTransactionMessageWithSigners, compileTransaction, getBase64EncodedWireTransaction, getTransactionEncoder } from '@solana/kit';
 import { getTransferCheckedInstruction, TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
 import { assertOnlyComputeBudgetChanged } from './txguard.js';
 
-export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals'].map(registerCheck);
+export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance'].map(registerCheck);
 const MARK = 'IUSSUM_REFUSAL:';
 const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export class IussumRefusal extends Error {
@@ -27,35 +31,52 @@ export async function createAgent(cfg) {
   const attachMandate = wantAttach && !capsOnly;
   const checker = createGrantChecker(rpc);
   const source = mandate ? await principalAta(mandate.principal, mandate.asset) : cfg.source;
-  const ledger = []; // [{amount, t}] successful payments of this agent: rebuilt from chain at start, then appended to
+  const ledger = []; // [{amount, t, sig}] payments of this agent that are SPENT: rebuilt from chain at start, then consumed reservations
+  const reservations = []; // {id, amount, t, state: held|consumed|released, created, agentSig, lastValid, sig}: each moves exactly once, out of held
+  let nextReservation = 0;
   let ledgerComplete = true, ledgerReason = null;
-  const requested = new AsyncLocalStorage(); // the URL this fetch actually asked for, never what the seller says it is
+  const requested = new AsyncLocalStorage(); // { url, ids }: the URL this fetch actually asked for (never what the seller says it is) and its reservations
   const decimalsCache = new Map();
   const getBlockhash = cfg.getBlockhash ?? (async () => { const v = (await rpc.call('getLatestBlockhash', [{ commitment: 'confirmed' }])).value; return { blockhash: v.blockhash, lastValidBlockHeight: BigInt(v.lastValidBlockHeight) }; });
   const sign = cfg.sign ?? partiallySignTransactionMessageWithSigners;
-  let pending = null;
 
   // fix 7: the period ledger survives a restart. Rebuild it from chain history (paginated); if completeness cannot be shown, refuse to pay.
+  // Addendum E, C1: while the grant is current the debits found must add up to total_cap minus the allowance that is left on the account.
   if (mandate && !isMutated('agent.ledger_rebuild')) {
+    let ctx = null, superseded = null, scanFailed = null;
+    try { ctx = await rpc.getAccountContext(source); } catch (e) { scanFailed = `the source account could not be read: ${e.message}`; }
     const h = await agentSpendHistory(rpc, { source, agent: signer.address, mint: mandate.asset, until: grant_tx, stopAtTime: periodStart(mandate, now()) });
     ledgerComplete = h.complete; ledgerReason = h.reason;
-    for (const e of h.entries) ledger.push({ amount: e.amount, t: e.block_time ?? now() });
+    for (const e of h.entries) ledger.push({ amount: e.amount, t: e.block_time ?? now(), sig: e.tx_sig });
+    if (ledgerComplete && fails('agent.rebuild_allowance', true)) {
+      try { superseded = await checker.supersededBy(source, grant_tx); } catch (e) { scanFailed = `could not verify the grant is current: ${e.message}`; }
+      if (scanFailed) { ledgerComplete = false; ledgerReason = scanFailed; }
+      else if (!superseded) {
+        const ac = allowanceCheck({ mandate, entries: h.entries, account: ctx.value, slot: ctx.slot });
+        if (!ac.ok) { ledgerComplete = false; ledgerReason = ac.expected !== undefined ? `the debits found (${ac.actual}) do not add up to the allowance that is gone (${ac.expected}): total_cap ${mandate.total_cap} minus ${ac.left} still delegated at slot ${ac.slot}` : ac.why; }
+      }
+    }
   }
-  const spentThisPeriod = (t) => ledger.filter((x) => periodIndex(mandate, x.t) === periodIndex(mandate, t)).reduce((a, x) => a + BigInt(x.amount), 0n);
+  const periodAt = (t) => periodIndex(mandate, t);
+  const heldInPeriod = (t) => reservations.filter((r) => r.state === 'held' && periodAt(r.t) === periodAt(t)).reduce((a, r) => a + r.amount, 0n);
+  const spentThisPeriod = (t) => ledger.filter((x) => periodAt(x.t) === periodAt(t)).reduce((a, x) => a + BigInt(x.amount), 0n);
 
   const scheme = {
     scheme: 'exact',
     async createPaymentPayload(x402Version, req) {
       const bh = req.extra?.recentBlockhash ? { blockhash: req.extra.recentBlockhash, lastValidBlockHeight: BigInt(req.extra.lastValidBlockHeight ?? 0) } : await getBlockhash();
       const decimals = fails('agent.decimals', true) ? await assetDecimals(req) : 6;
-      const ix = getTransferCheckedInstruction({ source, mint: req.asset, destination: req.destination ?? (await destinationAta(req.payTo, req.asset)), authority: signer, amount: BigInt(req.amount), decimals }, { programAddress: TOKEN_PROGRAM_ADDRESS });
+      const destination = fails('agent.destination_ata', true) ? await destinationAta(req.payTo, req.asset) : (req.destination ?? (await destinationAta(req.payTo, req.asset)));
+      const ix = getTransferCheckedInstruction({ source, mint: req.asset, destination, authority: signer, amount: BigInt(req.amount), decimals }, { programAddress: TOKEN_PROGRAM_ADDRESS });
       const memo = { programAddress: 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr', accounts: [], data: new TextEncoder().encode(Array.from(crypto.getRandomValues(new Uint8Array(16))).map((b) => b.toString(16).padStart(2, '0')).join('')) };
       const built = pipe(createTransactionMessage({ version: 0 }), (m) => setTransactionMessageFeePayer(req.extra.feePayer, m), (m) => appendTransactionMessageInstructions([cb([2, ...u32(20_000)]), cb([3, 1, 0, 0, 0, 0, 0, 0, 0]), ix, memo], m), (m) => setTransactionMessageLifetimeUsingBlockhash(bh, m));
       const sent = Buffer.from(getTransactionEncoder().encode(compileTransaction(built))).toString('base64');
       const signed = getBase64EncodedWireTransaction(await sign(built));
       // whatever signs this transaction may add ComputeBudget instructions and nothing else (copied x402-wallet guard)
       if (fails('agent.tx_guard', true)) assertOnlyComputeBudgetChanged(sent, signed);
-      pending = { amount: req.amount, payTo: req.payTo };
+      // the reservation of this payment learns that a payload exists, which agent signature it carries and until which block it can land
+      const mine = requested.getStore()?.ids.map((id) => reservations[id]).findLast((r) => r.state === 'held' && !r.created);
+      if (mine) { mine.created = true; mine.lastValid = BigInt(bh.lastValidBlockHeight ?? 0); mine.agentSig = agentSignature(signed); }
       return { x402Version, payload: { transaction: signed } };
     },
   };
@@ -77,19 +98,49 @@ export async function createAgent(cfg) {
   if (mandate && attachMandate && !isMutated('agent.attach_mandate')) {
     client.registerExtension({ key: 'iussum', enrichPaymentPayload: async (p) => ({ ...p, extensions: { ...(p.extensions ?? {}), iussum: { info: { mandate, grant_tx } } } }) });
   }
+  // The agent's own signature on a payload, as base58: how a payment is recognised on chain later (the fee payer's signature is the id).
+  function agentSignature(signedBase64) {
+    const sigs = getTransactionDecoder().decode(Uint8Array.from(Buffer.from(signedBase64, 'base64'))).signatures;
+    const bytes = sigs[signer.address];
+    return bytes ? getBase58Decoder().decode(bytes) : null;
+  }
+  // Resolve held reservations from the chain. A held payment may still land until its blockhash expires, so it counts as spent until the
+  // chain PROVES otherwise: block height above lastValidBlockHeight AND no transaction carrying the agent's signature from that payload.
+  // Anything that cannot be read leaves it held (fail closed).
+  async function settleHeld() {
+    const open = reservations.filter((r) => r.state === 'held' && r.created && r.lastValid > 0n);
+    if (!open.length) return;
+    let height;
+    try { height = BigInt(await rpc.call('getBlockHeight', [{ commitment: 'confirmed' }])); } catch { return; }
+    const expired = open.filter((r) => height > r.lastValid);
+    if (!expired.length) return;
+    const h = await agentSpendHistory(rpc, { source, agent: signer.address, mint: mandate.asset, until: grant_tx, stopAtTime: periodStart(mandate, now()) });
+    if (!h.complete) return;
+    for (const r of expired) {
+      if (r.state !== 'held') continue; // another call resolved it while this one was reading the chain
+      const landed = h.entries.find((e) => r.agentSig && e.signatures.includes(r.agentSig));
+      if (landed && fails('agent.landed_consumed', true)) { r.state = 'consumed'; r.sig = landed.tx_sig; if (!ledger.some((x) => x.sig === landed.tx_sig)) ledger.push({ amount: landed.amount, t: landed.block_time ?? r.t, sig: landed.tx_sig }); }
+      else if (!landed && fails('agent.release_on_expiry', true)) r.state = 'released';
+    }
+  }
   if (localChecks && mandate) {
     client.onBeforePaymentCreation(async (ctx) => {
       const r = ctx.selectedRequirements;
-      const asked = requested.getStore()?.url ?? null; // fix 8: judge the URL actually requested
+      const store = requested.getStore();
+      const asked = store?.url ?? null; // fix 8: judge the URL actually requested
       const declared = ctx.paymentRequired.resource?.url ?? null;
       const url = isMutated('agent.requested_url') ? declared : asked; // judge the URL we asked for, never the one the seller declares
-      const t = now();
       const g = capsOnly ? { ok: true } : await checker.check(mandate, grant_tx, { active: true });
+      const expectedDestination = await destinationAta(r.payTo, r.asset);
+      await settleHeld();
+      // ---- from here to the reservation there is NO await: the check and the reservation are one synchronous step (Addendum E, B5)
+      const t = now();
       let reason = null, delta = [];
       if (fails('agent.history_complete', !ledgerComplete)) { reason = R.history_incomplete; delta = [{ field: 'history', authorized: 'a complete record of this agent\'s payments in the period', actual: `could not be rebuilt from chain${ledgerReason ? `: ${ledgerReason}` : ''}` }]; }
       else if (fails('agent.requested_url_present', asked === null)) { reason = R.resource_mismatch; delta = [{ field: 'resource', authorized: 'the URL this agent requested', actual: 'unknown: the payment was not created through agent.fetch' }]; }
       else if (fails('agent.resource_mismatch', asked !== null && declared !== null && normalizeResource(declared) !== normalizeResource(asked))) { reason = R.resource_mismatch; delta = [{ field: 'resource', authorized: normalizeResource(asked), actual: normalizeResource(declared) }]; }
       else if (fails('agent.grant', !g.ok)) { reason = g.reason; delta = [{ field: 'grant', authorized: 'an active ApproveChecked + Memo bound to the mandate id', actual: g.detail }]; }
+      else if (fails('agent.destination_mismatch', r.destination != null && r.destination !== expectedDestination)) { reason = R.destination_mismatch; delta = [{ code: R.destination_mismatch, field: 'destination', authorized: `${expectedDestination} (the associated token account of ${r.payTo})`, actual: String(r.destination) }]; }
       if (!reason) {
         delta = scopeViolations(mandate, { amount: r.amount, pay_to: r.payTo, resource: normalizeResource(url) ?? url, asset: r.asset, network: r.network, payer: signer.address, time: t });
         if (capsOnly) delta = delta.filter((d) => d.code === R.amount_over_cap);
@@ -97,26 +148,40 @@ export async function createAgent(cfg) {
       }
       if (!reason) {
         const spent = fails('agent.ledger', true) ? spentThisPeriod(t) : 0n;
-        if (fails('agent.period', spent + BigInt(r.amount) > BigInt(mandate.period_budget))) { reason = R.period_over_budget; delta = [{ code: R.period_over_budget, field: 'period_budget', authorized: mandate.period_budget, actual: `${spent} already spent in this period, +${r.amount}` }]; }
+        const held = fails('agent.reserve_held', true) ? heldInPeriod(t) : 0n;
+        if (fails('agent.period', spent + held + BigInt(r.amount) > BigInt(mandate.period_budget))) { reason = R.period_over_budget; delta = [{ code: R.period_over_budget, field: 'period_budget', authorized: mandate.period_budget, actual: `${spent} already spent and ${held} reserved in this period, +${r.amount}` }]; }
       }
       if (reason) return { abort: true, reason: MARK + JSON.stringify({ reason, delta }) };
+      if (isMutated('agent.reserve_atomic')) await Promise.resolve(); // mutation: yield between the check and the reservation
+      const res = { id: nextReservation++, amount: BigInt(r.amount), t, state: 'held', created: false, agentSig: null, lastValid: 0n, sig: null };
+      reservations.push(res);
+      store?.ids.push(res.id);
     });
   }
   const wrapped = wrapFetchWithPayment(fetch, client);
   async function pay(url, init) {
-    pending = null;
+    const st = { url: normalizeResource(String(url)), ids: [] };
     let res;
-    try { res = await requested.run({ url: normalizeResource(String(url)) }, () => wrapped(url, init)); }
+    try { res = await requested.run(st, () => wrapped(url, init)); }
     catch (e) {
       const i = String(e.message).indexOf(MARK);
       if (i >= 0) { const j = JSON.parse(e.message.slice(i + MARK.length)); throw new IussumRefusal(j.reason, j.delta); }
+      // the payload may have reached the seller and settled even though no response came back: it stays held (and counts) until proven otherwise
+      if (!fails('agent.hold_until_proven', true)) for (const id of st.ids) if (reservations[id].state === 'held') reservations[id].state = 'released';
       throw e;
+    } finally {
+      // a reservation whose payload was never created cannot have landed: release it
+      if (fails('agent.release_uncreated', true)) for (const id of st.ids) { const r = reservations[id]; if (r.state === 'held' && !r.created) r.state = 'released'; }
     }
     const pr = res.headers.get('payment-response');
-    if (pr && pending && res.status < 400 && JSON.parse(Buffer.from(pr, 'base64').toString('utf8')).success) ledger.push({ amount: pending.amount, t: now() });
+    if (pr && res.status < 400) {
+      const settle = JSON.parse(Buffer.from(pr, 'base64').toString('utf8'));
+      const mine = st.ids.map((id) => reservations[id]).findLast((r) => r.state === 'held' && r.created);
+      if (settle.success && mine) { mine.state = 'consumed'; mine.sig = settle.transaction ?? null; ledger.push({ amount: String(mine.amount), t: now(), sig: mine.sig }); }
+    }
     const rh = res.headers.get('x-iussum-receipt');
     res.receipt = rh ? decodeReceipt(rh) : null;
     return res;
   }
-  return { fetch: pay, client, ledger, source, mandateId: mandate ? mandateId(mandate) : null, address: signer.address };
+  return { fetch: pay, client, ledger, reservations, source, mandateId: mandate ? mandateId(mandate) : null, address: signer.address };
 }

@@ -3,12 +3,20 @@
 import fs from 'node:fs';
 import { mandateId, summaryLine, signReceipt, receiptKey, offerHash, canonicalize, sha256Hex, COMPUTE_BUDGET, MEMO_V2 } from '@iussum/core';
 import { TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
+import { debitTx } from './phase12/helpers.mjs';
 import { A, T0, DAY, SRC, DEST, RES, SELLER_KEY, WRONG_KEY, mandate, M, MID, key, grantTx, payTx, SIG, receipt } from './fixtures.mjs';
 const OUT = new URL('./vectors/', import.meta.url);
 const H = (rows) => ({ complete: true, entries: rows.map(([tx_sig, slot, block_time, amount, dest_owner]) => ({ tx_sig, slot, block_time, amount, dest_owner })) });
 const base = () => ({ tx_sig: SIG('P'), network: A.net, mandate: M, grant_tx: SIG('G'), grant_tx_parsed: grantTx(M), receipt: receipt(), seller_pubkey: SELLER_KEY.publicKey, payment: payTx(), history: H([[SIG('P'), 2000, T0 + 100, '10000', A.sellerA]]), superseded: null });
 const R = (name, change, expect, note) => ({ name, kind: 'resolve', note, input: change(base()), expect });
 const exp = (verdict, reason, liable, more = {}) => ({ verdict, reason, liable, ...more });
+// The source account as the chain would show it: total_cap minus what the history says the agent took since the grant (slot 1000). The resolver
+// cross-checks the history against it (Addendum E, C1); a vector that wants a mismatch passes its own `allowance`.
+const withAllowance = (i) => {
+  if (i.allowance !== undefined || !i.history?.entries || !i.mandate || !i.mandate.total_cap) return i;
+  const taken = i.history.entries.filter((e) => e.slot >= 1000).reduce((a, e) => a + BigInt(e.amount), 0n);
+  return { ...i, allowance: { slot: 1_000_000_000, account: { data: { parsed: { info: { owner: i.mandate.principal, mint: i.mandate.asset, delegate: i.mandate.agent, delegatedAmount: { amount: String(BigInt(i.mandate.total_cap) - taken) } } } } } } };
+};
 
 const vec = {};
 // ---------------- jcs
@@ -107,6 +115,7 @@ vec.grant = [
   G('no Memo', grantTx(M, { seedVault: false, drop: [1] }), mm('0 Memo')),
   G('two ApproveChecked', (() => { const t = grantTx(M, { seedVault: false }); t.transaction.message.instructions.push(t.transaction.message.instructions[0]); return t; })(), mm('2 ApproveChecked')),
   G('two Memo instructions', (() => { const t = grantTx(M, { seedVault: false }); t.transaction.message.instructions.push(t.transaction.message.instructions[1]); return t; })(), mm('2 Memo')),
+  G('ApproveChecked on the Token-2022 program is not an SPL Token ApproveChecked: refused (SPL Token only)', grantTx(M, { ixs: [{ programId: 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb', program: 'spl-token-2022', parsed: { type: 'approveChecked', info: { delegate: A.agent, mint: A.asset, owner: A.principal, source: SRC, tokenAmount: { amount: M.total_cap, decimals: 6, uiAmount: 0, uiAmountString: '0' } } } }, { programId: MEMO_V2, program: 'spl-memo', parsed: summaryLine(M) }] }), mm('unexpected instruction')),
   G('grant built for another mandate fails against this one (tampered mandate)', grantTx(M), mm('memo'), mandate({ per_payment_max: '50001' })),
 ];
 // ---------------- grant active (inspectGrantActive)
@@ -143,7 +152,7 @@ vec.resolve = [
   R('R2 payment after expiry: seller', (b) => ({ ...b, payment: payTx({ blockTime: T0 + 8 * DAY }), receipt: receipt({ settled_at: T0 + 8 * DAY }) }), exp('valid', 'mandate_expired', 'seller')),
   R('settled_at inside the window but block time outside it: block time wins', (b) => ({ ...b, payment: payTx({ blockTime: T0 + 8 * DAY }), receipt: receipt({ settled_at: T0 + 50 }) }), exp('valid', 'mandate_expired', 'seller', { time_source: 'block' })),
   R('no block time on chain: fall back to settled_at, say so', (b) => ({ ...b, payment: payTx({ blockTime: null }) }), exp('invalid', 'in_scope', 'principal', { time_source: 'receipt' })),
-  R('wrong agent paid (authority is not the agent)', (b) => ({ ...b, receipt: receipt({ payer: A.thief }), payment: payTx({ authority: A.thief }) }), exp('valid', 'agent_mismatch', 'seller')),
+  R('a payment the agent did not sign (authority is the thief) is not under this mandate: tx_mismatch, liable null (not the agent operator)', (b) => ({ ...b, receipt: receipt({ payer: A.thief }), payment: payTx({ authority: A.thief }) }), exp('invalid', 'tx_mismatch', null, { deltaFields: ['source'] })),
   R('R3 receipt with no mandate binding, out of scope: agent operator', (b) => ({ ...b, receipt: receipt({ mandate_id: null, grant_tx: null, pay_to: A.sellerC }), payment: payTx({ payTo: A.sellerC }) }), exp('valid', 'pay_to_not_allowed', 'agent_operator')),
   R('receipt bound to a different mandate id than the dispute carries: mandate_mismatch, liable null (the disputer does not choose the mandate)', (b) => ({ ...b, receipt: receipt({ mandate_id: 'ab'.repeat(32), pay_to: A.sellerC }), payment: payTx({ payTo: A.sellerC }) }), exp('invalid', 'mandate_mismatch', null)),
   R('mandate superseded before the payment slot: mandate_superseded, liable null', (b) => ({ ...b, superseded: { sig: SIG('S'), slot: 1500 } }), exp('invalid', 'mandate_superseded', null)),
@@ -167,12 +176,24 @@ vec.resolve = [
   R('receipt payer differs from the chain authority', (b) => ({ ...b, receipt: receipt({ payer: A.thief }) }), exp('invalid', 'tx_mismatch', null, { deltaFields: ['payer'] })),
   R('receipt asset differs from chain mint', (b) => ({ ...b, receipt: receipt({ asset: A.otherMint }) }), exp('invalid', 'tx_mismatch', null, { deltaFields: ['asset'] })),
   R('payment is not out of the granted account (source differs)', (b) => ({ ...b, payment: payTx({ source: DEST[A.sellerB] }) }), exp('invalid', 'tx_mismatch', null, { deltaFields: ['source'] })),
-  R('two transfers in one transaction cannot be judged', (b) => ({ ...b, payment: payTx({ twoTransfers: true }) }), exp('invalid', 'tx_mismatch', null)),
+  R('two debits by the agent in one transaction cannot have gone through x402: debit_not_x402, agent operator', (b) => ({ ...b, payment: payTx({ twoTransfers: true }) }), exp('valid', 'debit_not_x402', 'agent_operator', { deltaCodes: ['debit_not_x402', 'debit_not_x402'] })),
   R('no receipt (seller never checked): the chain alone proves pay_to out of scope: agent operator, resource unjudged', (b) => ({ ...b, receipt: null, payment: payTx({ payTo: A.sellerC }), history: H([[SIG('P'), 2000, T0 + 100, '10000', A.sellerC]]) }), exp('valid', 'pay_to_not_allowed', 'agent_operator', { unjudged: ['resource'] })),
   R('no receipt and nothing out of scope on chain: invalid, principal, resource unjudged', (b) => ({ ...b, receipt: null }), exp('invalid', 'in_scope', 'principal', { unjudged: ['resource'] })),
   R('no receipt and no block time: the window is unjudged too', (b) => ({ ...b, receipt: null, payment: payTx({ blockTime: null }) }), exp('invalid', 'in_scope', 'principal', { unjudged: ['resource', 'time'] })),
   R('no receipt, amount over the cap: agent operator', (b) => ({ ...b, receipt: null, payment: payTx({ amount: '60000' }) }), exp('valid', 'amount_over_cap', 'agent_operator', { unjudged: ['resource'] })),
   R('no mandate supplied by the disputing party', (b) => ({ ...b, mandate: null }), exp('invalid', 'mandate_missing', null)),
+  R('a plain Transfer by the agent out of the granted account cannot have gone through x402: debit_not_x402, agent operator', (b) => ({ ...b, receipt: null, payment: debitTx('transfer', { slot: 2000 }) }), exp('valid', 'debit_not_x402', 'agent_operator', { deltaCodes: ['debit_not_x402'] })),
+  R('a BurnChecked by the agent: debit_not_x402', (b) => ({ ...b, receipt: null, payment: debitTx('burnChecked', { slot: 2000 }) }), exp('valid', 'debit_not_x402', 'agent_operator')),
+  R('a Burn by the agent: debit_not_x402', (b) => ({ ...b, receipt: null, payment: debitTx('burn', { slot: 2000 }) }), exp('valid', 'debit_not_x402', 'agent_operator')),
+  R('a TransferChecked made by CPI (inner instruction): debit_not_x402', (b) => ({ ...b, receipt: null, payment: debitTx('cpi', { slot: 2000 }) }), exp('valid', 'debit_not_x402', 'agent_operator')),
+  R('the balance of the granted account fell by more than the parsed instructions explain: history_incomplete, liable null', (b) => ({ ...b, receipt: null, payment: debitTx('unparsed', { slot: 2000 }) }), exp('invalid', 'history_incomplete', null, { deltaFields: ['balance'] })),
+  R('the debits found do not add up to the allowance that is gone: history_incomplete, liable null', (b) => ({ ...b, allowance: { slot: 1_000_000_000, account: { data: { parsed: { info: { owner: A.principal, mint: A.asset, delegate: A.agent, delegatedAmount: { amount: '950000' } } } } } } }), exp('invalid', 'history_incomplete', null, { deltaFields: ['allowance'] })),
+  R('no allowance read: history_incomplete, never in_scope', (b) => ({ ...b, allowance: null }), exp('invalid', 'history_incomplete', null, { deltaFields: ['allowance'] })),
+  R('the allowance cross-check is skipped for a superseded grant (not current)', (b) => ({ ...b, superseded: { sig: SIG('S'), slot: 2500 }, allowance: null }), exp('invalid', 'in_scope', 'principal')),
+  R('a payment before the grant: tx_mismatch, liable null (resubmit with the mandate that was current)', (b) => ({ ...b, payment: payTx({ slot: 900, blockTime: T0 + 50 }), history: H([[SIG('P'), 900, T0 + 50, '10000', A.sellerA]]) }), exp('invalid', 'tx_mismatch', null, { deltaFields: ['time'] })),
+  R('same slot as the grant and no block order known: history_incomplete, liable null', (b) => ({ ...b, payment: payTx({ slot: 1000 }), history: H([[SIG('P'), 1000, T0 + 100, '10000', A.sellerA]]) }), exp('invalid', 'history_incomplete', null, { deltaFields: ['position'] })),
+  R('same slot as the grant, block order says the payment came after the grant: judged', (b) => ({ ...b, payment: payTx({ slot: 1000 }), history: H([[SIG('P'), 1000, T0 + 100, '10000', A.sellerA]]), blockIdx: { [SIG('G')]: 0, [SIG('P')]: 1 } }), exp('invalid', 'in_scope', 'principal')),
+  R('same slot as the grant, block order says the payment came BEFORE the grant: tx_mismatch', (b) => ({ ...b, payment: payTx({ slot: 1000 }), history: H([[SIG('P'), 1000, T0 + 100, '10000', A.sellerA]]), blockIdx: { [SIG('G')]: 1, [SIG('P')]: 0 } }), exp('invalid', 'tx_mismatch', null)),
   // recorded devnet response (payment 5KsYz26T..., settled through payai in Phase 0): the chain side is REAL, the mandate/grant/receipt are synthetic
   ...(() => {
     const REAL = '5KsYz26TFRGqzk7KdjUg8z2tGL6neRed37Cj211kYFgTX8ATNDKwXfqwuRnLzC8zTMDf2Z4QS7SweCd41Lrd2Hur';
@@ -199,6 +220,7 @@ vec.period = [
   { name: 'ordering is by slot, not by listing order', kind: 'resolve', input: prBase(SIG('1'), A.sellerA, '20000', hist([[SIG('2'), 2002, T0 + 110, '20000', A.sellerB], [SIG('1'), 2001, T0 + 100, '20000', A.sellerA]])), expect: exp('invalid', 'in_scope', 'principal') },
   { name: 'period overrun and a seller-visible violation together: seller still liable for the visible one', kind: 'resolve', input: { ...prBase(SIG('2'), A.sellerC, '20000', hist([[SIG('1'), 2001, T0 + 100, '20000', A.sellerA], [SIG('2'), 2002, T0 + 110, '20000', A.sellerC]])), receipt: receipt({ mandate_id: PMID, tx_sig: SIG('2'), pay_to: A.sellerC, amount: '20000' }), payment: payTx({ payTo: A.sellerC, amount: '20000' }) }, expect: exp('valid', 'pay_to_not_allowed', 'seller', { deltaCodes: ['pay_to_not_allowed', 'period_over_budget'] }) },
 ];
+for (const k of ['resolve', 'period']) vec[k] = vec[k].map((v) => (v.kind === 'resolve' ? { ...v, input: withAllowance(v.input) } : v));
 fs.mkdirSync(OUT, { recursive: true });
 for (const [k, v] of Object.entries(vec)) fs.writeFileSync(new URL(`${k}.json`, OUT), JSON.stringify(v, null, 1) + '\n');
 console.log(Object.entries(vec).map(([k, v]) => `${k}:${v.length}`).join(' '), 'mandate id', MID);

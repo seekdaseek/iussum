@@ -76,11 +76,13 @@ export function scopeViolations(m, p, { judgeResource = true, judgeTime = true }
 // Period accounting. Periods are anchored at not_before: index = floor((t - not_before) / period_seconds).
 export const periodIndex = (m, t) => Math.floor((t - m.not_before) / m.period_seconds);
 export const PERIOD_CHECK = registerCheck(R.period_over_budget);
-// entries: [{tx_sig, slot, block_time, amount}] sorted by (slot, tx_sig). Returns { spent, over } for the payment `tx_sig`
-// counting only the same period, up to and including that payment.
+// entries: [{tx_sig, slot, block_time, amount}] in EXECUTION order (slot, then position in the block: agentSpendHistory returns them that way).
+// They are re-sorted by slot only, and the sort is stable, so the order within a slot is the order given; it is never decided by signature
+// string (Addendum E, S7). Returns { spent, over } for the payment `tx_sig`, counting only the same period, up to and including that
+// transaction (all of its debits).
 export function periodSpendAt(m, entries, tx_sig) {
-  const sorted = [...entries].sort((a, b) => a.slot - b.slot || (a.tx_sig < b.tx_sig ? -1 : 1));
-  const at = sorted.findIndex((x) => x.tx_sig === tx_sig);
+  const sorted = [...entries].sort((a, b) => a.slot - b.slot);
+  const at = sorted.findLastIndex((x) => x.tx_sig === tx_sig);
   if (at < 0) return { spent: 0n, over: false, found: false };
   const k = periodIndex(m, sorted[at].block_time);
   let spent = 0n;

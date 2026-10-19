@@ -33,6 +33,7 @@ export function fakeRpc() {
   return Object.assign(s, {
     async getTransaction(sig) { s.calls.getTransaction++; return s.grants.get(sig) ?? null; },
     async getAccountInfoParsed(addr) { s.calls.getAccountInfoParsed++; if (s.mints.has(addr)) return { data: { parsed: { info: { decimals: s.mints.get(addr) } } } }; return s.account; },
+    async getAccountContext(addr) { s.calls.getAccountInfoParsed++; return { slot: s.contextSlot ?? 1_000_000_000, value: s.account }; },
     async getSignaturesForAddress() { return s.newer; }, // signatures newer than the grant on the source account (none unless a test sets them)
     async call() { throw new Error('unexpected rpc call'); },
   });

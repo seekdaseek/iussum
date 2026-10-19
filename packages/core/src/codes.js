@@ -30,6 +30,9 @@ export const R = Object.freeze({
   mandate_mismatch: 'mandate_mismatch',
   history_incomplete: 'history_incomplete',
   resource_mismatch: 'resource_mismatch',
+  // Phase 1.2 (Addendum E)
+  debit_not_x402: 'debit_not_x402',
+  destination_mismatch: 'destination_mismatch',
 });
 // Violations a seller can see before it settles. The period budget is not among them: a seller cannot see other sellers' payments.
 export const SELLER_VISIBLE = new Set([R.amount_over_cap, R.pay_to_not_allowed, R.resource_not_allowed, R.asset_mismatch, R.network_mismatch, R.mandate_not_yet_valid, R.mandate_expired, R.agent_mismatch]);

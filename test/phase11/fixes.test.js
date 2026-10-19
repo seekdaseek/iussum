@@ -10,7 +10,7 @@ import { decodePayment } from '@iussum/seller';
 import { createGrantChecker, mandateId, agentSpendHistory, mintDecimals } from '@iussum/core';
 import { createResolver, openStore } from '@iussum/resolver';
 import { A, T0, DAY, SRC, SELLER_KEY, mandate, receipt, grantTx, payTx, SIG } from '../fixtures.mjs';
-import { startMockFacilitator, startSeller, newScenario, blockhash, listen } from '../harness.mjs';
+import { startMockFacilitator, startSeller, newScenario, blockhash, listen, liveAccount } from '../harness.mjs';
 import { chainSim, grantAt, payAt, live, sig } from '../regression/chainsim.mjs';
 
 const NOW = T0 + 1000;
@@ -47,9 +47,10 @@ async function ledgerScenario(o = {}) {
   const facilitator = await startMockFacilitator();
   const seller = await startSeller({ facilitator, mode: 'off', now: () => NOW, price: '20000' });
   const s = await newScenario(seller, { mandate: { period_budget: '30000', per_payment_max: '20000' } });
-  const earlier = payTx({ authority: s.signer.address, amount: '20000', slot: 500, blockTime: T0 + 500 }); // this agent already paid 20000 this period, before the "restart"
+  const earlier = payTx({ authority: s.signer.address, amount: '20000', slot: 1500, blockTime: T0 + 500 }); // this agent already paid 20000 this period, before the "restart"
   seller.rpc.grants.set(sig('EARLIER'), earlier);
-  seller.rpc.newer = [{ signature: sig('EARLIER'), slot: 500, blockTime: T0 + 500, err: null }];
+  seller.rpc.newer = [{ signature: sig('EARLIER'), slot: 1500, blockTime: T0 + 500, err: null }];
+  seller.rpc.account = liveAccount(s.mandate, { delegatedAmount: { amount: String(BigInt(s.mandate.total_cap) - 20000n) } }); // the allowance the earlier payment used up
   if (o.broken) seller.rpc.getSignaturesForAddress = async () => { throw new Error('rpc down'); };
   const make = () => createAgent({ mandate: s.mandate, grant_tx: s.grant_tx, signer: s.signer, rpc: seller.rpc, getBlockhash: blockhash, now: () => NOW });
   return { facilitator, seller, s, make, close: () => { facilitator.close(); seller.close(); } };

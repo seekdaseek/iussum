@@ -59,11 +59,12 @@ test('F5: an agent that forges Host: <allowed origin> does not get an in-scope r
   app.get('/v1/quote', (_req, res) => res.json({ ok: true }));
   s.srv.on('request', app);
   const agentSigner = await generateKeyPairSigner();
-  // the mandate allows ONLY https://allowed.example/v1/ ; this seller really lives at http://127.0.0.1:<port>
-  const m = mandate({ agent: agentSigner.address, allow: { pay_to: [A.sellerA], resource_prefix: ['http://allowed.example/v1/'] } });
+  // the mandate allows ONLY http://localhost:<port>/v1/ ; this seller really lives at http://127.0.0.1:<port>, and the agent forges Host: localhost:<port>
+  // (http:// prefixes are valid only for local hosts since Phase 1.2, so the "allowed" origin is localhost rather than a made-up domain)
+  const m = mandate({ agent: agentSigner.address, allow: { pay_to: [A.sellerA], resource_prefix: [`http://localhost:${s.port}/v1/`] } });
   s.rpc.grants.set(GRANT_SIG, grantTx(m)); s.rpc.account = liveAccount(m);
   const realFetch = globalThis.fetch;
-  globalThis.fetch = forgedFetch('allowed.example', s.origin, realFetch);
+  globalThis.fetch = forgedFetch(`localhost:${s.port}`, s.origin, realFetch);
   try {
     const agent = await createAgent({ mandate: m, grant_tx: GRANT_SIG, signer: agentSigner, rpc: s.rpc, getBlockhash: blockhash, localChecks: false, now: () => T0 + 1000 });
     const res = await agent.fetch(`${s.origin}/v1/quote`);

@@ -10,10 +10,11 @@ import { findAssociatedTokenPda, TOKEN_PROGRAM_ADDRESS } from '@solana-program/t
 import { fails, registerCheck } from './guard.js';
 import { R } from './codes.js';
 import { summaryLine, mandateId } from './mandate.js';
+import { fillBlockIndices, comparePositions } from './chain.js';
 
 export const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export const MEMO_V2 = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
-export const GRANT_CHECKS = ['grant.tx_err', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.superseded_inner', 'grant.scan_failed'].map(registerCheck);
+export const GRANT_CHECKS = ['grant.tx_err', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.superseded_inner', 'grant.scan_failed', 'grant.scan_unreadable', 'grant.superseded_position'].map(registerCheck);
 
 export async function principalAta(principal, asset) {
   const [ata] = await findAssociatedTokenPda({ mint: asset, owner: principal, tokenProgram: TOKEN_PROGRAM_ADDRESS });
@@ -76,9 +77,12 @@ export function supersedes(tx, source) {
   return false;
 }
 // Scan the signatures of `source` that are newer than `since` (exclusive), paginating with `before` until the page is not full. Returns the
-// newest signature seen and the EARLIEST superseding transaction, or throws if a page cannot be read (the caller fails closed).
+// newest signature seen and the EARLIEST superseding transaction by position in the chain (slot, then index in the block; never signature
+// order). Throws if a page cannot be read OR a listed transaction cannot be read (Addendum E, B2): an unreadable transaction must not count
+// as "does not supersede", and the caller fails closed and does not advance past it.
 export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPages = 1000 } = {}) {
-  let before, newest = null, earliest = null;
+  let before, newest = null;
+  const found = [];
   for (let pages = 0; ; pages++) {
     if (pages >= maxPages) throw new Error('too many pages to scan');
     const page = await rpc.getSignaturesForAddress(source, { until: since, ...(before ? { before } : {}), limit: pageSize });
@@ -86,11 +90,21 @@ export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPag
     for (const e of page) {
       if (e.err) continue;
       const tx = await rpc.getTransaction(e.signature);
-      if (supersedes(tx, source) && (!earliest || tx.slot < earliest.slot || (tx.slot === earliest.slot && e.signature < earliest.sig))) earliest = { sig: e.signature, slot: tx.slot };
+      if (fails('grant.scan_unreadable', !tx)) throw new Error(`transaction ${e.signature} could not be read`);
+      if (supersedes(tx, source)) found.push({ sig: e.signature, tx_sig: e.signature, slot: tx.slot });
     }
-    if (page.length < pageSize) return { newest, superseded: earliest };
+    if (page.length < pageSize) break;
     before = page[page.length - 1].signature;
   }
+  let earliest = null;
+  if (found.length) {
+    const minSlot = Math.min(...found.map((f) => f.slot));
+    const atMin = found.filter((f) => f.slot === minSlot);
+    const idxOf = {};
+    if (atMin.length > 1) await fillBlockIndices(rpc, atMin, idxOf);
+    earliest = fails('grant.superseded_position', true) ? [...atMin].sort((a, b) => comparePositions(a, b, idxOf))[0] : [...atMin].sort((a, b) => (a.sig < b.sig ? -1 : 1))[0];
+  }
+  return { newest, superseded: earliest };
 }
 
 // rpc = { getTransaction(sig), getAccountInfoParsed(addr) }. The immutable part is cached by (grant_tx, mandate id).

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createAgent, IussumRefusal, WalletMutationError } from '@iussum/agent';
 import { partiallySignTransactionMessageWithSigners, getTransactionEncoder, compileTransaction } from '@solana/kit';
-import { A, T0, DAY } from '../../../test/fixtures.mjs';
+import { A, T0, DAY, SRC } from '../../../test/fixtures.mjs';
 import { startMockFacilitator, startSeller, newScenario, blockhash, liveAccount } from '../../../test/harness.mjs';
 
 const NOW = T0 + 1000;
@@ -41,7 +41,13 @@ test('refuses locally: mandate expired', async () => { const t = await setup(); 
 test('refuses locally: mandate not yet valid', async () => { const t = await setup(); try { await refused(t, await t.make({ now: () => T0 - 5 }), t.seller.url, 'mandate_not_yet_valid'); } finally { t.close(); } });
 test('refuses locally: grant revoked (grant_inactive)', async () => {
   const t = await setup();
-  try { t.seller.rpc.account = liveAccount(t.s.mandate, { delegate: undefined, delegatedAmount: undefined }); await refused(t, await t.make(), t.seller.url, 'grant_inactive'); } finally { t.close(); }
+  try {
+    // the principal revoked: a Revoke transaction on the source account (what the supersession scan finds) and the delegate gone
+    const revoke = { slot: 1500, blockTime: T0 + 1500, meta: { err: null }, transaction: { message: { accountKeys: [], instructions: [{ programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', program: 'spl-token', parsed: { type: 'revoke', info: { source: SRC, owner: t.s.mandate.principal } } }] } } };
+    t.seller.rpc.grants.set('R'.repeat(88), revoke); t.seller.rpc.newer = [{ signature: 'R'.repeat(88), slot: 1500, blockTime: T0 + 1500, err: null }];
+    t.seller.rpc.account = liveAccount(t.s.mandate, { delegate: undefined, delegatedAmount: undefined });
+    await refused(t, await t.make(), t.seller.url, 'grant_inactive');
+  } finally { t.close(); }
 });
 test('refuses locally: grant transaction does not match the mandate (memo)', async () => {
   const t = await setup({ scen: { grant: { memo: 'iussum v0.2 | something else' } } });
