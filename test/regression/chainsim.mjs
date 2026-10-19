@@ -19,7 +19,7 @@ export function chainSim() {
     // what the token program took off the allowance: every delegate-signed transfer or burn out of the account, top level or by CPI
     for (const t of txs.slice(g + 1)) for (const i of [...t.tx.transaction.message.instructions, ...(t.tx.meta?.innerInstructions ?? []).flatMap((x) => x.instructions)]) {
       const f = i.parsed?.info, ty = i.parsed?.type;
-      if (!f || f.authority !== info.delegate || !['transfer', 'transferChecked', 'burn', 'burnChecked'].includes(ty) || (f.source ?? f.account) !== addr) continue;
+      if (!f || f.authority !== info.delegate || !['transfer', 'transferChecked', 'burn', 'burnChecked'].includes(ty) || (f.source ?? f.account) !== addr || f.destination === f.source) continue; // a self-transfer does not lower the allowance
       taken += BigInt(f.tokenAmount?.amount ?? f.amount);
     }
     return { ...a, data: { parsed: { info: { ...info, delegatedAmount: { amount: String(BigInt(a._cap) - taken) } } } } };
