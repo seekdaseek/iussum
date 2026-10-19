@@ -22,3 +22,26 @@ export function dustCredit(slot, amount = '1') {
   const a = BigInt(amount);
   return { slot, blockTime: T0 + slot, meta: { err: null, preTokenBalances: [bal(2, A.thief, 5000000n), bal(3, A.principal, 5000000n)], postTokenBalances: [bal(2, A.thief, 5000000n - a), bal(3, A.principal, 5000000n + a)] }, transaction: { signatures: [], message: { accountKeys: keys, instructions: [tc] } } };
 }
+
+// an x402-shaped payment (agent TransferChecked out of SRC) plus a second agent debit of 1 unit from the agent's own account (Addendum F, N2)
+import { TOKEN_PROGRAM_ADDRESS as TOKEN_PROGRAM } from '@solana-program/token';
+import { ata } from '../fixtures.mjs';
+export async function payWithExtraDebit(slot, { amount = '10000', payTo = A.sellerA } = {}) {
+  const AGENT_ATA = await ata(A.agent), X_ATA = await ata(A.sellerB);
+  const p = payTx({ slot, blockTime: T0 + slot, amount, payTo });
+  p.transaction.message.accountKeys.push({ pubkey: AGENT_ATA, signer: false, writable: true, source: 'transaction' }, { pubkey: X_ATA, signer: false, writable: true, source: 'transaction' });
+  p.transaction.message.instructions.push({ programId: TOKEN_PROGRAM, program: 'spl-token', parsed: { type: 'transferChecked', info: { source: AGENT_ATA, destination: X_ATA, mint: A.asset, authority: A.agent, tokenAmount: amt('1') } } });
+  const n = p.transaction.message.accountKeys.length;
+  p.meta.preTokenBalances.push({ accountIndex: n - 2, mint: A.asset, owner: A.agent, uiTokenAmount: { amount: '5', decimals: 6 } }, { accountIndex: n - 1, mint: A.asset, owner: A.sellerB, uiTokenAmount: { amount: '0', decimals: 6 } });
+  p.meta.postTokenBalances.push({ accountIndex: n - 2, mint: A.asset, owner: A.agent, uiTokenAmount: { amount: '4', decimals: 6 } }, { accountIndex: n - 1, mint: A.asset, owner: A.sellerB, uiTokenAmount: { amount: '1', decimals: 6 } });
+  return p;
+}
+// the associated token account is created in this transaction (no pre balance) with `amount` in it
+export function recreateTx(slot, amount = '1') {
+  const tx = dustCredit(slot, amount);
+  tx.meta.preTokenBalances = tx.meta.preTokenBalances.filter((b) => b.accountIndex !== 3); // SRC had no balance entry before
+  tx.meta.postTokenBalances = tx.meta.postTokenBalances.map((b) => (b.accountIndex === 3 ? { ...b, uiTokenAmount: { amount: String(amount), decimals: 6 } } : b));
+  tx.meta.preTokenBalances = tx.meta.preTokenBalances.map((b) => (b.accountIndex === 2 ? { ...b, uiTokenAmount: { amount: String(5000000n), decimals: 6 } } : b));
+  tx.meta.postTokenBalances = tx.meta.postTokenBalances.map((b) => (b.accountIndex === 2 ? { ...b, uiTokenAmount: { amount: String(5000000n - BigInt(amount)), decimals: 6 } } : b));
+  return tx;
+}

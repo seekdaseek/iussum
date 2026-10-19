@@ -1,0 +1,11 @@
+property I1: 600 histories (seeds 1..600), 2953 disputes, 1980 with a decided model verdict
+✔ property I1: 600 random histories, every dispute gets the model's verdict on a readable chain (seeds 1..600)
+property I2: 2347 disputes with no verdict, 606 with the model's verdict, 0 different
+✔ property I2: RPC faults give the model's verdict or no verdict, never a different decided verdict (600 histories)
+property I3: 649 refunds over 200 histories, never two for one payment
+✔ property I3: at most one refund per payment, and only on a seller-liable verdict (200 histories)
+property I4: 60 seeds, 203 payments settled, 859 local refusals (all period_over_budget), 16 restarts, never above the budget
+✔ property I4: the agent never settles more than period_budget under concurrency, lost responses, seller blockhash fields and restarts (60 seeds)
+ℹ tests 4
+ℹ pass 4
+ℹ fail 0
