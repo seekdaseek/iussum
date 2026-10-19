@@ -12,7 +12,7 @@ Baseline for every regression test below: **`e065db0`** (the public HEAD the fol
 | the new regression tests | `test/phase13`: 20 at the time of the baseline run, **15 fail and 5 pass on `e065db0`** (the 5 are controls, e.g. "50 payments in period 0 is judged", "the same receipt filed twice is a duplicate"): [docs/phase13/regression-on-e065db0.txt](docs/phase13/regression-on-e065db0.txt); after the fixes all pass: [docs/phase13/regression-on-fixed.txt](docs/phase13/regression-on-fixed.txt) |
 | property test | 600 seeded histories, passes in about 12 s; the same file **fails on `e065db0`** (I1 at seed 2, I2 at seed 15, I4 at seed 1): see below |
 | five clean devnet runs | `demo-runs-1.3/run-1.txt` to `run-5.txt`, each `63/63 checks passed`, exit code 0; 160 signatures, every one checked with `getSignatureStatuses` (160 finalized): [demo-runs-1.3/signatures.md](demo-runs-1.3/signatures.md) |
-| fresh clone of the final pushed HEAD | see the last section |
+| fresh clone of the final pushed HEAD | `npm ci && npm test` on a clone of `1ffba7e` (the pushed HEAD that carries everything else in this report): **331 tests, 331 pass, 0 fail, 0 skipped**; no private file in the tree or in any commit; all 27 commits authored and committed by `seekdaseek <ochinimus@gmail.com>`; no Co-Authored-By or Claude-Session line. The one commit after it only fills in this line, and a second clone of that final HEAD was tested the same way (result in the closing message and the local log) |
 | sensitive scan over the new commits | the Addendum D patterns plus the device serial, positive controls first, over every commit of the history: nothing new; the only hits are the environment-file ignore line in `.gitignore` and the provider name in `vendor/nuntius-mandate` (unchanged). The pattern list is not written into any tracked file |
 | relative links in tracked `.md` | all resolve to tracked files |
 
@@ -199,7 +199,3 @@ property I4: 60 seeds, 203 payments settled, 859 local refusals (all period_over
 - The resolver's cost on a long-lived account: the full-history read is now unbounded while a grant is current; no load test, and the public devnet RPC rate-limits.
 - A Token-2022 grant on chain: vector only. The period budget is not enforced on chain; only `total_cap` is.
 - Two leftovers disclosed earlier stay in the public history by decision (removing them would change every hash, including the `057ff14` baseline): the treasury-address prefix in two commits of `REPORT-phase1.2.md` (the prefix of a public receiving address) and one line about a payout-documentation check in older versions of the Phase 0 and 1 reports.
-
-## Fresh clone
-
-(Filled in by the closing commit.)
