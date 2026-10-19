@@ -10,7 +10,7 @@ import { pipe, createTransactionMessage, setTransactionMessageFeePayer, appendTr
 import { getTransferCheckedInstruction, TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
 import { assertOnlyComputeBudgetChanged } from './txguard.js';
 
-export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.decimals'].map(registerCheck);
+export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals'].map(registerCheck);
 const MARK = 'IUSSUM_REFUSAL:';
 const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export class IussumRefusal extends Error {
@@ -82,11 +82,12 @@ export async function createAgent(cfg) {
       const r = ctx.selectedRequirements;
       const asked = requested.getStore()?.url ?? null; // fix 8: judge the URL actually requested
       const declared = ctx.paymentRequired.resource?.url ?? null;
-      const url = fails(true) ? asked : declared;
+      const url = isMutated('agent.requested_url') ? declared : asked; // judge the URL we asked for, never the one the seller declares
       const t = now();
       const g = capsOnly ? { ok: true } : await checker.check(mandate, grant_tx, { active: true });
       let reason = null, delta = [];
       if (fails('agent.history_complete', !ledgerComplete)) { reason = R.history_incomplete; delta = [{ field: 'history', authorized: 'a complete record of this agent\'s payments in the period', actual: `could not be rebuilt from chain${ledgerReason ? `: ${ledgerReason}` : ''}` }]; }
+      else if (fails('agent.requested_url_present', asked === null)) { reason = R.resource_mismatch; delta = [{ field: 'resource', authorized: 'the URL this agent requested', actual: 'unknown: the payment was not created through agent.fetch' }]; }
       else if (fails('agent.resource_mismatch', asked !== null && declared !== null && normalizeResource(declared) !== normalizeResource(asked))) { reason = R.resource_mismatch; delta = [{ field: 'resource', authorized: normalizeResource(asked), actual: normalizeResource(declared) }]; }
       else if (fails('agent.grant', !g.ok)) { reason = g.reason; delta = [{ field: 'grant', authorized: 'an active ApproveChecked + Memo bound to the mandate id', actual: g.detail }]; }
       if (!reason) {

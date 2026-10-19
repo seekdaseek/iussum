@@ -1,5 +1,5 @@
-baseline: 230 tests, 230 pass, 0 fail
-checks mutated: 73, survived (vacuous): 0
+baseline: 241 tests, 241 pass, 0 fail
+checks mutated: 76, survived (vacuous): 0
 
 | check skipped | tests that fail | first failing test |
 |---|---|---|
@@ -10,8 +10,10 @@ checks mutated: 73, survived (vacuous): 0
 | `agent.ledger` | 2 | refuses locally: its own running period spend would cross period_budget (second payment) |
 | `agent.ledger_rebuild` | 2 | F7: a restarted agent rebuilds its ledger from chain and refuses the payment that would cross the period budget |
 | `agent.period` | 2 | refuses locally: its own running period spend would cross period_budget (second payment) |
+| `agent.requested_url` | 1 | review 1: a seller that OMITS resource.url does not stop an in-scope payment: the agent judges the URL it requested |
+| `agent.requested_url_present` | 1 | review 1: a payment that was not created through agent.fetch has no requested URL and is refused (resource_mismatch) |
 | `agent.resource_mismatch` | 1 | F8: a seller that DECLARES an allowed resource.url while the agent asked for another URL is refused as resource_mismatch |
-| `agent.scope` | 6 | refuses locally: amount over per_payment_max |
+| `agent.scope` | 7 | refuses locally: amount over per_payment_max |
 | `agent.tx_guard` | 1 | payer path guard: a signer that changes the amount is rejected, ComputeBudget-only changes are not required |
 | `agent_mismatch` | 3 | scope: payer is not the agent |
 | `amount_over_cap` | 9 | refuses locally: amount over per_payment_max |
@@ -32,7 +34,8 @@ checks mutated: 73, survived (vacuous): 0
 | `grant.no_lookup_tables` | 1 | grant: address lookup tables are refused |
 | `grant.only_signer` | 1 | grant: a second signer |
 | `grant.scan_failed` | 1 | F1: if the chain cannot be scanned for a superseding instruction the grant is NOT treated as current |
-| `grant.superseded` | 7 | F1: after M2 is granted, M1 (broader, older) fails the grant check with superseded by <sig> |
+| `grant.superseded` | 13 | review 2: a approve made by CPI (meta.innerInstructions) supersedes the grant |
+| `grant.superseded_inner` | 7 | review 2: a approve made by CPI (meta.innerInstructions) supersedes the grant |
 | `grant.tx_err` | 1 | grant: transaction failed on chain |
 | `mandate_expired` | 5 | refuses locally: mandate expired |
 | `mandate_not_yet_valid` | 3 | refuses locally: mandate not yet valid |
@@ -60,15 +63,15 @@ checks mutated: 73, survived (vacuous): 0
 | `resolver.seller_visible` | 3 | period overrun across two sellers: the crossing payment is the agent operator's, and no seller refund is paid |
 | `resolver.single_transfer` | 1 | resolve: two transfers in one transaction cannot be judged |
 | `resolver.source` | 1 | resolve: payment is not out of the granted account (source differs) |
-| `resolver.superseded` | 2 | resolve: mandate superseded before the payment slot: mandate_superseded, liable null |
+| `resolver.superseded` | 3 | resolve: mandate superseded before the payment slot: mandate_superseded, liable null |
 | `resource.no_userinfo` | 1 | resource: credentials in the URL are refused even when the host matches |
 | `resource.origin_exact` | 9 | resource: host-only prefix does not match api.x.com.evil.io |
-| `resource.path_boundary` | 7 | refuses locally: resource outside the prefix |
-| `resource_not_allowed` | 12 | refuses locally: resource outside the prefix |
+| `resource.path_boundary` | 8 | refuses locally: resource outside the prefix |
+| `resource_not_allowed` | 13 | refuses locally: resource outside the prefix |
 | `seller.enforce` | 15 | enforce: amount over per_payment_max answers 403 and nothing settles |
 | `seller.mandate_invalid` | 1 | enforce: an invalid mandate document is refused |
 | `seller.observe_passes` | 3 | observe: an out-of-scope payment settles, and the receipt still records what was presented |
-| `seller.off_skips` | 3 | a naive agent (localChecks off) sends the payment anyway |
+| `seller.off_skips` | 4 | a naive agent (localChecks off) sends the payment anyway |
 | `seller.origin_required` | 1 | F5: createSellerGate refuses to start without a canonical origin |
 | `seller.payment_source` | 1 | F6: a payment from another token account than the grant's source is grant_mismatch in enforce |
 | `seller.payment_unreadable` | 1 | enforce: an unreadable payment transaction is refused before x402 sees it |

@@ -13,7 +13,7 @@ import { summaryLine, mandateId } from './mandate.js';
 
 export const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export const MEMO_V2 = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
-export const GRANT_CHECKS = ['grant.tx_err', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.scan_failed'].map(registerCheck);
+export const GRANT_CHECKS = ['grant.tx_err', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.superseded_inner', 'grant.scan_failed'].map(registerCheck);
 
 export async function principalAta(principal, asset) {
   const [ata] = await findAssociatedTokenPda({ mint: asset, owner: principal, tokenProgram: TOKEN_PROGRAM_ADDRESS });
@@ -65,7 +65,10 @@ export function inspectGrantActive(account, mandate) {
 export const SUPERSEDING = new Set(['approve', 'approveChecked', 'revoke', 'setAuthority', 'closeAccount']);
 export function supersedes(tx, source) {
   if (!tx || tx.meta?.err) return false;
-  for (const ix of tx.transaction?.message?.instructions ?? []) {
+  // top-level instructions AND instructions made by CPI from another program (meta.innerInstructions, jsonParsed): a wallet program or a
+  // protocol can change the delegate of a token account it controls without a top-level token instruction
+  const inner = fails('grant.superseded_inner', true) ? (tx.meta?.innerInstructions ?? []).flatMap((g) => g.instructions ?? []) : [];
+  for (const ix of [...(tx.transaction?.message?.instructions ?? []), ...inner]) {
     if (ix.programId !== TOKEN_PROGRAM_ADDRESS || !SUPERSEDING.has(ix.parsed?.type)) continue;
     const i = ix.parsed.info ?? {};
     if (i.source === source || i.account === source) return true;
