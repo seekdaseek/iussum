@@ -9,3 +9,9 @@ local.properties
 .env*
 *.apk
 /vendor/*/dist/
+
+# private files that stay on disk (Addendum D)
+BRIEF-*.md
+docs/seedvault/**/*.mp4
+docs/seedvault/*.mp4
+docs/seedvault/t1/t1-contact-sheet.png
