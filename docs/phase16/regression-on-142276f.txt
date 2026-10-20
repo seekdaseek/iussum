@@ -1,0 +1,23 @@
+✔ I3 control: a history node that has caught up lists the landed payment: consumed, the next payment is refused
+✖ I3 a history node 1 to 2 slots behind the proof does not list the landed payment: the read fails ("minimum context slot not reached") and the reservation stays held
+✖ I3 every call of the landed read carries minContextSlot at or above the proof slot (200)
+✖ I3 any other error of the history read also leaves the reservation held
+✖ I4 the principal re-grants the SAME mandate (G2): a restarted agent on G2 with the data directory of G1 pays
+✖ I4 the files of the other grant are ignored and never deleted
+✖ I4 one lock per grant: two grants of one agent can run in one data directory, one grant cannot run twice
+✖ J1 the first request on a cold grant check answers 503 with Retry-After within the budget; nothing settles
+✖ J1 the scan keeps running in the background: after it finished the same payload is accepted and settles
+✔ J1 the reference agent honours Retry-After: it re-sends the same payload and the payment settles once, with one reservation
+✖ J1 the agent retries a bounded number of times, then returns the 503; the reservation stays held
+✔ J1 an observe-mode gate never blocks on the cold check (it proceeds and records what was presented)
+✔ J1 a warm check is not delayed: with the scan done the request is answered at once
+✖ J2 60 signatures go out as 3 batches (25, 25, 10), results aligned with the request
+✖ J2 the batch size and the concurrency are limits
+✖ J2 a rate-limited batch (HTTP 429) is retried with backoff
+✖ J2 an errored element makes the call throw (fail closed); a null element stays null for the caller to treat as unreadable
+✖ J2 the spend history and the supersession scan use the batch call when the RPC has it
+✖ J2 in the history a null element makes the read incomplete and an errored element too (the same as today)
+ℹ tests 19
+ℹ pass 4
+ℹ fail 14
+✖ failing tests:

@@ -29,13 +29,16 @@ export async function startMockFacilitator({ fixedTx = null } = {}) {
 }
 
 export function fakeRpc() {
-  const s = { grants: new Map(), account: null, newer: [], mints: new Map([[A.asset, 6]]), calls: { getTransaction: 0, getAccountInfoParsed: 0 } };
+  const s = { grants: new Map(), account: null, newer: [], mints: new Map([[A.asset, 6]]), calls: { getTransaction: 0, getAccountInfoParsed: 0, minContext: [] }, nodeSlot: null };
+  // a node that lags: when s.nodeSlot is set, a request with a minContextSlot above it fails the way agave does
+  const lag = (kind, opts) => { s.calls.minContext.push([kind, opts?.minContextSlot ?? null]); if (s.nodeSlot !== null && opts?.minContextSlot > s.nodeSlot) throw new Error('Minimum context slot has not been reached'); };
   return Object.assign(s, {
-    async getTransaction(sig) { s.calls.getTransaction++; return s.grants.get(sig) ?? null; },
+    async getTransaction(sig, opts) { lag('getTransaction', opts); s.calls.getTransaction++; return s.grants.get(sig) ?? null; },
     async getAccountInfoParsed(addr) { s.calls.getAccountInfoParsed++; if (s.mints.has(addr)) return { data: { parsed: { info: { decimals: s.mints.get(addr) } } } }; return s.account; },
-    async getAccountContext(addr) { s.calls.getAccountInfoParsed++; return { slot: s.contextSlot ?? 1_000_000_000, value: s.account }; },
+    async getAccountContext(addr, opts) { lag('getAccountContext', opts); s.calls.getAccountInfoParsed++; return { slot: s.contextSlot ?? 1_000_000_000, value: s.account }; },
     // newest first, like the real RPC: `before` and `until` are exclusive signatures, `limit` caps the page
     async getSignaturesForAddress(_addr, opts = {}) {
+      lag('getSignaturesForAddress', opts);
       let list = s.newer;
       if (opts.before) { const i = list.findIndex((x) => x.signature === opts.before); if (i >= 0) list = list.slice(i + 1); }
       if (opts.until) { const i = list.findIndex((x) => x.signature === opts.until); if (i >= 0) list = list.slice(0, i); }

@@ -1,0 +1,7 @@
+### v4-t1.mjs
+T1 residual control: history node up to date: reservation consumed, next payment period_over_budget | settled 20000 vs budget 30000
+T1 residual history node 1-2 slots behind: reservation released, next payment 200 | settled 40000 vs budget 30000
+### v4-cp.mjs
+D agent on G2 with a fresh data directory (control): 200 | after another restart: 200
+D agent on G2 with the G1 data directory: history_incomplete: could not be rebuilt from chain: the debits found (200) do not add up to the allowance that is gone (100): tot | after another restart: history_incomplete
+E wrong-mandate dispute: grant_mismatch; maxPages=1 disputes in turn: history_incomplete/null -> history_incomplete/null -> history_incomplete/null -> period_over_budget/agent_operator; fresh full read: period_over_budget/agent_operator (P201 is the 201st payment of 500: 100500 > 100000)
