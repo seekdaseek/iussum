@@ -48,24 +48,25 @@ export const liveAccount = (m, o = {}) => ({ data: { parsed: { info: { owner: m.
 export const GRANT_SIG = 'G'.repeat(88);
 
 // Start one seller. Returns { url, gate, rpc, facilitator, close, hits }.
-export async function startSeller({ mode = 'enforce', payTo = A.sellerA, price = '10000', requireMandate = false, now, facilitator, asset = A.asset }) {
+export async function startSeller({ mode = 'enforce', payTo = A.sellerA, price = '10000', requireMandate = false, now, facilitator, asset = A.asset, gateOpts = {} }) {
   const rpc = fakeRpc();
   const srv = http.createServer();
   const port = await listen(srv);
   const origin = `http://127.0.0.1:${port}`;
-  const gate = createSellerGate({ mode, payTo, asset, network: DEVNET, rpc, key: receiptKey(Buffer.alloc(32, 9)), requireMandate, now, origin });
+  const mkGate = () => createSellerGate({ mode, payTo, asset, network: DEVNET, rpc, key: receiptKey(Buffer.alloc(32, 9)), requireMandate, now, origin, ...gateOpts });
+  let gate = mkGate();
   const server = new x402ResourceServer(new HTTPFacilitatorClient({ url: facilitator.url }));
   registerExactSvmScheme(server, { networks: [DEVNET] });
   const app = express();
   const hits = { handler: 0, paymentHeader: 0 };
   app.use((req, _res, next) => { if (req.get('payment-signature')) hits.paymentHeader++; next(); });
   app.get('/.well-known/iussum.json', gate.wellKnown);
-  app.use(gate.middleware);
+  app.use((req, res, next) => gate.middleware(req, res, next)); // through the variable: restartGate() swaps the gate (a gate process restart)
   app.use(paymentMiddleware({ 'GET /v1/quote': { accepts: [{ scheme: 'exact', price: { amount: price, asset }, network: DEVNET, payTo }], description: 't', mimeType: 'application/json' }, 'GET /other/quote': { accepts: [{ scheme: 'exact', price: { amount: price, asset }, network: DEVNET, payTo }], description: 't', mimeType: 'application/json' } }, server));
   app.get('/v1/quote', (_req, res) => { hits.handler++; res.json({ ok: true }); });
   app.get('/other/quote', (_req, res) => { hits.handler++; res.json({ ok: true }); });
   srv.on('request', app);
-  return { origin, url: `${origin}/v1/quote`, otherUrl: `${origin}/other/quote`, gate, rpc, hits, close: () => srv.close() };
+  return { restartGate: () => { gate.close?.(); gate = mkGate(); return gate; }, origin, url: `${origin}/v1/quote`, otherUrl: `${origin}/other/quote`, gate, rpc, hits, close: () => srv.close() };
 }
 
 // A mandate for this seller's origin, an agent keypair, and the fixture grant wired into the seller's fake rpc.

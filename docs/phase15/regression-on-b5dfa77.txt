@@ -1,0 +1,12 @@
+✖ H1 restart the gate between two success responses for the same tx_sig: both receipts are byte-identical
+✖ H1 the receipt is already on disk when the response carrying it is sent
+✖ H1 a failed write sends the response WITHOUT a receipt header and logs it; the payment still settled
+✖ H1 a corrupt or unreadable store stops the gate from starting
+✖ H2 a second agent on the same dataDir refuses to start while the first one runs
+✖ H2 after close() the next agent can start; a stale lock of a dead PID is cleared, a live one is not
+✖ H2 a truncated reservations file makes the agent refuse to pay (it is never read as empty)
+✖ H2 a temp file left behind by a crash between write and rename: the last complete file is loaded
+ℹ tests 8
+ℹ pass 0
+ℹ fail 8
+✖ failing tests:
