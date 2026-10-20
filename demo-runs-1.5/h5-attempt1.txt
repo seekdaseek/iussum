@@ -1,0 +1,27 @@
+H5 on devnet, rpc https://api.devnet.solana.com
+throw-away principal Hz5hz3LBiKDu9dXu8fcG7yLXuGucmH6tfb7FxUYNNLGC
+funded the throw-away principal (0.03 SOL, 0.2 USDC): 2eWynztbi4xqM1jsJDeWC8KcWovGAub4NhDFQG1qzqBDADRtpi5Lg2aWywKg55cvmXnAYFZTdtWv1gH2cfFftz54
+grant (dedicated principal): 5DK8ej2TxXRN614WfuobJ5dNRfdVVUPnXhQZKquMcuQWmtnZWQkGD7m7Phs9ijTFZJnqehji5ECYWsYUZRMdqUP4
+mandate id 43e7eeacebc51cafd381f22d24fb7ae6bff3dee422b361474ea60c8ce84bb0ed
+  50 dust credits sent (149 s)
+  100 dust credits sent (311 s)
+  150 dust credits sent (445 s)
+  200 dust credits sent (585 s)
+  250 dust credits sent (722 s)
+250 dust credits of 1 base unit into HUKEm4vtpMKZtZWZtn6TtqSsuo5UkVZtPDMk9zGjLaxg; signatures in demo-runs-1.5/h5-dust-signatures.txt (250 distinct)
+the agent's first read at start (250 dust credits in the account): 6 signature pages, 689 transactions fetched, 696 RPC calls, 649.5 s
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+[TypeError: fetch failed] {
+  [cause]: HeadersTimeoutError: Headers Timeout Error
+      at FastTimer.onParserTimeout [as _onTimeout] (node:internal/deps/undici/undici:7612:32)
+      at Timeout.onTick [as _onTimeout] (node:internal/deps/undici/undici:731:17)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7) {
+    code: 'UND_ERR_HEADERS_TIMEOUT'
+  }
+}
+
+Node.js v24.16.0

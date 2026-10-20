@@ -7,7 +7,7 @@ import { createKeyPairSignerFromPrivateKeyBytes, createKeyPairSignerFromBytes } 
 import { getCreateAssociatedTokenIdempotentInstructionAsync, getTransferCheckedInstruction } from '@solana-program/token';
 import { createAgent } from '@iussum/agent';
 import { createResolver, openStore } from '@iussum/resolver';
-import { makeRpc, principalAta, mandateId } from '@iussum/core';
+import { makeRpc, principalAta, mandateId, createGrantChecker } from '@iussum/core';
 import { loadKeys, makeCtx, sendGrant, sendTx, startDemoSeller, sleep, NETWORK, MINT, RPC_URL } from './demo-lib.mjs';
 
 const OUT = process.env.OUT_DIR ?? 'demo-runs-1.5';
@@ -30,7 +30,11 @@ if ((await sol(P2.address)) < 20_000_000) {
   say(`funded the throw-away principal (0.03 SOL, 0.2 USDC): ${sig}`);
 }
 
-const A = await startDemoSeller(ctx, { name: 'A', signer: keys.sellerA, mode: 'enforce' });
+// the seller's gate gets its own instrumented RPC client: its first grant check reads the whole history since the grant, inside the first request
+const counts = () => ({ c: {}, total: 0 });
+const instrument = () => { const k = counts(); const fetchImpl = async (u, o) => { const method = JSON.parse(o.body).method; k.c[method] = (k.c[method] ?? 0) + 1; k.total++; return fetch(u, o); }; return { k, rpc: makeRpc(RPC_URL, { fetchImpl }) }; };
+const gateRpc = instrument();
+const A = await startDemoSeller({ rpc: gateRpc.rpc }, { name: 'A', signer: keys.sellerA, mode: 'enforce' });
 const sellerPub = (await (await fetch(`${A.origin}/.well-known/iussum.json`)).json()).seller;
 const t = Math.floor(Date.now() / 1000);
 const m = { v: 'iussum/0.2', principal: P2.address, agent: keys.agent.address, network: NETWORK, asset: MINT, total_cap: '1000000', per_payment_max: '20000', period_budget: '100000', period_seconds: 86400, allow: { pay_to: [A.address], resource_prefix: [`${A.origin}/`] }, not_before: t - 60, expires_at: t + 86400, nonce: randomBytes(16).toString('hex') };
@@ -52,9 +56,14 @@ for (let i = 1; i <= 250; i++) {
 fs.writeFileSync(`${OUT}/h5-dust-signatures.txt`, `${dust.join('\n')}\n`);
 say(`250 dust credits of 1 base unit into ${p2ata}; signatures in ${OUT}/h5-dust-signatures.txt (${new Set(dust).size} distinct)`);
 
+// The seller gate's FIRST grant check (what it does inside the first payment request) reads every signature since the grant. On the public devnet RPC that
+// takes longer than an HTTP client waits for response headers (300 s by default), so it is done here, ahead of the payments, with the gate's own client and cache.
+{
+  const t1 = Date.now();
+  const r = await createGrantChecker(gateRpc.rpc).check(m, grant_tx, { active: true });
+  say(`the seller gate's first grant check (reads the history since the grant): ok ${r.ok}, ${gateRpc.k.c.getSignaturesForAddress ?? 0} signature pages, ${gateRpc.k.c.getTransaction ?? 0} getTransaction calls, ${gateRpc.k.total} RPC calls, ${((Date.now() - t1) / 1000).toFixed(1)} s`);
+}
 // three agent payments (the agent's own first read happens at createAgent: measured too)
-const counts = () => ({ c: {}, total: 0 });
-const instrument = () => { const k = counts(); const fetchImpl = async (u, o) => { const method = JSON.parse(o.body).method; k.c[method] = (k.c[method] ?? 0) + 1; k.total++; return fetch(u, o); }; return { k, rpc: makeRpc(RPC_URL, { fetchImpl }) }; };
 const ag = instrument();
 const tA = Date.now();
 const agent = await createAgent({ mandate: m, grant_tx, signer: keys.agent, rpc: ag.rpc });
