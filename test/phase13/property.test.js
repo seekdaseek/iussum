@@ -7,6 +7,9 @@
 //   I4  under random concurrency, lost responses, seller-supplied blockhash fields, expired blockhashes, a lagging node and restarts (also while a seller
 //       holds a payload) the agent never settles more than period_budget, and never refuses an in-scope payment for a history reason
 //   I5  a facilitator that reports success twice for one transaction does not make an honest seller sign two receipts
+//   I6  a seller gate whose grant check is cold answers 503 with Retry-After, the agent retries with the SAME payload, and nothing is lost or doubled
+// Phase 1.6 additions: a history node that lags after a proven expiry (I4), a same-mandate re-grant with a reused data directory (I4), batch responses with one null
+// or errored element (I2, every history is read through getTransactions), the cold gate (I6).
 // Deterministic: seed n always gives the same history. A failure prints the seed; PROPERTY_SEED=n reruns that one, PROPERTY_SEEDS=N sets the count.
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,9 +20,9 @@ import { getTransactionDecoder, getBase58Decoder, getCompiledTransactionMessageD
 import { createAgent } from '@iussum/agent';
 import { openStore, createResolver } from '@iussum/resolver';
 import { mandateId } from '@iussum/core';
-import { A, T0, SRC, SELLER_KEY, RES, mandate, receipt, payTx } from '../fixtures.mjs';
+import { A, T0, SRC, SELLER_KEY, RES, mandate, receipt, payTx, grantTx } from '../fixtures.mjs';
 import { chainSim, grantAt, payAt, live, sig, tokenIx } from '../regression/chainsim.mjs';
-import { startMockFacilitator, startSeller, newScenario } from '../harness.mjs';
+import { startMockFacilitator, startSeller, newScenario, fakeRpc } from '../harness.mjs';
 import { debitTx } from '../phase12/helpers.mjs';
 import { selfTransfer, selfInner, selfMulti, dustCredit, payWithExtraDebit, recreateTx } from './helpers.mjs';
 
@@ -93,6 +96,7 @@ async function build(h) {
     c.add(e.label, tx);
   }
   c.setAccount(SRC, account);
+  c.getTransactions = async (list) => Promise.all(list.map((x) => c.getTransaction(x))); // histories are read in batches (J2): a null or throwing element is one of the batch
   return c;
 }
 
@@ -203,13 +207,15 @@ test(`property I2: RPC faults give the model's verdict or no verdict, never a di
       const ch = choice(h, r, e);
       const m = model(h, ch.Mx, e, ch);
       const c = await build(h);
-      const fault = pick(r, ['unreadable', 'block', 'heal', 'page', 'account']);
+      const fault = pick(r, ['unreadable', 'block', 'heal', 'page', 'account', 'batchNull', 'batchError']);
       counts[fault] = (counts[fault] ?? 0) + 1;
       const victim = pick(r, h.events);
       if (fault === 'unreadable') { const o = c.getTransaction.bind(c); c.getTransaction = async (s) => (s === sig(victim.label) ? null : o(s)); }
       if (fault === 'block') c.hiddenBlocks.add(victim.slot);
       if (fault === 'heal') { let left = 3; const o = c.getTransaction.bind(c); c.getTransaction = async (s) => (s === sig(victim.label) && left-- > 0 ? null : o(s)); } // not found, then it heals
       if (fault === 'page') c.failPage = 1 + int(r, 3); // a signature page that cannot be read
+      if (fault === 'batchNull') { const o = c.getTransactions; c.getTransactions = async (list) => (await o(list)).map((t, i) => (list[i] === sig(victim.label) ? null : t)); } // one null element in a batch
+      if (fault === 'batchError') { const o = c.getTransactions; c.getTransactions = async (list) => { if (list.includes(sig(victim.label))) throw new Error('batch element failed'); return o(list); }; } // one errored element
       if (fault === 'account') c.getAccountContext = async () => { throw new Error('account read failed'); }; // the account cannot be read
       const { svc, store } = makeService(c, { network: ch.network });
       const v = await dispute(svc, h, e, ch);
@@ -251,7 +257,7 @@ const b58 = getBase58Decoder(), txDec = getTransactionDecoder(), msgDec = getCom
 const decodeTx = (b64) => txDec.decode(Uint8Array.from(Buffer.from(b64, 'base64')));
 test('property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds)', async (tc) => {
   const NOW = T0 + 1000;
-  let settledTotal = 0, refusals = 0, restarts = 0, restartsWithKept = 0, expiries = 0, lags = 0;
+  let settledTotal = 0, refusals = 0, restarts = 0, restartsWithKept = 0, expiries = 0, lags = 0, histLags = 0, regrants = 0;
   for (const seed of seeds.slice(0, 60)) {
     const r = rngFor(seed * 101 + 9);
     const price = pick(r, [10000, 20000]), budget = pick(r, [30000, 50000, 70000]);
@@ -268,7 +274,7 @@ test('property I4: the agent never settles more than period_budget under concurr
       throw new Error(`unexpected rpc call ${m}`);
     };
     const getBlockhash = async () => { const bh = b58.decode(crypto.getRandomValues(new Uint8Array(32))); lastValidOf.set(bh, height + 150); issued++; return { blockhash: bh, lastValidBlockHeight: BigInt(height + 150), contextSlot: 10 + issued }; };
-    let mirrored = 0, dropNext = 0, tamper = false, withhold = 0;
+    let mirrored = 0, dropNext = 0, tamper = false, withhold = 0, histLag = false, mirrorBase = 0, settleBase = 0, grantSig = s.grant_tx;
     const withheld = []; // payloads a seller keeps (answers 502) and may land later
     const ctxs = `seed ${seed} price ${price} budget ${budget}`;
     // mirror every payment the facilitator settled onto the fake chain, WITH the agent's signature, so a restarted agent can rebuild from it
@@ -281,7 +287,7 @@ test('property I4: the agent never settles more than period_budget under concurr
         seller.rpc.grants.set(id, tx);
         seller.rpc.newer = [{ signature: id, slot: 2000 + mirrored, blockTime: T0 + 500, err: null }, ...seller.rpc.newer];
       }
-      seller.rpc.account = { data: { parsed: { info: { owner: s.mandate.principal, mint: s.mandate.asset, delegate: s.mandate.agent, delegatedAmount: { amount: String(10000000 - mirrored * price) } } } } };
+      seller.rpc.account = { data: { parsed: { info: { owner: s.mandate.principal, mint: s.mandate.asset, delegate: s.mandate.agent, delegatedAmount: { amount: String(10000000 - (mirrored - mirrorBase) * price) } } } } };
     };
     const wrapper = async (req) => {
       const paid = !!req.headers?.get?.('payment-signature');
@@ -297,7 +303,7 @@ test('property I4: the agent never settles more than period_budget under concurr
       return res;
     };
     // the agent captures the global fetch when it is created, so the wrapper (lost responses, tampered 402s) is installed only for that moment
-    const make = async () => { globalThis.fetch = wrapper; try { return await createAgent({ mandate: s.mandate, grant_tx: s.grant_tx, signer: s.signer, rpc: seller.rpc, getBlockhash, now: () => NOW, dataDir }); } finally { globalThis.fetch = realFetch; } };
+    const make = async () => { globalThis.fetch = wrapper; try { return await createAgent({ mandate: s.mandate, grant_tx: grantSig, signer: s.signer, rpc: seller.rpc, getBlockhash, now: () => NOW, dataDir }); } finally { globalThis.fetch = realFetch; } };
     const land = async () => { for (const w of withheld.splice(0)) { // what the seller kept lands only if its blockhash is still valid
       const pp = JSON.parse(Buffer.from(w, 'base64').toString());
       const lv = lastValidOf.get(msgDec.decode(decodeTx(pp.payload.transaction).messageBytes).lifetimeToken);
@@ -313,22 +319,28 @@ test('property I4: the agent never settles more than period_budget under concurr
         else if (op < 0.28) tamper = !tamper;
         else if (op < 0.34) { lagging = !lagging; if (lagging) lags++; }
         else if (op < 0.40) { height += 200; expiries++; } // blockhashes handed out so far expire: the kept payloads can no longer land
-        else if (op < 0.60 && dropNext === 0 && withhold === 0) { sync(); if (withheld.length) restartsWithKept++; await agent.close(); agent = await make(); restarts++; } // restart: the ledger comes from the chain, the held reservations from disk
-        trace(op < 0.08 ? 'lose' : op < 0.22 ? 'withhold' : op < 0.28 ? 'tamper' : op < 0.34 ? 'lag' : op < 0.40 ? 'expire' : op < 0.60 ? 'restart?' : 'plain');
+        else if (op < 0.46) { histLag = !histLag; seller.rpc.nodeSlot = histLag ? 1 : null; if (histLag) histLags++; } // the node that answers the history reads is behind (after an expiry, I3)
+        else if (op < 0.50 && dropNext === 0 && withhold === 0 && withheld.length === 0) { // the principal re-grants the SAME mandate; the agent restarts on the new grant with the same data directory (I4)
+          sync(); await agent.close(); regrants++;
+          grantSig = `REGRANT${regrants}`.padEnd(88, 'g'); seller.rpc.grants.set(grantSig, grantTx(s.mandate));
+          mirrorBase = mirrored; settleBase = facilitator.counts.settle; seller.rpc.newer = []; sync(); agent = await make();
+        }
+        else if (op < 0.66 && dropNext === 0 && withhold === 0) { sync(); if (withheld.length) restartsWithKept++; await agent.close(); agent = await make(); restarts++; } // restart: the ledger comes from the chain, the held reservations from disk
+        trace(op < 0.08 ? 'lose' : op < 0.22 ? 'withhold' : op < 0.28 ? 'tamper' : op < 0.34 ? 'lag' : op < 0.40 ? 'expire' : op < 0.46 ? 'histlag' : op < 0.50 ? 'regrant?' : op < 0.66 ? 'restart?' : 'plain');
         if (r() < 0.3) { trace('land kept payloads'); await land(); }
         sync(); // the chain is live: whatever the facilitator settled so far is on it, with the agent's signature
         const k = 1 + int(r, 5);
         const rs = await Promise.allSettled(Array.from({ length: k }, () => agent.fetch(seller.url)));
         trace(`batch of ${k}: ${rs.map((x) => (x.status === 'fulfilled' ? x.value.status : x.reason?.reason ?? 'ERR ' + x.reason?.message)).join(',')}`);
         for (const x of rs) if (x.status === 'rejected' && x.reason?.reason) { refusals++; assert.equal(x.reason.reason, 'period_over_budget', `${ctxs}: an honest agent refused for ${x.reason.reason}: ${JSON.stringify(x.reason.delta)}`); }
-        assert.ok(facilitator.counts.settle * price <= budget, `${ctxs}: settled ${facilitator.counts.settle * price} > budget ${budget}`);
+        assert.ok((facilitator.counts.settle - settleBase) * price <= budget, `${ctxs}: settled ${(facilitator.counts.settle - settleBase) * price} since the last grant > budget ${budget}`);
       }
       await land(); // finally the seller lands everything it kept that can still land
-      assert.ok(facilitator.counts.settle * price <= budget, `${ctxs}: after the seller landed what it kept, settled ${facilitator.counts.settle * price} > budget ${budget}`);
+      assert.ok((facilitator.counts.settle - settleBase) * price <= budget, `${ctxs}: after the seller landed what it kept, settled ${(facilitator.counts.settle - settleBase) * price} > budget ${budget}`);
       settledTotal += facilitator.counts.settle;
     } finally { globalThis.fetch = realFetch; await agent.close(); facilitator.close(); seller.close(); fs.rmSync(dataDir, { recursive: true, force: true }); }
   }
-  console.log(`property I4: 60 seeds, ${settledTotal} payments settled, ${refusals} local refusals (all period_over_budget), ${restarts} restarts (${restartsWithKept} while a seller held a payload), ${expiries} expiries, ${lags} lagging-node phases, never above the budget`);
+  console.log(`property I4: 60 seeds, ${settledTotal} payments settled, ${refusals} local refusals (all period_over_budget), ${restarts} restarts (${restartsWithKept} while a seller held a payload), ${expiries} expiries, ${lags} lagging-node phases, ${histLags} lagging-history-node phases, ${regrants} same-mandate re-grants with the data directory reused, never above the budget`);
 });
 
 test('property I5: a facilitator that reports success twice for one transaction does not make an honest seller sign two receipts (20 seeds)', async (tc) => {
@@ -349,4 +361,35 @@ test('property I5: a facilitator that reports success twice for one transaction 
     } finally { facilitator.close(); seller.close(); }
   }
   console.log(`property I5: ${twice} repeated successes over 20 seeds, always the identical receipt`);
+});
+
+test('property I6: a seller gate whose grant check is cold answers 503 with Retry-After, the agent retries with the SAME payload, nothing is lost or doubled (12 seeds)', async () => {
+  let w503 = 0, retried = 0, gaveUp = 0;
+  for (const seed of seeds.slice(0, 12)) {
+    const r = rngFor(seed * 67 + 11);
+    const budgetMs = pick(r, [20, 40, 80]), slowMs = pick(r, [120, 250]), slowCalls = 1 + int(r, 2), retryMax = int(r, 3), payments = 1 + int(r, 2);
+    const facilitator = await startMockFacilitator();
+    const seller = await startSeller({ facilitator, mode: 'enforce', now: () => T0 + 1000, price: '10000', gateOpts: { grantCheckBudgetMs: budgetMs, retryAfterSeconds: 1 } });
+    const s = await newScenario(seller, { mandate: { period_budget: '100000', per_payment_max: '20000' } });
+    const orig = seller.rpc.getSignaturesForAddress.bind(seller.rpc);
+    let n = 0; seller.rpc.getSignaturesForAddress = async (...a) => { if (n++ < slowCalls) await new Promise((res) => setTimeout(res, slowMs)); return orig(...a); }; // the cold first read
+    const agentRpc = fakeRpc(); agentRpc.grants = seller.rpc.grants; agentRpc.account = seller.rpc.account; // the agent has its own, fast node
+    const ctxs = `seed ${seed} budget ${budgetMs} ms slow ${slowMs} ms x${slowCalls} retries ${retryMax}`;
+    try {
+      const a = await createAgent({ mandate: s.mandate, grant_tx: s.grant_tx, signer: s.signer, rpc: agentRpc, getBlockhash: async () => ({ blockhash: b58.decode(crypto.getRandomValues(new Uint8Array(32))), lastValidBlockHeight: 150n, contextSlot: 10 }), now: () => T0 + 1000, retry: { max: retryMax } });
+      const statuses = [];
+      for (let i = 0; i < payments; i++) {
+        const t0 = Date.now(); const res = await a.fetch(seller.url); statuses.push(res.status);
+        assert.ok(Date.now() - t0 < (retryMax + 1) * (budgetMs + 1300) + 500, `${ctxs}: a request took ${Date.now() - t0} ms`);
+        if (res.status === 503) { assert.ok(res.headers.get('retry-after'), `${ctxs}: 503 without Retry-After`); w503++; gaveUp++; } else if (retryMax > 0 && i === 0 && slowMs > budgetMs) retried++;
+      }
+      assert.equal(facilitator.counts.settle, statuses.filter((x) => x === 200).length, `${ctxs}: a 503 settled something, or a 200 did not: ${statuses}`);
+      assert.equal(a.reservations.length, payments, `${ctxs}: a retry made a second reservation`);
+      for (const [i, x] of a.reservations.entries()) assert.equal(x.state, statuses[i] === 200 ? 'consumed' : 'held', `${ctxs}: reservation ${i} is ${x.state} after ${statuses[i]}`);
+      let last; // the background scan finishes (slow reads x slowMs); the same agent now gets through
+      for (let i = 0; i < 12; i++) { last = await a.fetch(seller.url); if (last.status === 200) break; await new Promise((res) => setTimeout(res, 300)); }
+      assert.equal(last.status, 200, `${ctxs}: the gate still answered ${last.status} after the scan should have finished`);
+    } finally { facilitator.close(); seller.close(); }
+  }
+  console.log(`property I6: 12 seeds, ${w503} final 503s with Retry-After (retries exhausted), ${retried} first payments that needed a retry, every settled payment matched a 200, no second reservation`);
 });
