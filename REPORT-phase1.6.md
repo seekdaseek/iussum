@@ -6,7 +6,7 @@ Baseline for the new regression tests: **`142276f`**, the public HEAD at the end
 
 | gate | result |
 |---|---|
-| `npm test` | **393 tests, 393 pass, 0 fail, 0 skipped** (was 356), about 30 s, the property test included |
+| `npm test` | **393 tests, 393 pass, 0 fail, 0 skipped** (was 356), about 1 minute in a fresh clone, the property test included |
 | `npm run mutation` | baseline 393 / 393; **130 checks mutated, survived 0** (was 121); run twice, the second after the last code change ([mutation-table.md](mutation-table.md)) |
 | the new regression tests | `test/phase16`: 36 tests, **28 fail on `142276f`**, the other 8 are controls and guards: [docs/phase16/phase16-all-on-142276f.txt](docs/phase16/phase16-all-on-142276f.txt); per group: [I and J](docs/phase16/regression-on-142276f.txt), [K](docs/phase16/k-regression-on-142276f.txt), [L2](docs/phase16/l2-regression-on-142276f.txt) |
 | property test | green: [docs/phase16/property-run.txt](docs/phase16/property-run.txt), 600 histories, new generators I2 (batch with a null or errored element), I4 (lagging history node after a proven expiry, same-mandate re-grant with a reused data directory), I6 (cold gate, 503, agent retries); **fails on `142276f`** in I4 at seed 17 (an honest agent refused with `history_incomplete` after a re-grant): [docs/phase16/property-on-142276f.txt](docs/phase16/property-on-142276f.txt) |
@@ -90,4 +90,6 @@ Moved out by this pass: a real second agent PROCESS on one data directory (K, tw
 
 ## Final HEAD, fresh clone, scan, links
 
-(filled in below after the push)
+- **Pushed HEAD that carries everything else in this report: `6f235b6`.** A fresh clone of it, `npm ci && npm test`: **393 tests, 393 pass, 0 fail, 0 skipped**; no BRIEF, review or secret file in its tree. All 16 commits since `142276f` (17 with the closing one, which changes only this report) are authored and committed by `seekdaseek <ochinimus@gmail.com>`, with no trailer and no AI attribution line.
+- **Sensitive scan over the new commits** (`142276f..6f235b6`, 4431 added lines and every added path): the Addendum D patterns plus the device serial, a positive control per pattern first (each pattern matched its own known positive; the 64-number-array pattern failed on the system `grep`, so the whole scan ran in Python, where it matched its control). Zero hits; no `.env`, `.secrets`, `.pem` or key path was added; `.secrets/` is ignored and untracked. The pattern list is not in any tracked file.
+- **Relative links in tracked `.md`:** 45 relative links, all resolve to tracked files (the checker was shown to report a missing target first).
