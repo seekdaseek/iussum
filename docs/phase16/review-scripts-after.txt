@@ -1,0 +1,15 @@
+### v4-t1.mjs
+T1 residual control: history node up to date: reservation consumed, next payment period_over_budget | settled 20000 vs budget 30000
+T1 residual history node 1-2 slots behind: reservation held, next payment period_over_budget | settled 20000 vs budget 30000
+### v4-cp.mjs
+D agent on G2 with a fresh data directory (control): 200 | after another restart: 200
+D agent on G2 with the G1 data directory: 200 | after another restart: 200
+E wrong-mandate dispute: grant_mismatch; maxPages=1 disputes in turn: history_incomplete/null -> history_incomplete/null -> history_incomplete/null -> period_over_budget/agent_operator; fresh full read: period_over_budget/agent_operator (P201 is the 201st payment of 500: 100500 > 100000)
+### v4-r1.mjs
+A file none (control): 1st 502; after restart 1 held, 2nd period_over_budget | settled 20000 vs budget 30000
+A file truncated to half: 1st 502; after restart 0 held, 2nd history_incomplete | settled 20000 vs budget 30000
+A file replaced by {}: 1st 502; after restart 0 held, 2nd history_incomplete | settled 20000 vs budget 30000
+B second process refused (another agent holds the data directory /); on disk 1; restarted agent holds 1, next payment 200 | settled 40000 vs budget 50000
+C minContextSlot not reached: reservation held, next payment period_over_budget
+C getBlockHeight error: reservation held, next payment period_over_budget
+C control: proven expiry: reservation released, next payment 502
