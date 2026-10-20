@@ -13,7 +13,7 @@ Baseline for the new regression tests: **`b5dfa77`**, the public HEAD at the end
 | five clean devnet runs of scenarios 1 to 15 | `demo-runs-1.5/run-1.txt` to `run-5.txt`, each ends `exit code 0` (79, 79, 78, 79, 79 checks passed; run 3 has one check fewer because no two of its scenario 12 payments shared a slot); 180 signatures, every one checked with `getSignatureStatuses` (180 finalized): [demo-runs-1.5/signatures.md](demo-runs-1.5/signatures.md). An earlier set of five clean runs (78 checks each) is kept in `demo-runs-1.5-first/`; I reran because its scenario 14 diagnostic printed a poll that lagged the agent's own check, which looked inconsistent |
 | H5 | run once: [demo-runs-1.5/h5-scale.txt](demo-runs-1.5/h5-scale.txt); the 250 credit signatures: [demo-runs-1.5/h5-dust-signatures.txt](demo-runs-1.5/h5-dust-signatures.txt) |
 | fresh clone of the final pushed HEAD | see the last section |
-| sensitive scan over the new commits | the Addendum D patterns plus the device serial, positive controls first: nothing new; the only hits are the environment-file ignore line in `.gitignore` and the provider name in `vendor/nuntius-mandate`. The pattern list is not written into any tracked file |
+| sensitive scan over the new commits | the Addendum D patterns plus the device serial, positive controls first: nothing new except one chance match: a three-character pattern that occurs by accident inside a devnet transaction signature (base58) in `demo-runs-1.5-first`; the other hits are the environment-file ignore line in `.gitignore` and the provider name in `vendor/nuntius-mandate`. The pattern list is not written into any tracked file |
 | relative links in tracked `.md` | all resolve to tracked files |
 
 ## Before and after
