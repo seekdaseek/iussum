@@ -1,0 +1,272 @@
+# run 3 started 2026-10-20T18:09:38Z
+iussum demo, devnet. facilitator https://facilitator.payai.network, rpc https://api.devnet.solana.com
+principal BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU (throw-away key, no phone)  agent 4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi
+sellers: A 5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7 (enforce)  B 2uh7t2wh3omQNzzRypGj1rVJhtmJ6HtR4qFy9f2aNbg9 (enforce)  C BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji (observe)   resolver http://127.0.0.1:65298
+
+=== Scenario 1. in scope: 200 + receipt, dispute is invalid, the principal bears it (R1)
+  - grant (ApproveChecked 1000000 + Memo, principal only signer): 4uqVLVuH9VCtNUrfkPDWwmQFwtpbuz1X4csgBetvShtYbB2Vp6832wn2sx7Q59G9kJzMdQSrxe5WHyTZa4rKSqBR
+  - mandate id 070cb846a23ac7e9b12681c134d354cc3b888fa109d3b05b55e86c05067a95e4
+    PASS grant check on the real chain: true
+    PASS http status: 200
+    PASS receipt verifies against seller A key: true
+    PASS receipt binds mandate_id and grant_tx: [true,true]
+  - payment tx 4qdpaVV6BbkGeFKFtg4hXFJfNXidM2giPHk1ZyyqbDfdPpJeccR5PQ8F7Tvdccih94iTyr5jg1iTP6hp6sedsBGJ
+  - verdict: invalid | reason in_scope | liable principal | time_source block
+    PASS verdict: ["invalid","in_scope","principal"]
+  - human page: http://127.0.0.1:65298/v/4qdpaVV6BbkGeFKFtg4hXFJfNXidM2giPHk1ZyyqbDfdPpJeccR5PQ8F7Tvdccih94iTyr5jg1iTP6hp6sedsBGJ
+
+=== Scenario 2. over the per-payment cap: the seller answers 403 and no money moves
+  - grant (ApproveChecked 1000000 + Memo, principal only signer): 645CU4k2R1ZE62mMtp7rxsovZTL6eozSGfTdSoPByxQ5ahpcF23A4ydjWA6kMvGSEGXUk7Q17HRYZb1fs4NMETrP
+  - mandate id 05490cb1d2a29d070864e09e91f3a1fc507f5fbabea2407074307e4191493e81
+    PASS grant check on the real chain: true
+    PASS diligent agent refuses before signing: [true,"amount_over_cap"]
+      [seller A] mode=enforce REFUSES amount_over_cap
+  - naive agent sends the 0.06 USDC payment anyway: HTTP 403 {"error":"iussum_out_of_scope","reason":"amount_over_cap"}
+    PASS seller answer: [403,"iussum_out_of_scope","amount_over_cap"]
+    PASS principal and seller balances unchanged on chain: ["3090000","8420000"]
+
+=== Scenario 3. observe-mode seller settles an out-of-scope payment: dispute valid, SELLER liable, refund paid (R2)
+  - grant (ApproveChecked 1000000 + Memo, principal only signer): 3t9xcCJ4Vp9oB1AxaKUxWtVv8d4fum9tnKA5MeoxrXQ9nCD2UYzXV9ZBRWqaVnR7H72ztvAeZVSsQDY1S4at6XzK
+  - mandate id ae9f22a8f18902998af17859031b56ecde238cd2601c720616e741e6d8be2ada
+    PASS grant check on the real chain: true
+      [seller C] mode=observe saw pay_to_not_allowed
+    PASS seller C (observe) settles although C is not on the list: 200
+    PASS receipt shows the mandate was presented: true
+  - payment tx 2beo8R4HmBgYkMz9KE8KiJvXx3eUk6LSiqDBtAbKFftFikDv3x4xfSPvPhoCGQ68QoNH5jaCaYEtXBn9re1wD4t7
+  - verdict: valid | reason pay_to_not_allowed | liable seller | time_source block | refund_tx xnGATZsnd1VKySaHCsD3r22TFbexJ1Tnz8iuogLMzras8cU2KrPJsGopSiV2NJGkEzUsvGx9rTCc82PDBYnTCk3
+  -   delta pay_to_not_allowed: authorised 5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7, actual BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji
+    PASS verdict: ["valid","pay_to_not_allowed","seller"]
+  - refund tx printed: xnGATZsnd1VKySaHCsD3r22TFbexJ1Tnz8iuogLMzras8cU2KrPJsGopSiV2NJGkEzUsvGx9rTCc82PDBYnTCk3
+    PASS principal paid 0.01 then got 0.01 back (on chain): ["10000","10000"]
+
+=== Scenario 4. payment without a mandate: dispute valid, AGENT OPERATOR liable (R3)
+  - grant (ApproveChecked 1000000 + Memo, principal only signer): 5BvK4usXR1fe3ADwZ25EgehHfWuVci8ueNKTQY1ppV9mRq3p4bv2VRRbU6LUC3wTQaVwUDi9JbLMU8XMFDLpmSpf
+  - mandate id 53642257a3ce1f56fb52273e5f74f632bdce46d14334617b01a4e0dc2900ebd0
+    PASS grant check on the real chain: true
+    PASS seller C (observe) settles: 200
+    PASS receipt says no mandate was presented: [null,null]
+  - payment tx 2QRMnudHMysbGUMjffHP4Qh2Aj8FgTFxwYxVTFXpoqegiwrGjw6Ve7yCxqswQY8nx1kXzi4eCmvHMyfE45tsz2Lg
+  - verdict: valid | reason pay_to_not_allowed | liable agent_operator | time_source block
+  -   delta pay_to_not_allowed: authorised 5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7, actual BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji
+    PASS verdict: ["valid","pay_to_not_allowed","agent_operator"]
+    PASS no refund from the seller: null
+
+=== Scenario 5. tampered receipt: rejected, liable null (R4)
+  - grant (ApproveChecked 1000000 + Memo, principal only signer): 4w8weeix1epaGn8YJU2tXYUwN5Cs2C2p2doDv87cgu45VPeP2UfoKb2EvQRf2HnGsuwFkjBGAHvCPeQtaygHmm5h
+  - mandate id 8b3fa78cc34991ab222ef65134369521272d4a1920f4ab17d427026ff29a5130
+    PASS grant check on the real chain: true
+    PASS payment settles: 200
+  - receipt amount edited after signing: 10000 -> 1
+  - verdict: invalid | reason signature_invalid | liable null | time_source null
+  -   delta receipt: authorised signed by the seller key, actual bad signature
+    PASS verdict: ["invalid","signature_invalid",null]
+
+=== Scenario 6. revoked grant: seller answers 403 grant_inactive; without the seller check the facilitator fails the payment
+  - grant (ApproveChecked 1000000 + Memo, principal only signer): 3Cz7b58DGqTPCLoGuUkEMKcgY6gnmRsdz5g4xEoH7LnmdJGboe1ZxVN3xzUbHXqL6CVqErWtkHvRJVox87g8V1yn
+  - mandate id e1e8ce6523c3ba4c811b174c99c198dca34dbe867548441495c6befbfc987074
+    PASS grant check on the real chain: true
+  - Revoke (principal): 3PTZxYdBhCwnv3ZRiBspjg6sZviksAUXpp8ZT5U3rwFf9mKkksNQMzJVChYzNxYDTrHusQARAcBifxvKvZmKgpKc
+      [seller A] mode=enforce REFUSES grant_inactive
+  - enforce seller A: HTTP 403 {"reason":"grant_inactive"}
+    PASS seller A (enforce) answer: [403,"grant_inactive"]
+  - seller A with iussum off, same payment: HTTP 402, facilitator says: invalid_exact_svm_transaction_simulation_failed
+    PASS without the seller check the payment fails at the facilitator: [402,true]
+    PASS a diligent agent refuses locally too: [true,"grant_inactive"]
+
+=== Scenario 7. CONTROL: payer-side caps only, no seller check: the chain alone decides, the seller is not liable, the resource is unjudged
+  - grant (ApproveChecked 1000000 + Memo, principal only signer): 47jTk3qZQRMT3dpHJxMjRJnWd1a9a5cyd52VDD6jBUVx1ViRuR1dxM9zdNt8HbAVzmKvBQM6f1UgTNxnpX2ZDxkD
+  - mandate id 37b78cd13527d971dd00d31958ceb5428d17c494db3934c0300e12f17f420589
+    PASS grant check on the real chain: true
+  - agent enforces the amount cap and the period budget (what Squads-style caps give), checks no seller list, attaches nothing; seller C does not check
+    PASS under-cap payment to a seller NOT on the list succeeds: [200,null]
+  - payment tx jAQ86Cbfj4r1wtQHGv6mecJ9EmUFVgaTEQF7Qm2PWJV8HBSYJj7yFGVqvmdAxCiBTTm7cbXyQ7W3SPmm77AE3uU (no receipt exists: the seller signed nothing)
+  - verdict: valid | reason pay_to_not_allowed | liable agent_operator | time_source block
+  -   delta pay_to_not_allowed: authorised 5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7, actual BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji
+    PASS the chain alone proves the payer went outside the mandate: agent operator liable (R3), resource unjudged: ["valid","pay_to_not_allowed","agent_operator",["resource"],null]
+  - what the control cannot do: hold the SELLER liable. It signed nothing, so nobody can show it was shown the limits (no refund from it), and what it was asked for (the resource) is not on chain. The on-chain cap (<= 1.00 USDC) bounds the loss; the agent operator pays.
+
+=== Scenario 8. repeat dispute of the scenario 3 payment: stored verdict, duplicate_dispute, no second refund
+  - verdict: valid | reason duplicate_dispute | liable seller | time_source block | refund_tx xnGATZsnd1VKySaHCsD3r22TFbexJ1Tnz8iuogLMzras8cU2KrPJsGopSiV2NJGkEzUsvGx9rTCc82PDBYnTCk3
+  -   delta pay_to_not_allowed: authorised 5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7, actual BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji
+    PASS verdict: ["duplicate_dispute","pay_to_not_allowed","seller",true]
+    PASS no second refund transaction: [1,"818500"]
+
+=== Scenario 9. period overrun split across two sellers: the crossing payment is the AGENT OPERATOR's (period_over_budget)
+  - grant (ApproveChecked 1000000 + Memo, principal only signer): 3pv4hgtVnixDdhvQTnq8RgQp2xVQJvKfpQzQVx7YoNRgFM2aJvHLnwjKtvV3ajnHGpLNSCGtdW85V3xP7Yn7mAxu
+  - mandate id d574ae52db649bfdc0b73c94a0142b9d774ed9159b041c6de384db16e5cee488
+    PASS grant check on the real chain: true
+    PASS payment 1 (seller A, 0.02) settles: 200
+    PASS payment 2 (seller B, 0.02) settles: B cannot see A's payment: 200
+  - payment 1 5QYaj5qmKRfMXptkmEYZFH5KFXkNcp1vK8Tb78hnGuGmG6qzsYYtRTXb4hoG878HpjcmGzD9Ans5v7uqs3wQA18
+    payment 2 5amyrTCc3idVNrZ1vYrfdZAtW8E6FaXRxftUrnobduhxCPQcV3VQu5hWhG1HaXjcN7AY6FLA92a2mW8kPLbXhSsK
+    PASS payment 1 is inside the budget: ["in_scope","principal"]
+  - verdict: valid | reason period_over_budget | liable agent_operator | time_source block
+  -   delta period_over_budget: authorised 30000, actual 40000 spent in period 0
+    PASS payment 2 crossed the 0.03 budget: ["valid","period_over_budget","agent_operator"]
+  - grant (ApproveChecked 1000000 + Memo, principal only signer): 4LitGaKNbqudUQn3diTZ85C9AAasUcjVe5tE8GCSu8n7DHdyo5pXZBstmUpmrWqwHEYkAJkSNZiqd5iAjG94sRbr
+  - mandate id f9eac9e1569860421346ee38a7764181b457057b833a107b79f4ed74831a63c1
+    PASS grant check on the real chain: true
+    PASS 9b: diligent agent pays 0.02 to seller A: 200
+    PASS 9b: the agent refuses the payment that would cross the budget, before signing: [true,"period_over_budget"]
+
+=== Scenario 10. a narrower re-grant supersedes the old mandate: the old one is refused, the seller cannot pick it in a dispute
+  - grant (ApproveChecked 1000000 + Memo, principal only signer): 4jkK3qRDXa6eRXmjGLzP2Cn4y4TAiRhQffUcHnW5khSHo581kzUBLwWBymuY77oci1ChRP9vqrb79ahaGXhfYEcH
+  - mandate id a04666a1c500de42c77dd480204943b8f2fa9649dcdf3c4f3d8240ffd90a289d
+    PASS grant check on the real chain: true
+  - grant (ApproveChecked 500000 + Memo, principal only signer): 2wKvShWYPQgxnf1S6sFaqdfPcYanehKikdjobtjeYFjbxSiAqBg4McBcAmZs9yS48ovpEjiicGU9m9mLsAXJ6gD4
+  - mandate id dcca4578300c92b67e03cde736e1cde6ffe880e9bb32b06ca14d9d12eef9ce3a
+    PASS grant check on the real chain: true
+      [seller A] mode=enforce REFUSES grant_inactive
+  - agent still carrying M1 at seller A (enforce): HTTP 403 grant_inactive: superseded by 2wKvShWYPQgxnf1S6sFaqdfPcYanehKikdjobtjeYFjbxSiAqBg4McBcAmZs9yS48ovpEjiicGU9m9mLsAXJ6gD4
+    PASS M1 is no longer current: [403,"grant_inactive",true]
+    PASS M2 (current) is accepted at seller A: 200
+      [seller C] mode=observe saw pay_to_not_allowed
+    PASS observe-mode seller C settles an out-of-scope payment under M2 (C saw M2): [200,true]
+  - payment tx 4Esf7AWy8y7teVAXjJi2ZP47VbskrHsnAPTsQ5R224D2gMNQvWv6QWkQ2XmWU17STpiLnbtw8e4Ma2pnNyM5FGx9
+  - verdict: invalid | reason mandate_mismatch | liable null | time_source null
+  -   delta mandate_id: authorised dcca4578300c92b67e03cde736e1cde6ffe880e9bb32b06ca14d9d12eef9ce3a, actual a04666a1c500de42c77dd480204943b8f2fa9649dcdf3c4f3d8240ffd90a289d
+    PASS a dispute carrying the OLDER, broader mandate M1 is rejected (the disputer does not choose the mandate): ["mandate_mismatch",null]
+  - verdict: valid | reason pay_to_not_allowed | liable seller | time_source block | refund_tx 52PBSvrVr7Q3yW66vZ3VxQ8gM8GLX1E4s1KhvhjoLZQJ2gfvFDfuwWi1n1Di1cZ1oaSzSFkHzMqFY6x5gNHdsrBP
+  -   delta pay_to_not_allowed: authorised 5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7, actual BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji
+    PASS the principal's dispute with M2 is judged, not a duplicate: seller C liable, refunded: ["valid","pay_to_not_allowed","seller",true]
+
+=== Scenario 11. hidden debit: the agent takes 0.02 USDC with a plain Transfer outside x402; the x402 payment that then crosses the budget is still the agent operator's
+  - grant (ApproveChecked 1000000 + Memo, principal only signer): 4UFp1AkgKYhgH6M5gkFsXLkgLVkU3TdyXZ53U7HTfQ5ToMXVscsoLwuj72hCjEFj3RDZnje43W69Q5B7S9Myk6Tz
+  - mandate id 14f68a09bcd5bfaa85f082fd831bac253e019870175bca012df965dddc8b79b5
+    PASS grant check on the real chain: true
+  - plain Transfer 0.02 USDC signed by the agent as delegate, to seller C's token account, no x402: 2DfRdbN3FFzBDwWSsSXAaRs8ndUhgTHvWH43GcdoWKDfzaLPs56afYGFnDCHGE7gHBsYEYUPqMtJzAXZdyn1fUAg
+    PASS x402 payment 1 (0.01, seller A) settles: 200
+    PASS x402 payment 2 (0.01, seller A) settles: 200
+  - payment 1 4du5NP6amydFpvD2dD64DPk6Sg2NMgqQXKmzdc7zFwEh1uhk98Z5AD6Pkx4rJ67YibBUGqYi5dX4cZqLpD9LZVZn
+    payment 2 3Lbj5e78LKXdecsmmwddBoCZnPwTCsBRzUBHwU5UCaxTg9d8BpoeHCS4jhctDia9RJwmZ3wjduJaXzsnJZ2rDw7C
+    PASS payment 1: 0.02 hidden + 0.01 = 0.03, exactly the budget, in scope: ["in_scope","principal"]
+  - verdict: valid | reason period_over_budget | liable agent_operator | time_source block
+  -   delta period_over_budget: authorised 30000, actual 40000 spent in period 0
+    PASS payment 2 crosses the 0.03 budget only because the hidden debit counts: period_over_budget, agent operator: ["valid","period_over_budget","agent_operator"]
+  - verdict: valid | reason debit_not_x402 | liable agent_operator | time_source block
+  -   delta debit_not_x402: authorised one top-level TransferChecked made through x402, and nothing else in the transaction, actual transfer 20000 from the granted account to BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji
+    PASS the plain Transfer itself cannot have gone through x402: debit_not_x402, agent operator: ["valid","debit_not_x402","agent_operator",null]
+
+=== Scenario 12. concurrency: five concurrent fetches against a period budget that fits three
+  - grant (ApproveChecked 1000000 + Memo, principal only signer): 24Cm7t9L5e1VikW2gbbdK5TokMydbQcwbxaTq19xW9Z7Eoxc47q74a7aFYFC9NNmUYkoB5iHp9FxcAWv5Dhrbv6H
+  - mandate id 87832d115c237b41972851f621e5bb3376776a8c4a17dcd8c460a47385307053
+    PASS grant check on the real chain: true
+  - outcomes: 200, 200, 200, period_over_budget, period_over_budget
+    PASS exactly three payments settled and two were refused locally with period_over_budget: [3,2]
+  - settled transactions: 21oe9Erzm5NfhYYbdaLpTYYoLfwxLksMd9aTzsDN6NUJViYSCicEjcnoLHoVLkFfgTKcCrmwc1UWz6gGJZ7aVLax 2MuDBLj8pFDBqKL5H3kHBczZ4sH8L1Tm8V2ESoGXWH6eKtYjvT4TErapMC3c5GQGERL5D3teZGXi6QdQRtqgnU5U rFrbe7HWqANfqeX66ZX9DLZ4osuUiSSiX7v3GJacm9nwdFHaZA4qKMg1HQyCA15B3fh6F1LUyNGWhmhhAhD5Vio
+    PASS all three are confirmed on chain without error: [[true,null],[true,null],[true,null]]
+    PASS the principal paid exactly 0.03 USDC (3 x 0.01): "30000"
+  - slots of the three payments: 513248173, 513248120, 513248155
+  - verdict: invalid | reason in_scope | liable principal | time_source block
+  - verdict: invalid | reason in_scope | liable principal | time_source block
+  - verdict: invalid | reason in_scope | liable principal | time_source block
+    PASS a dispute on each of the three settled payments is in_scope, principal: [["in_scope","principal"],["in_scope","principal"],["in_scope","principal"]]
+  - two payments in the same slot: no; getBlock read for slot(s): none
+
+=== Scenario 13. provisional verdict: the liable seller files first without the receipt; the principal's later dispute with the receipt replaces it and gets the refund
+  - grant (ApproveChecked 1000000 + Memo, principal only signer): 3rvSGNJUNG6js35eE1dJx79wh17238zbykpKHeNQesH6P7h42NALkPiVirMVXoE81aU1YGduQYkP7v1MbaUcEWCd
+  - mandate id 93d62d1a168c1bc9fac174dabcd24e04be17a846e8fd517d724f01731fdd5674
+    PASS grant check on the real chain: true
+      [seller C] mode=observe saw pay_to_not_allowed
+    PASS observe-mode seller C settles an out-of-scope payment: 200
+  - payment tx 81CkNdqzh62aLUBJ9KSEr3a4DvJzkPdLw57yu83uuof5Pc5mUSBD1tQCRguP4En6zVpjkD1nA5ZdvKKE2Lz1XCc
+  - verdict: valid | reason pay_to_not_allowed | liable agent_operator | time_source block
+  -   delta pay_to_not_allowed: authorised 5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7, actual BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji
+    PASS seller C files first WITHOUT the receipt: provisional, agent operator, no refund: ["pay_to_not_allowed","agent_operator",true,null]
+  - verdict: valid | reason pay_to_not_allowed | liable seller | time_source block | refund_tx 42jQzVRePmTfPAEDfJ8uK9ABjTvrBfm15hNw1A4mCPgwdnTcNQajtgum4azwnbzKC6pS69JiSoGrcEQJ6tk3bDWt
+  -   delta pay_to_not_allowed: authorised 5hQASoTWuCSjSz3GfUmrVDfUKEvRMDLpqUK1wuUi5Gk7, actual BpunsCzN5vTo9ZpaunCEwCzzWAHEMYTcd9LY5VZqhWji
+    PASS the principal files WITH the receipt: the verdict is replaced, seller C liable, final: ["pay_to_not_allowed","seller",false,1]
+    PASS the refund is on chain: the principal paid 0.01 then got 0.01 back: ["10000","10000",true]
+  - refund tx 42jQzVRePmTfPAEDfJ8uK9ABjTvrBfm15hNw1A4mCPgwdnTcNQajtgum4azwnbzKC6pS69JiSoGrcEQJ6tk3bDWt
+
+=== Scenario 14. EXPIRY on a real node: a kept payload keeps the budget occupied until the agent can PROVE its blockhash expired (isBlockhashValid false and block height above lastValidBlockHeight, both at the payload's context slot)
+  - grant (ApproveChecked 1000000 + Memo, principal only signer): MRNg8iPLtsACgBdTm8uxNVztgsnvN91tAg2LP9HM8wNRtG1Cg3fNcqjbKviLjEcrUUP6X9HUuhYnqVXti54sETD
+  - mandate id 6ca7f235d20cd2a47aeab785ef608fd87a72b5de3b639cf4a365cb24790a3f64
+    PASS grant check on the real chain: true
+    PASS the seller kept the payload and answered 502: [502,1]
+  - payload: blockhash nfdJhREr8gQCxge5r2BGbzvuU13aDdMNV6jScib4ie1, context slot 513248516, lastValidBlockHeight 500458100, agent signature 2jjr5WHt9JTddSzmJ88fr3FDZhkSXRqtiUJYvqFKeSDCshQW7fKnk7YCWdgzgHTxCAPx1Lzjhz8vbivsVZdrLK5E
+  - at once: isBlockhashValid true (node slot 513248535), block height 500457971, last valid 500458100
+    PASS 1. before the blockhash expires the next payment (it would cross the 0.03 budget) is refused: "period_over_budget"
+  - 2. the release rule fired after 44.4 s and 3 polls. Last poll before it (up to 5 s older than the agent's own check): isBlockhashValid false (node slot 513248685), block height 500458121. Probe right after the release: isBlockhashValid false (node slot 513248751), block height 500458189, last valid 500458100
+    PASS 2. right after the release the node says the blockhash is invalid and the height is past lastValidBlockHeight: [false,true]
+    PASS 2. the agent's own release rule fired within 3 minutes: true
+    PASS 3. the next payment then settles: 200
+  - next payment 3gJiCf14KgT4iUszF4NNTLkE5hAhibBqeqH3wGjjgVw7w6DBM4mbBTo1UCK6gHDfykSJQ5DZzVm15kYbo7LTZEdJ; reservation states released,consumed
+  - 4. the seller submits the kept payload: HTTP 402, invalid_exact_svm_transaction_simulation_failed
+    PASS 4. the kept payload no longer lands (HTTP is not 200, no money moved): [true,"2900000"]
+  - the node simulating the kept transaction: err "BlockhashNotFound"
+    PASS 4. the refusal is a blockhash error (the node says BlockhashNotFound): "BlockhashNotFound"
+
+=== Scenario 15. RESTART with a data directory: a restarted agent still counts the payload a seller kept, and counts it once after the seller lands it
+  - grant (ApproveChecked 1000000 + Memo, principal only signer): 4gfayy9FKvWAZwinTaxaUdxFveubCpcjyyzxMxsuChKmJXzmiSeY6JcmPKyJ1XHc2FHvD2ehfcn916ofgwF78r9P
+  - mandate id c3fcd8d2b9aeeac683fe1e773fd13a2b205f133a9c8c64bbc34ce39277649519
+    PASS grant check on the real chain: true
+    PASS 1. the agent signs a payload, the seller keeps it (502): [502,1]
+  - the reservation is on disk: 2916d6871cef8996055726b192bb2f59.reservations.json (agent signature 4maZF85Y77oeiGfQVV36dGLostpb4kJr1TH4dfW7LgAMV3uRsFEAUq4BACaxhdAWbEUfanJhk6dbinjht8QJ2Hbx)
+    PASS the restarted agent loaded the held reservation: [["held",true]]
+    PASS 2. the restarted agent refuses a payment that would cross the budget while the kept payload can still land: "period_over_budget"
+    PASS 3. the seller lands the kept payload: [200,true]
+  - landed: 4ofQKS7JJKmVD7sShiDvp83tc7DdeMm4NprC16x6eaJqXjAaN1WLHgYDF7SVqLxKpVJe8VnQQk9qyZkGMb9Emizb
+    PASS 4. the landed payment is in the rebuilt ledger exactly once: 1
+    PASS 4. and the restored reservation is consumed, not held a second time: ["consumed"]
+    PASS 4. counted once: 0.02 + 0.01 fits the 0.03 budget, a further 0.01 does not: [200,"period_over_budget"]
+
+=== Scenario 16. above the remaining allowance (within per_payment_max): with every off-chain check off, the chain itself refuses and nothing moves
+  - grant (ApproveChecked 60000 + Memo, principal only signer): 2MzBzcF9EWq3AvuRYT5S2hXUGcnHCHhRH6jZ9A29imdfGtebisvrQW48wZqXRGN1skC25AfurEn1YBGp3Jq4a7W5
+  - mandate id ced97a359ce8f2356c75000eddd1101718c9b36136585eb130bf25aef9e7acc3
+    PASS grant check on the real chain: true
+    PASS the first, in-scope payment of 0.02 USDC settles at seller C (observe): 200
+  - payment tx 4WG9tHpUWWuqrYV24mk2Wrvjk3fYWXADxjczY7eL7yXj6rKX7h6iyAsdra2zE3w9gD82mVLXP2XArwNPqQxB8M2Y
+  - delegated amount left on chain: 40000 of 60000
+    PASS 0.04 USDC of the allowance is left on chain: "40000"
+    PASS the principal's balance covers the payment, so the refusal cannot be an owner-balance shortfall: true
+  - the 0.06 USDC payment (above the 0.04 left, within per_payment_max 60000): HTTP 402, facilitator says: invalid_exact_svm_transaction_simulation_failed
+    PASS the facilitator's verify fails (HTTP 402, a simulation error) and the seller does not serve: [402,true]
+  - the facilitator's /verify answer: HTTP 200 {"isValid":false,"invalidReason":"invalid_exact_svm_transaction_simulation_failed","invalidMessage":"Simulation failed: {\"InstructionError\":[\"2\",{\"Custom\":\"1\"}]}","payer":"4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi"}
+    PASS the facilitator's verify answer says the payment is not valid (a simulation failure): [true,true]
+  - the node simulating that payment: err {"InstructionError":[2,{"Custom":1}]}; log: Program log: Error: insufficient funds | Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA failed: custom program error: 0x1
+    PASS the token program refuses it: insufficient funds for the delegate: [true,true]
+  - principal 2850000 -> 2850000, seller C 4690000 -> 4690000, delegated amount left 40000 -> 40000
+    PASS principal and seller C balances unchanged on chain: ["2850000","4690000"]
+    PASS the delegated amount left is unchanged: "40000"
+    PASS a payment of exactly the 0.04 left settles at seller C: 200
+    PASS and the delegated amount left is now 0: "0"
+
+=== Scenario 16b. above the remaining allowance, submitted to the chain: the transaction lands as FAILED with the token program's InsufficientFunds, and nothing moves
+  - grant (ApproveChecked 60000 + Memo, principal only signer): io9xTg9CG58GnqVkrzCrDbYLHaiFDLApg9mzyLzheMY1x9VvePJefuppJbLFCiUxj87AcUfh3wqo8eT3vj8ojTc
+  - mandate id 428d2463f78f8263226fca8c81330323cf847ea444716cdbcd98b4de27a66d1a
+    PASS grant check on the real chain: true
+    PASS the first, in-scope payment of 0.02 USDC settles: 200
+  - payment tx 4X6qiZwSULiKU5DGXeVU6YnETLbEQtcanqosP4gMfwe69ggtT74mNxZSd9bQoPmbNV1WTFA8m1eeufyf97ng7QHi
+    PASS 0.04 USDC of the allowance is left on chain: "40000"
+    PASS the principal's balance covers the payment: true
+  - submitted with skipPreflight, agent as delegate and fee payer: 4WLCPBMuBLTxwrEDUo8cW35aVEQyuAJwknRQcoAxebTFTSiMg9qh41HKcghyN3CvKxRXnTxbdpaa8BzQk2L37MRW
+  - getSignatureStatuses err {"InstructionError":[0,{"Custom":1}]}
+  - getTransaction meta.err {"InstructionError":[0,{"Custom":1}]}, fee 5000 lamports paid by the agent; log: Program log: Error: insufficient funds | Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA failed: custom program error: 0x1
+    PASS the transaction is on chain and FAILED with the token program's InsufficientFunds (custom error 1): [true,true]
+    PASS the fee payer was the agent: "4ZUJeT13Kqtv9H6G64QLe5a5EUar2L927nBcYavTPmSi"
+  - principal 2790000 -> 2790000, seller C 4750000 -> 4750000, delegated amount left 40000 -> 40000; agent SOL 9985000 -> 9980000 (the fee)
+    PASS principal and seller C balances unchanged on chain: ["2790000","4750000"]
+    PASS the delegated amount left is unchanged: "40000"
+
+=== Summary
+PASS  1. in scope: 200 + receipt, dispute is invalid, the principal bears it (R1)  (5/5 checks)
+PASS  2. over the per-payment cap: the seller answers 403 and no money moves  (4/4 checks)
+PASS  3. observe-mode seller settles an out-of-scope payment: dispute valid, SELLER liable, refund paid (R2)  (5/5 checks)
+PASS  4. payment without a mandate: dispute valid, AGENT OPERATOR liable (R3)  (5/5 checks)
+PASS  5. tampered receipt: rejected, liable null (R4)  (3/3 checks)
+PASS  6. revoked grant: seller answers 403 grant_inactive; without the seller check the facilitator fails the payment  (4/4 checks)
+PASS  7. CONTROL: payer-side caps only, no seller check: the chain alone decides, the seller is not liable, the resource is unjudged  (3/3 checks)
+PASS  8. repeat dispute of the scenario 3 payment: stored verdict, duplicate_dispute, no second refund  (2/2 checks)
+PASS  9. period overrun split across two sellers: the crossing payment is the AGENT OPERATOR's (period_over_budget)  (8/8 checks)
+PASS  10. a narrower re-grant supersedes the old mandate: the old one is refused, the seller cannot pick it in a dispute  (7/7 checks)
+PASS  11. hidden debit: the agent takes 0.02 USDC with a plain Transfer outside x402; the x402 payment that then crosses the budget is still the agent operator's  (6/6 checks)
+PASS  12. concurrency: five concurrent fetches against a period budget that fits three  (5/5 checks)
+PASS  13. provisional verdict: the liable seller files first without the receipt; the principal's later dispute with the receipt replaces it and gets the refund  (5/5 checks)
+PASS  14. EXPIRY on a real node: a kept payload keeps the budget occupied until the agent can PROVE its blockhash expired (isBlockhashValid false and block height above lastValidBlockHeight, both at the payload's context slot)  (8/8 checks)
+PASS  15. RESTART with a data directory: a restarted agent still counts the payload a seller kept, and counts it once after the seller lands it  (8/8 checks)
+PASS  16. above the remaining allowance (within per_payment_max): with every off-chain check off, the chain itself refuses and nothing moves  (11/11 checks)
+PASS  16b. above the remaining allowance, submitted to the chain: the transaction lands as FAILED with the token program's InsufficientFunds, and nothing moves  (8/8 checks)
+97/97 checks passed
+# exit code 0
+# run 3 finished 2026-10-20T18:22:31Z
