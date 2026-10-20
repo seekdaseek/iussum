@@ -9,7 +9,7 @@ export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain
 // A token bucket holds BURST + RATE x 10 s under that quota: rate 0.8/s with a burst of 2 is at most 10 in any window and 8 a window once running.
 const PUBLIC_HOSTS = new Set(['api.devnet.solana.com', 'api.mainnet-beta.solana.com', 'api.testnet.solana.com']);
 export const PUBLIC_PACE = { rate: 0.8, burst: 2 };
-const OPEN_PACE = { rate: 25, burst: 25 }; // any other endpoint starts fast; the first rate-limited answer halves the rate (and so on) until it stops
+const OPEN_PACE = { rate: 200, burst: 50 }; // any other endpoint starts fast (a keyed provider answers far more than the public node); the first rate-limited answer halves the rate (and so on) until it stops
 export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000, sleep = (ms) => new Promise((res) => setTimeout(res, ms)), now = () => Date.now(), rate, burst } = {}) {
   let id = 0;
   // ONE token bucket per client, shared by single calls and batch elements (Addendum M, M6). A rate-limited answer empties it and halves the rate; every answered
