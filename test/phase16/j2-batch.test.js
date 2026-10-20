@@ -39,6 +39,17 @@ test('J2 a rate-limited batch (HTTP 429) is retried with backoff', async () => {
   const r = await rpc.getTransactions(sigs(5));
   assert.equal(r.length, 5); assert.ok(log.posts.length >= 2);
 });
+test('J2 a rate-limited ELEMENT is retried on its own and the elements that succeeded are kept (no refetch of them)', async () => {
+  const calls = [];
+  let limited = true;
+  const fetchImpl = async (_u, o) => {
+    const body = JSON.parse(o.body); calls.push(body.map((b) => b.params[0]));
+    return new Response(JSON.stringify(body.map((b) => (b.params[0] === sigs(5)[1] && limited ? (limited = false, { jsonrpc: '2.0', id: b.id, error: { code: -32005, message: 'Too many requests for a specific RPC call' } }) : { jsonrpc: '2.0', id: b.id, result: tx(b.params[0]) }))), { status: 200 });
+  };
+  const r = await makeRpc('http://x', { fetchImpl, retries: 3 }).getTransactions(sigs(5));
+  assert.equal(r.length, 5); assert.ok(r.every(Boolean));
+  assert.deepEqual(calls.map((c) => c.length), [5, 1], 'the second POST carries only the limited element');
+});
 test('J2 an errored element makes the call throw (fail closed); a null element stays null for the caller to treat as unreadable', async () => {
   await assert.rejects(() => node({ errFor: sigs(5)[2] }).rpc.getTransactions(sigs(5)), /boom/);
   const r = await node({ nullFor: sigs(5)[3] }).rpc.getTransactions(sigs(5), { nullRetries: 0 });

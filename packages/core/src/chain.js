@@ -37,30 +37,39 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch } = {}) {
     // Transactions in JSON-RPC batches (Addendum I, J2): an array of getTransaction requests in ONE POST, `batchSize` per batch (25), at most `concurrency`
     // batches in flight, 429 / 5xx backoff on a batch. Result i belongs to sigs[i]. A null element is retried one by one like getTransaction does (nullRetries 0
     // leaves it null) and stays null if the node still has nothing: the caller treats null as unreadable. An errored element throws: fail closed.
-    async getTransactions(sigs, { batchSize = 25, concurrency = 3, minContextSlot = null, nullRetries = 6 } = {}) {
+    async getTransactions(sigs, { batchSize = 25, concurrency = 2, minContextSlot = null, nullRetries = 6 } = {}) {
       const out = new Array(sigs.length), todo = [];
       sigs.forEach((sg, i) => { if (txCache.has(sg)) { const v = txCache.get(sg); txCache.delete(sg); txCache.set(sg, v); out[i] = v; } else todo.push(i); });
       const cfg = txConfig({ minContextSlot });
       const chunks = []; for (let i = 0; i < todo.length; i += batchSize) chunks.push(todo.slice(i, i + batchSize));
+      // A rate-limited ELEMENT ("Too many requests for a specific RPC call", as the public devnet node answers inside a batch) is retried on its own with backoff while
+      // the elements that succeeded are kept; a whole batch that gets HTTP 429 / 5xx is retried; any other errored element throws (fail closed).
+      const rounds = Math.max(retries, 30), RATE = /rate|limit|too many|429/i;
       async function batch(idx) {
-        for (let attempt = 0; ; attempt++) {
+        const results = new Array(idx.length).fill(undefined);
+        let pending = idx.map((_, k) => k);
+        for (let round = 0; ; round++) {
           try {
-            const body = idx.map((i) => ({ jsonrpc: '2.0', id: ++id, method: 'getTransaction', params: [sigs[i], cfg] }));
+            const body = pending.map((k) => ({ jsonrpc: '2.0', id: ++id, method: 'getTransaction', params: [sigs[idx[k]], cfg] }));
             const r = await fetchImpl(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
             if (r.status === 429 || r.status >= 500) throw Object.assign(new Error(`rpc http ${r.status}`), { retry: true });
             const j = await r.json();
-            if (!Array.isArray(j)) { const m = j?.error?.message ?? 'not an array'; throw Object.assign(new Error(`batch rejected: ${m}`), { retry: /rate|limit|too many|429/i.test(m), whole: true }); }
+            if (!Array.isArray(j)) { const m = j?.error?.message ?? 'not an array'; throw Object.assign(new Error(`batch rejected: ${m}`), { retry: RATE.test(m), whole: true }); }
             const byId = new Map(j.map((e) => [e.id, e]));
-            return body.map((b, k) => {
-              const e = byId.get(b.id);
+            const still = [];
+            body.forEach((bq, n) => {
+              const k = pending[n], e = byId.get(bq.id);
               if (!e) throw new Error(`getTransaction ${sigs[idx[k]]}: no answer in the batch`);
-              if (e.error) throw Object.assign(new Error(`getTransaction: ${e.error.message}`), { retry: /rate|limit|too many|429/i.test(e.error.message) });
-              return e.result ?? null;
+              if (e.error) { if (RATE.test(e.error.message)) still.push(k); else throw new Error(`getTransaction: ${e.error.message}`); }
+              else results[k] = e.result ?? null;
             });
+            if (!still.length) return results;
+            pending = still;
+            throw Object.assign(new Error('getTransaction: rate limited'), { retry: true });
           } catch (e) {
             if (e.whole && !e.retry) { const one = []; for (const i of idx) one.push(await rpcObj.getTransaction(sigs[i], { minContextSlot })); return one; } // a node that refuses batches: one by one
-            if (attempt >= retries || !(e.retry || e.name === 'TypeError')) throw e;
-            await new Promise((res) => setTimeout(res, Math.min(5000, 400 * 2 ** attempt) * (0.75 + Math.random() / 2)));
+            if (round >= rounds || !(e.retry || e.name === 'TypeError')) throw e;
+            await new Promise((res) => setTimeout(res, Math.min(5000, 400 * 2 ** Math.min(round, 4)) * (0.75 + Math.random() / 2)));
           }
         }
       }

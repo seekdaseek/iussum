@@ -7,10 +7,10 @@ import { createKeyPairSignerFromPrivateKeyBytes, createKeyPairSignerFromBytes } 
 import { getCreateAssociatedTokenIdempotentInstructionAsync, getTransferCheckedInstruction } from '@solana-program/token';
 import { createAgent } from '@iussum/agent';
 import { createResolver, openStore } from '@iussum/resolver';
-import { makeRpc, principalAta, mandateId, createGrantChecker } from '@iussum/core';
+import { makeRpc, principalAta, mandateId, decodeReceipt } from '@iussum/core';
 import { loadKeys, makeCtx, sendGrant, sendTx, startDemoSeller, sleep, NETWORK, MINT, RPC_URL } from './demo-lib.mjs';
 
-const OUT = process.env.OUT_DIR ?? 'demo-runs-1.5';
+const OUT = process.env.OUT_DIR ?? 'demo-runs-1.6';
 fs.mkdirSync(OUT, { recursive: true });
 const lines = [];
 const say = (s = '') => { console.log(s); lines.push(s); };
@@ -34,6 +34,7 @@ if ((await sol(P2.address)) < 20_000_000) {
 const counts = () => ({ c: {}, total: 0 });
 const instrument = () => { const k = counts(); const fetchImpl = async (u, o) => { const method = JSON.parse(o.body).method; k.c[method] = (k.c[method] ?? 0) + 1; k.total++; return fetch(u, o); }; return { k, rpc: makeRpc(RPC_URL, { fetchImpl }) }; };
 const gateRpc = instrument();
+const usdcOf = async (ata) => BigInt((await ctx.rpc.call('getTokenAccountBalance', [ata, { commitment: 'confirmed' }]).catch(() => null))?.value?.amount ?? 0);
 const A = await startDemoSeller({ rpc: gateRpc.rpc }, { name: 'A', signer: keys.sellerA, mode: 'enforce' });
 const sellerPub = (await (await fetch(`${A.origin}/.well-known/iussum.json`)).json()).seller;
 const t = Math.floor(Date.now() / 1000);
@@ -56,20 +57,38 @@ for (let i = 1; i <= 250; i++) {
 fs.writeFileSync(`${OUT}/h5-dust-signatures.txt`, `${dust.join('\n')}\n`);
 say(`250 dust credits of 1 base unit into ${p2ata}; signatures in ${OUT}/h5-dust-signatures.txt (${new Set(dust).size} distinct)`);
 
-// The seller gate's FIRST grant check (what it does inside the first payment request) reads every signature since the grant. On the public devnet RPC that
-// takes longer than an HTTP client waits for response headers (300 s by default), so it is done here, ahead of the payments, with the gate's own client and cache.
-{
-  const t1 = Date.now();
-  const r = await createGrantChecker(gateRpc.rpc).check(m, grant_tx, { active: true });
-  say(`the seller gate's first grant check (reads the history since the grant): ok ${r.ok}, ${gateRpc.k.c.getSignaturesForAddress ?? 0} signature pages, ${gateRpc.k.c.getTransaction ?? 0} getTransaction calls, ${gateRpc.k.total} RPC calls, ${((Date.now() - t1) / 1000).toFixed(1)} s`);
-}
-// three agent payments (the agent's own first read happens at createAgent: measured too)
+// the agent (its own first read of the 250 dust credits happens here: measured). A fetch wrapper keeps the paid request of the first payment, so it can be
+// re-sent to the gate while the gate is still warming up (the same payload: no second reservation).
+const kept = [];
 const ag = instrument();
 const tA = Date.now();
-const agent = await createAgent({ mandate: m, grant_tx, signer: keys.agent, rpc: ag.rpc });
-say(`the agent's first read at start (250 dust credits in the account): ${ag.k.c.getSignaturesForAddress ?? 0} signature pages, ${ag.k.c.getTransaction ?? 0} transactions fetched, ${ag.k.total} RPC calls, ${((Date.now() - tA) / 1000).toFixed(1)} s`);
-const rcpts = [];
-for (let i = 0; i < 3; i++) { const r = await agent.fetch(A.url('quote')); if (r.status !== 200) throw new Error(`payment ${i + 1}: HTTP ${r.status}`); rcpts.push(r.receipt); say(`agent payment ${i + 1}: ${r.receipt.tx_sig}`); }
+const realFetch = globalThis.fetch;
+globalThis.fetch = async (req, init) => { const h = req?.headers?.get?.('payment-signature'); if (h && kept.length === 0) kept.push(h); return realFetch(req, init); };
+const agent = await createAgent({ mandate: m, grant_tx, signer: keys.agent, rpc: ag.rpc, retry: { max: 0 } }); // the first request must show the 503: no automatic retry
+globalThis.fetch = realFetch;
+say(`the agent's first read at start (250 dust credits in the account): ${ag.k.c.getSignaturesForAddress ?? 0} signature pages, ${ag.k.c.getTransaction ?? 0} getTransaction HTTP calls (${ag.k.total} RPC HTTP calls), ${((Date.now() - tA) / 1000).toFixed(1)} s`);
+
+// 1. the FIRST request to a cold gate: its grant check has a 10 s budget; past it the gate answers 503 with Retry-After and nothing settles
+const budgetMs = 10_000;
+const bal0 = String(await usdcOf(p2ata));
+const tG = Date.now();
+const first = await agent.fetch(A.url('quote'));
+const answered = Date.now() - tG;
+say(`first gate request (cold grant check, 250 dust credits): HTTP ${first.status}, Retry-After ${first.headers.get('retry-after')}, answered after ${(answered / 1000).toFixed(1)} s (budget ${budgetMs / 1000} s); payer balance unchanged: ${String(await usdcOf(p2ata)) === bal0}`);
+if (first.status !== 503 || !first.headers.get('retry-after') || answered > budgetMs + 5000) throw new Error('the cold gate did not answer 503 with Retry-After within its budget');
+// 2. the gate keeps scanning in the background; re-send the SAME payload until it settles
+const tW = Date.now(); let settled = null, tries = 0;
+while (Date.now() - tW < 40 * 60_000) {
+  await sleep(15_000); tries++;
+  const rr = await fetch(A.url('quote'), { headers: { 'PAYMENT-SIGNATURE': kept[0] } });
+  if (rr.status === 200) { settled = rr; break; }
+  if (rr.status !== 503) throw new Error(`unexpected HTTP ${rr.status} while the gate warms up`);
+}
+if (!settled) throw new Error('the gate did not warm up within 40 minutes');
+say(`the gate warmed up in the background: the same payload settled after ${((Date.now() - tG) / 1000).toFixed(0)} s from the first request (${tries} re-sends, each answered 503 until then); the gate's own client made ${gateRpc.k.c.getSignaturesForAddress ?? 0} signature-page calls and ${gateRpc.k.c.getTransaction ?? 0} getTransaction HTTP calls (${gateRpc.k.total} RPC HTTP calls) in that time`);
+const rcpts = [decodeReceipt(settled.headers.get('x-iussum-receipt'))];
+say(`agent payment 1 (settled through the re-sent payload): ${rcpts[0].tx_sig}`);
+for (let i = 1; i < 3; i++) { const r = await agent.fetch(A.url('quote')); if (r.status !== 200) throw new Error(`payment ${i + 1}: HTTP ${r.status}`); rcpts.push(r.receipt); say(`agent payment ${i + 1}: ${r.receipt.tx_sig}`); }
 
 // two disputes with an instrumented resolver RPC (a fresh client with an empty cache), the same service and store
 const rs = instrument();
