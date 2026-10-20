@@ -33,9 +33,9 @@ Requires **Node 24 or newer** (`engines` says `>=24`; `node:sqlite` and a depend
 
 ```bash
 npm ci
-npm test                 # 356 tests (600 random histories among them), no network
+npm test                 # 390 tests (600 random histories among them), no network
 npm run mutation         # breaks each of the checks one at a time and requires a test to fail
-npm run demo:devnet      # fifteen scenarios on devnet with real USDC and a real facilitator (needs funded throw-away keys, see JUDGE_GUIDE.md)
+npm run demo:devnet      # sixteen scenarios on devnet with real USDC and a real facilitator (needs funded throw-away keys, see JUDGE_GUIDE.md)
 ```
 
 `JUDGE_GUIDE.md` has the five-minute path, the devnet transaction links and the expected output. `REPORT-phase1.md` has the numbers.
