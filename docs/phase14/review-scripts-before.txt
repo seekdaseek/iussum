@@ -1,0 +1,56 @@
+### v3-new.mjs
+--- N1: C1 compares ALL debits since the grant with a history cut at the period start (stopAtTime)
+  50 payments in period 0, honest in-scope payment in period 1: in_scope/principal 
+  150 payments in period 0, honest in-scope payment in period 1: in_scope/principal 
+--- N2: one agent debit of the source + a second top-level TransferChecked from ANOTHER account (the agent's own)
+  40000 to a seller not on the list (control): valid/pay_to_not_allowed/agent_operator stored=1
+  40000 to a seller not on the list + 1 unit from the agent's own account: valid/debit_not_x402/agent_operator stored=1
+--- N3: agent self-transfer (source -> source): counted as a debit, but the token program does not lower the allowance
+  control: P2 (pay_to not allowed) pay_to_not_allowed/agent_operator; P1 (in scope) in_scope/principal
+  after one self-transfer: P2 (pay_to not allowed) pay_to_not_allowed/agent_operator; P1 (in scope) in_scope/principal
+--- N4: the seller signs its own second receipt and files first; a receipt verdict is final
+  control: genuine receipt first: resource_not_allowed/seller provisional=false; principal with genuine receipt: duplicate_dispute/seller refunds=1
+  seller files forged in-scope receipt first: in_scope/principal provisional=false; principal with genuine receipt: receipt_equivocation/seller refunds=1
+  seller files forged no-mandate receipt first: resource_not_allowed/agent_operator provisional=false; principal with genuine receipt: receipt_equivocation/seller refunds=1
+### v3-new2.mjs
+N12 control (agent's own blockhash, valid to 5000): 1st 502 [held] -> 2nd period_over_budget [held] -> withheld payload settled later: 200 | settled total 20000 vs budget 30000
+N12 seller says lastValidBlockHeight=1: 1st 502 [held] -> 2nd period_over_budget [held] -> withheld payload settled later: 200 | settled total 20000 vs budget 30000
+N5 control: P (pay_to not allowed, made before) pay_to_not_allowed/agent_operator 
+N5 principal later empties and closes the account: P (pay_to not allowed, made before) pay_to_not_allowed/agent_operator 
+### v3-new3.mjs
+N1 after a revoke: in_scope/principal
+N3 after a revoke: P2 pay_to_not_allowed/agent_operator
+N1 honest agent restarted in period 1 after 50 in-scope payments in period 0: 200
+N1 honest agent restarted in period 1 after 150 in-scope payments in period 0: 200
+### v3-new4.mjs
+T1 control: isBlockhashValid=true: A=200 B=period_over_budget | settled 20000 vs budget 30000 | reservations consumed | ledger 20000
+T1 isBlockhashValid=false (lagging node): A=200 B=200 | settled 40000 vs budget 30000 | reservations released,consumed | ledger 20000
+T2 control: P (pay_to not allowed, earlier) pay_to_not_allowed/agent_operator
+T2 nativeCloseWithBalance: P (pay_to not allowed, earlier) history_incomplete/null
+T2 syncNativeTopUp: P (pay_to not allowed, earlier) history_incomplete/null
+### v3-agent.mjs
+(a) 5 concurrent x 10000, budget 30000: 200,200,period_over_budget,period_over_budget,200 | settled=30000
+(b) lost response after settle: 1st "fetch failed: socket hang up", 2nd period_over_budget | settled=20000 | reservations=held
+(c) injected destination: agent result=destination_mismatch; anything signed and sent: nothing
+(d5) staggered A=200 B=200; ledger=10000+10000+10000; then 3 sequential: 200,period_over_budget,period_over_budget | settled=30000
+### v3-ports.mjs
+--- d1 history (budget 100000; hidden 50000, P1 40000, P2 20000)
+  control          P2: period_over_budget/agent_operator | H: in_scope/principal | stored=2
+  transfer         P2: period_over_budget/agent_operator | H: debit_not_x402/agent_operator | stored=2
+  burnChecked      P2: period_over_budget/agent_operator | H: debit_not_x402/agent_operator | stored=2
+  cpi              P2: period_over_budget/agent_operator | H: debit_not_x402/agent_operator | stored=2
+  twoTransfers     P2: period_over_budget/agent_operator | H: debit_not_x402/agent_operator | stored=2
+  unreadable       P2: history_incomplete/null | H: tx_not_found/null | stored=0
+  sameSlotAsGrant  P2: period_over_budget/agent_operator | H: in_scope/principal | stored=2
+--- d2 payer is the principal
+  before the grant: invalid/tx_mismatch/null stored=0
+  after the grant: invalid/tx_mismatch/null stored=0
+--- d3 first filer without the receipt
+  resource outside prefix: receipt first resource_not_allowed/seller refunds=1 | seller first in_scope/principal provisional=true; principal then resource_not_allowed/seller refunds=1
+  amount over per_payment_max: receipt first amount_over_cap/seller refunds=1 | seller first amount_over_cap/agent_operator provisional=true; principal then amount_over_cap/seller refunds=1
+--- d6 superseding grant unreadable
+  checker M1 while G2 unreadable: ok=false (could not verify the grant is current: transaction G2xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx could not be read); after recovery: ok=false (superseded by G2xxxxxxxxxxxxxx)
+  resolver M1 while G2 unreadable: history_incomplete/null stored=1; then M2 no receipt: amount_over_cap/agent_operator
+--- d7 same slot: A (20000) executes first, B (90000) second, sig(B) < sig(A), budget 100000
+  A: in_scope/principal
+  B: period_over_budget/agent_operator

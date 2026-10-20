@@ -13,14 +13,14 @@ import { A, T0, DAY, mandate, grantTx } from './fixtures.mjs';
 export const DEVNET = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1';
 export const listen = (srv) => new Promise((r) => srv.listen(0, '127.0.0.1', () => r(srv.address().port)));
 
-export async function startMockFacilitator() {
+export async function startMockFacilitator({ fixedTx = null } = {}) {
   const counts = { verify: 0, settle: 0 }; let n = 0;
   const srv = http.createServer((req, res) => {
     let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => {
       res.setHeader('content-type', 'application/json');
       if (req.url === '/supported') return res.end(JSON.stringify({ kinds: [{ x402Version: 2, scheme: 'exact', network: DEVNET, extra: { feePayer: A.thief } }], extensions: [], signers: { 'solana:*': [A.thief] } }));
       if (req.url === '/verify') { counts.verify++; return res.end(JSON.stringify({ isValid: true, payer: A.agent })); }
-      if (req.url === '/settle') { counts.settle++; return res.end(JSON.stringify({ success: true, transaction: `MOCKSETTLE${++n}`.padEnd(88, 'x'), network: DEVNET, payer: JSON.parse(b).paymentPayload ? A.agent : A.agent })); }
+      if (req.url === '/settle') { counts.settle++; return res.end(JSON.stringify({ success: true, transaction: fixedTx ?? `MOCKSETTLE${++n}`.padEnd(88, 'x'), network: DEVNET, payer: JSON.parse(b).paymentPayload ? A.agent : A.agent })); }
       res.statusCode = 404; res.end('{}');
     });
   });
@@ -70,4 +70,4 @@ export async function newScenario(seller, o = {}) {
   seller.rpc.account = liveAccount(m);
   return { mandate: m, signer: agentSigner, grant_tx: GRANT_SIG, id: mandateId(m) };
 }
-export const blockhash = async () => ({ blockhash: '11111111111111111111111111111111', lastValidBlockHeight: 100n });
+export const blockhash = async () => ({ blockhash: '11111111111111111111111111111111', lastValidBlockHeight: 100n, contextSlot: 10 });

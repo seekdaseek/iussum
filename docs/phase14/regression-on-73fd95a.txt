@@ -1,0 +1,19 @@
+✖ R1 the reservation is on disk, complete, BEFORE the signed payload leaves the agent; no temp file is left behind
+✖ R1 restart while a seller holds a payload: the new agent counts it as held, refuses the next payment, and the total never passes the budget when the seller lands it
+✔ R1 a restarted agent releases the persisted reservation once its expiry is proven, and the file forgets it
+✖ S1 a facilitator that reports success twice for one transaction: both responses carry the identical receipt
+✖ S2 a mandate whose asset is the native mint is refused
+✔ S2 an ordinary mint is accepted
+✔ T1 control: the node says the blockhash is valid: B is refused, 20000 settled
+✖ T1 a lagging node says isBlockhashValid=false but the chain height is below lastValidBlockHeight: the reservation stays held, B is refused
+✖ T1 isBlockhashValid and getBlockHeight are both asked with minContextSlot = the slot getLatestBlockhash returned
+✖ T1 an error from getBlockHeight leaves the reservation held
+✖ T1 a success that arrives AFTER a proven release is still counted (the reservation is consumed, the ledger has it)
+✖ T2 each signature is read once: a second dispute on a long account reads only what is new
+✖ T2 progress survives maxPages: a read that stops at maxPages saves what it verified, and the next dispute finishes the job
+✖ T2 a restarted agent reads only what is new since its checkpoint
+✖ T2 makeRpc keeps at most 5000 transactions in its cache (least recently used goes first)
+ℹ tests 15
+ℹ pass 3
+ℹ fail 12
+✖ failing tests:
