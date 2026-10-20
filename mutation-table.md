@@ -1,4 +1,4 @@
-baseline: 390 tests, 390 pass, 0 fail
+baseline: 393 tests, 393 pass, 0 fail
 checks mutated: 130, survived (vacuous): 0
 
 | check skipped | tests that fail | first failing test |
@@ -20,7 +20,7 @@ checks mutated: 130, survived (vacuous): 0
 | `agent.hold_until_proven` | 4 | B5 a payment that settled but whose response was lost still counts: the next one is refused locally |
 | `agent.keyed_by_grant` | 4 | property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds) |
 | `agent.landed_consumed` | 2 | B5 held becomes consumed (still counted) when the chain shows the lost payment landed |
-| `agent.ledger` | 6 | refuses locally: its own running period spend would cross period_budget (second payment) |
+| `agent.ledger` | 7 | refuses locally: its own running period spend would cross period_budget (second payment) |
 | `agent.ledger_rebuild` | 8 | F7: a restarted agent rebuilds its ledger from chain and refuses the payment that would cross the period budget |
 | `agent.min_context_slot` | 1 | T1 isBlockhashValid and getBlockHeight are both asked with minContextSlot = the slot getLatestBlockhash returned |
 | `agent.own_blockhash` | 1 | N12 a seller that says lastValidBlockHeight=1 cannot make the agent release the reservation: the second payment is refused and the total stays at the budget |
@@ -56,7 +56,7 @@ checks mutated: 130, survived (vacuous): 0
 | `grant.approve_owner` | 1 | grant: ApproveChecked owner is not the principal |
 | `grant.approve_source` | 1 | grant: ApproveChecked source is not the principal ATA |
 | `grant.coalesce_scans` | 1 | B2 concurrent checks of one grant share one supersession scan (five concurrent payments do not make five scans), and a later call scans again |
-| `grant.extra_instruction` | 5 | grant: an extra non-ComputeBudget instruction (a system transfer) |
+| `grant.extra_instruction` | 6 | grant: an extra non-ComputeBudget instruction (a system transfer) |
 | `grant.fee_payer` | 1 | grant: fee payer is not the principal |
 | `grant.memo_count` | 2 | grant: no Memo |
 | `grant.memo_text` | 6 | refuses locally: grant transaction does not match the mandate (memo) |
@@ -99,7 +99,7 @@ checks mutated: 130, survived (vacuous): 0
 | `resolver.period_since_grant` | 1 | resolve: spend made before the grant (an earlier grant) is not counted against this mandate |
 | `resolver.provisional` | 3 | B4 resource outside the prefix: the seller filing first without the receipt is provisional, and the principal's later dispute with the receipt replaces it and gets the refund |
 | `resolver.provisional_needs_receipt` | 3 | B4 resource outside the prefix: the seller filing first without the receipt is provisional, and the principal's later dispute with the receipt replaces it and gets the refund |
-| `resolver.receipt_tx` | 1 | resolve: receipt says another tx_sig |
+| `resolver.receipt_tx` | 2 | resolve: receipt says another tx_sig |
 | `resolver.reconcile` | 2 | resolve: the balance of the granted account fell by more than the parsed instructions explain: history_incomplete, liable null |
 | `resolver.refund_decimals` | 1 | F11: the refund uses the decimals of the disputed payment (9), read from the chain |
 | `resolver.refund_pending_guard` | 1 | F9: a refund signed but not confirmed is not resent while it can still land, and is adopted if it did land |
@@ -114,7 +114,7 @@ checks mutated: 130, survived (vacuous): 0
 | `resource.no_userinfo` | 1 | resource: credentials in the URL are refused even when the host matches |
 | `resource.origin_exact` | 9 | resource: host-only prefix does not match api.x.com.evil.io |
 | `resource.path_boundary` | 8 | refuses locally: resource outside the prefix |
-| `resource_not_allowed` | 21 | refuses locally: resource outside the prefix |
+| `resource_not_allowed` | 20 | refuses locally: resource outside the prefix |
 | `rpc.batch` | 2 | J2 the spend history and the supersession scan use the batch call when the RPC has it |
 | `rpc.cache_bound` | 1 | T2 makeRpc keeps at most 5000 transactions in its cache (least recently used goes first) |
 | `seller.enforce` | 15 | enforce: amount over per_payment_max answers 403 and nothing settles |
@@ -130,6 +130,6 @@ checks mutated: 130, survived (vacuous): 0
 | `seller.payment_unreadable` | 1 | enforce: an unreadable payment transaction is refused before x402 sees it |
 | `seller.receipt_binds_mandate` | 2 | enforce: an in-scope payment settles and returns a receipt bound to the mandate and the grant |
 | `seller.receipt_issued` | 8 | enforce: an in-scope payment settles and returns a receipt bound to the mandate and the grant |
-| `seller.require_mandate` | 2 | enforce with requireMandate refuses an unmandated payment |
+| `seller.require_mandate` | 1 | enforce with requireMandate refuses an unmandated payment |
 | `seller.resource_from_origin` | 1 | F5: an agent that forges Host: <allowed origin> does not get an in-scope receipt |
 | `seller.store_receipts` | 4 | H1 restart the gate between two success responses for the same tx_sig: both receipts are byte-identical |

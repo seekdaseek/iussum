@@ -76,16 +76,20 @@ const first = await agent.fetch(A.url('quote'));
 const answered = Date.now() - tG;
 say(`first gate request (cold grant check, 250 dust credits): HTTP ${first.status}, Retry-After ${first.headers.get('retry-after')}, answered after ${(answered / 1000).toFixed(1)} s (budget ${budgetMs / 1000} s); payer balance unchanged: ${String(await usdcOf(p2ata)) === bal0}`);
 if (first.status !== 503 || !first.headers.get('retry-after') || answered > budgetMs + 5000) throw new Error('the cold gate did not answer 503 with Retry-After within its budget');
-// 2. the gate keeps scanning in the background; re-send the SAME payload until it settles
-const tW = Date.now(); let settled = null, tries = 0;
-while (Date.now() - tW < 40 * 60_000) {
+// 2. the gate keeps scanning in the background; re-send the SAME payload while the gate answers 503. A payload lives about 90 s (its blockhash), the public node takes
+// far longer than that, so once the gate stops answering 503 the kept payload is usually expired (the facilitator answers 402) and a FRESH payment is made.
+const tW = Date.now(); let settled = null, tries = 0, keptOutcome = null;
+while (Date.now() - tW < 60 * 60_000) {
   await sleep(15_000); tries++;
   const rr = await fetch(A.url('quote'), { headers: { 'PAYMENT-SIGNATURE': kept[0] } });
-  if (rr.status === 200) { settled = rr; break; }
-  if (rr.status !== 503) throw new Error(`unexpected HTTP ${rr.status} while the gate warms up`);
+  if (rr.status === 503) continue;
+  keptOutcome = `HTTP ${rr.status}`; if (rr.status === 200) settled = rr; break;
 }
-if (!settled) throw new Error('the gate did not warm up within 40 minutes');
-say(`the gate warmed up in the background: the same payload settled after ${((Date.now() - tG) / 1000).toFixed(0)} s from the first request (${tries} re-sends, each answered 503 until then); the gate's own client made ${gateRpc.k.c.getSignaturesForAddress ?? 0} signature-page calls and ${gateRpc.k.c.getTransaction ?? 0} getTransaction HTTP calls (${gateRpc.k.total} RPC HTTP calls) in that time`);
+if (!keptOutcome) throw new Error('the gate did not warm up within 60 minutes');
+const warmS = ((Date.now() - tG) / 1000).toFixed(0);
+let fresh = null;
+if (!settled) { fresh = await agent.fetch(A.url('quote')); if (fresh.status !== 200) throw new Error(`fresh payment after the warm-up: HTTP ${fresh.status}`); settled = fresh; }
+say(`the gate warmed up in the background after ${warmS} s from the first request (${tries} re-sends of the kept payload, each answered 503 until then); the kept payload then got ${keptOutcome}${fresh ? ' (expired: its blockhash lives about 90 s)' : ''}; ${fresh ? 'a fresh payment' : 'the kept payload'} settled with HTTP 200 ; the gate's own client made ${gateRpc.k.c.getSignaturesForAddress ?? 0} signature-page calls and ${gateRpc.k.total} RPC HTTP calls`);
 const rcpts = [decodeReceipt(settled.headers.get('x-iussum-receipt'))];
 say(`agent payment 1 (settled through the re-sent payload): ${rcpts[0].tx_sig}`);
 for (let i = 1; i < 3; i++) { const r = await agent.fetch(A.url('quote')); if (r.status !== 200) throw new Error(`payment ${i + 1}: HTTP ${r.status}`); rcpts.push(r.receipt); say(`agent payment ${i + 1}: ${r.receipt.tx_sig}`); }

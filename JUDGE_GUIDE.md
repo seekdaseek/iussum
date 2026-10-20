@@ -6,7 +6,7 @@ Everything runs on **devnet** (no mainnet transaction was made). Node 24 or newe
 
 ```bash
 npm ci
-npm test            # expect: ℹ tests 390  ℹ pass 390  ℹ fail 0  ℹ skipped 0
+npm test            # expect: ℹ tests 393  ℹ pass 393  ℹ fail 0  ℹ skipped 0
 ```
 
 `skipped 0` matters: a suite that skips its real tests also prints no failures.
@@ -14,7 +14,7 @@ npm test            # expect: ℹ tests 390  ℹ pass 390  ℹ fail 0  ℹ skipp
 ## 2. Every check is load-bearing (1 minute)
 
 ```bash
-npm run mutation    # expect: baseline: 390 tests, 390 pass, 0 fail ... checks mutated: 130, survived: 0   (exit code 0)
+npm run mutation    # expect: baseline: 393 tests, 393 pass, 0 fail ... checks mutated: 130, survived: 0   (exit code 0)
 ```
 
 It skips one check at a time and requires some test to fail. A line starting `SURVIVED` would be a vacuous check. The table is in `TESTS.md`.
