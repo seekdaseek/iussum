@@ -35,6 +35,10 @@ test('T1 a lagging node says isBlockhashValid=false but the chain height is belo
   assert.equal(x.rb, 'period_over_budget', JSON.stringify(x.a.reservations.map((r) => r.state))); assert.equal(x.settled, 20000);
   assert.equal(x.a.ledger.reduce((s, e) => s + Number(e.amount), 0), 20000, 'the success of A is in the ledger');
 });
+test('T1 both answers are needed: a node that says the blockhash is still valid keeps the reservation held even when the height is past lastValidBlockHeight', async (tc) => {
+  const x = await run(tc, { valid: true, height: 500 });
+  assert.equal(x.rb, 'period_over_budget'); assert.equal(x.settled, 20000);
+});
 test('T1 isBlockhashValid and getBlockHeight are both asked with minContextSlot = the slot getLatestBlockhash returned', async (tc) => {
   const x = await run(tc, { valid: false, height: 50 });
   const asked = x.calls.filter(([m]) => m === 'isBlockhashValid' || m === 'getBlockHeight');

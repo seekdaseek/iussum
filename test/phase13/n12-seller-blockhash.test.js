@@ -30,7 +30,7 @@ async function run(fake, tc) {
   const r1 = await out(a.fetch(seller.url));
   const r2 = await out(a.fetch(seller.url));
   await realFetch(`${facilitator.url}/settle`, { method: 'POST', body: JSON.stringify({ paymentPayload: JSON.parse(Buffer.from(withheld, 'base64').toString()) }) }); // the seller lands payload 1 later
-  return { r1, r2, a, settled: facilitator.counts.settle * 20000, held: a.reservations.map((r) => r.state) };
+  return { r1, r2, a, own, settled: facilitator.counts.settle * 20000, held: a.reservations.map((r) => r.state) };
 }
 test('N12 control: with the agent\'s own blockhash the second payment is refused and the total stays at the budget', async (tc) => {
   const x = await run(false, tc);
@@ -40,4 +40,5 @@ test('N12 a seller that says lastValidBlockHeight=1 cannot make the agent releas
   const x = await run(true, tc);
   assert.equal(x.r2, 'period_over_budget', JSON.stringify(x.held)); assert.equal(x.settled, 20000);
   assert.deepEqual(x.held, ['held'], 'no payload was signed with the seller\'s blockhash, and the first stays held while the chain says its blockhash is valid');
+  assert.equal(x.a.reservations[0].blockhash, x.own, 'the payload carries the agent\'s own blockhash, not the one the 402 named');
 });
