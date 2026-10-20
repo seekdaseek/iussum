@@ -21,7 +21,7 @@ It skips one check at a time and requires some test to fail. A line starting `SU
 
 ## 3. The devnet transactions (3 minutes, browser only)
 
-The five clean Phase 1.2 demo runs are in `demo-runs-1.2/run-1.txt` to `run-5.txt` (each ends `61/61 checks passed`, exit code 0). `demo-runs-1.2/signatures.md` lists all 160 signatures the runs printed, each checked with `getSignatureStatuses` (all finalized). The runs before the review fixes are kept: `demo-runs/` (Phase 1) and `demo-runs-1.1/` (Phase 1.1); the two Phase 1.2 attempts that were not clean are kept in `demo-runs-1.2-attempt1/` and `demo-runs-1.2-attempt2/` (see `REPORT-phase1.2.md` for why). The links below are from the Phase 1.1 run 1 (scenarios 1 to 10) and Phase 1.2 run 1 (scenarios 11 to 13), one link per claim:
+The five clean Phase 1.2 demo runs are in `demo-runs-1.2/run-1.txt` to `run-5.txt` (each ends `61/61 checks passed`, exit code 0). `demo-runs-1.2/signatures.md` lists all 160 signatures the runs printed, each checked with `getSignatureStatuses` (all finalized). The runs before the review fixes are kept: `demo-runs/` (Phase 1) and `demo-runs-1.1/` (Phase 1.1); the two Phase 1.2 attempts that were not clean are kept in `demo-runs-1.2-attempt1/` and `demo-runs-1.2-attempt2/` (see `REPORT-phase1.2.md` for why). The newest five clean runs (Phase 1.4, 63/63 checks each, 160 signatures, all finalized) are in `demo-runs-1.4/`. The links below are from the Phase 1.1 run 1 (scenarios 1 to 10) and Phase 1.2 run 1 (scenarios 11 to 13), one link per claim:
 
 | claim | what to look at | link |
 |---|---|---|
