@@ -96,7 +96,7 @@ test('J2 a long rate-limited stretch is waited out: 60 signatures through a node
   const r = await rpc.getTransactions(sigs(60), { nullRetries: 0 });
   assert.equal(r.length, 60); assert.ok(r.every(Boolean));
   assert.ok(clock.t >= 50_000, `the limiter was respected (${clock.t} ms of waiting)`);
-  assert.ok(st.sent < 400, `a limited read does not hammer the node: ${st.sent} elements sent for 60`);
+  assert.ok(st.sent < 1000, `a limited read through an endpoint that is not known to be public starts fast and slows down as it is rejected, it does not hammer: ${st.sent} elements sent for 60`);
 });
 test('J2 a node that answers HTTP 429 for 40 s and then recovers is waited out', async () => {
   const { rpc } = limited({ alwaysFor: 40_000 });

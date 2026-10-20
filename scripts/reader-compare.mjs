@@ -20,11 +20,14 @@ const GRANT = process.env.H5_GRANT ?? '4PmrfbJHdyq6RaMwQp7XYWu3APPqTNzrc8PZLfv9T
 const keys = await loadKeys();
 const agent = keys.agent.address;
 const load = async (root) => import(pathToFileURL(path.join(root, 'packages/core/src/index.js')).href);
-const readers = [
+const all = [
   ['Phase 1.5 one-by-one reader (142276f)', await load(W15)],
   ['Phase 1.6 batch reader (c521b31)', await load(W16)],
   ['paced reader (this tree)', await load(process.cwd())],
 ];
+// READERS=15,paced (a subset, in this order; a reader may be repeated) for a shorter second run
+const pick = { 15: 0, 16: 1, paced: 2 };
+const readers = process.env.READERS ? process.env.READERS.split(',').map((k) => all[pick[k]]) : all;
 function counting() {
   const st = { posts: 0, elements: 0, http429: 0, limitedElements: 0 };
   const fetchImpl = async (u, o) => {
@@ -50,9 +53,9 @@ for (let round = 1; round <= rounds; round++) {
     const ms = Date.now() - t0;
     const row = { round, name, ms, ...st, complete: h?.complete ?? false, entries: h?.entries?.length ?? 0, err };
     rows.push(row);
-    say(`round ${round} | ${name} | ${(ms / 1000).toFixed(1)} s | ${st.posts} POSTs, ${st.elements} elements | whole-request 429: ${st.http429}, rate-limited elements: ${st.limitedElements} | complete ${row.complete}, ${row.entries} agent debits${err ? `, error: ${err}` : ''}`);
+    say(`round ${round} | ${name} | ${(ms / 1000).toFixed(1)} s | ${st.posts} POSTs, ${st.elements} elements | whole-request 429: ${st.http429}, rate-limited elements: ${st.limitedElements} | complete ${row.complete}, ${row.entries} agent debits${h && !h.complete ? `, incomplete because: ${String(h.reason).slice(0, 90)}` : ''}${err ? `, error: ${err}` : ''}`);
   }
 }
 say('\nmedian wall time per reader:');
-for (const [name] of readers) { const t = rows.filter((r) => r.name === name).map((r) => r.ms).sort((a, b) => a - b); say(`  ${name}: ${(t[Math.floor(t.length / 2)] / 1000).toFixed(1)} s over ${t.length} reads (${t.map((x) => (x / 1000).toFixed(0)).join(', ')} s)`); }
+for (const [name] of [...new Map(readers.map((r) => [r[0], r])).values()]) { const t = rows.filter((r) => r.name === name).map((r) => r.ms).sort((a, b) => a - b); say(`  ${name}: ${(t[Math.floor(t.length / 2)] / 1000).toFixed(1)} s over ${t.length} reads (${t.map((x) => (x / 1000).toFixed(0)).join(', ')} s)`); }
 say(`finished ${new Date().toISOString()}`);

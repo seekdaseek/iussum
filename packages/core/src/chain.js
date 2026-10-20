@@ -6,14 +6,14 @@ export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain
 
 // What the public endpoints allow, measured from a Mac in Node on 2026-10-20 (docs/phase17/limiter-probe.txt): about 10 getTransaction calls per 10 s window (a burst of
 // 10 is answered, the 11th is rejected; 1.0/s is answered, 1.25/s is not), a batch element counts like a call, and a block lasts about 18 s after the first rejection.
-// A token bucket holds BURST + RATE x 10 s under that quota: rate 0.8/s with a burst of 2 is at most 10 in any window and 8 a window once running.
+// A token bucket holds BURST + RATE x 10 s under that quota: rate 0.6/s with a burst of 2 is at most 8 in any window.
 const PUBLIC_HOSTS = new Set(['api.devnet.solana.com', 'api.mainnet-beta.solana.com', 'api.testnet.solana.com']);
-export const PUBLIC_PACE = { rate: 0.8, burst: 2 };
+export const PUBLIC_PACE = { rate: 0.6, burst: 2 }; // 0.8/s with a burst of 2 is exactly the 10-a-window quota and was rejected in two of two cold reads (docs/phase17/reader-compare.txt); 0.6/s keeps 8 in any window
 const OPEN_PACE = { rate: 200, burst: 50 }; // any other endpoint starts fast (a keyed provider answers far more than the public node); the first rate-limited answer halves the rate (and so on) until it stops
 export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000, sleep = (ms) => new Promise((res) => setTimeout(res, ms)), now = () => Date.now(), rate, burst } = {}) {
   let id = 0;
   // ONE token bucket per client, shared by single calls and batch elements (Addendum M, M6). A rate-limited answer empties it and halves the rate; every answered
-  // element raises the rate again by 5% up to the configured rate. A rejected call is therefore never repeated at once: it waits for a token at the lower rate.
+  // element raises the rate again by 10% up to the configured rate. A rejected call is therefore never repeated at once: it waits for a token at the lower rate.
   const dflt = PUBLIC_HOSTS.has(new URL(url).host) ? PUBLIC_PACE : OPEN_PACE;
   const maxRate = rate ?? dflt.rate, capacity = burst ?? dflt.burst, MIN_RATE = 0.05;
   const bucket = { tokens: capacity, rate: maxRate, t: now() };
@@ -27,8 +27,12 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000,
       await sleep(Math.max(1, Math.ceil(((need - bucket.tokens) / bucket.rate) * 1000)));
     }
   }
-  const limited = () => { if (!fails('rpc.pace_halve', true)) return; refill(); bucket.tokens = 0; bucket.rate = Math.max(MIN_RATE, bucket.rate / 2); };
-  const answeredEls = (k = 1) => { if (bucket.rate < maxRate) bucket.rate = Math.min(maxRate, bucket.rate * 1.05 ** k); };
+  // A rate-limited answer empties the bucket and halves the rate, ONCE per block: the public node blocks for about 18 s after its first rejection and the probes during
+  // the block (measured: hammering prolongs it by about a second) are rejected too, which must not halve the rate again and again (rate 0.05/s took minutes to climb back).
+  // The episode is eight token intervals at the current rate, between 1 s and 20 s: a slow client (0.4/s) treats 20 s as one block, a fast one (200/s) may halve every second.
+  let lastHalved = -Infinity;
+  const limited = () => { if (!fails('rpc.pace_halve', true)) return; refill(); bucket.tokens = 0; const t = now(); if (t - lastHalved >= Math.min(20_000, Math.max(1000, 8000 / bucket.rate))) { bucket.rate = Math.max(MIN_RATE, bucket.rate / 2); lastHalved = t; } };
+  const answeredEls = (k = 1) => { if (bucket.rate < maxRate) bucket.rate = Math.min(maxRate, bucket.rate * 1.1 ** k); };
   const RATE_LIMITED = /rate|limit|too many|429/i;
   async function call(method, params) {
     for (let attempt = 0; ; attempt++) {

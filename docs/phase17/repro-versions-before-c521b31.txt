@@ -1,0 +1,25 @@
+### upgrade-lock.mjs (142276f -> wt-c521b31)
+process 1 (142276f): STARTED | then process 2 (142276f): REFUSED: another agent (pid 84786) holds the data directory  | files: 1abceeef7075fb9d-GmaDrppB.checkpoint.json, 1abceeef7075fb9d-GmaDrppB.scan.json, agent.lock
+process 1 (c521b31): STARTED | then process 2 (c521b31): REFUSED: another agent holds the data directory /var/folders | files: 10dcc6f453d08048912dd07ef8fbc2b4.checkpoint.json, 10dcc6f453d08048912dd07ef8fbc2b4.lock.db, 10dcc6f453d08048912dd07ef8fbc2b4.lock.db-journal, 10dcc6f453d08048912dd07ef8fbc2b
+process 1 (142276f): STARTED | then process 2 (c521b31): STARTED | files: 10dcc6f453d08048912dd07ef8fbc2b4.checkpoint.json, 10dcc6f453d08048912dd07ef8fbc2b4.lock.db, 10dcc6f453d08048912dd07ef8fbc2b4.lock.db-journal, 10dcc6f453d08048912dd07ef8fbc2b4.scan.json, 1abceeef7075fb9d-GmaDrppB.checkpoint.jso
+### upgrade-reservations.mjs
+142276f -> 142276f: run 1 502 (payload kept; on disk: 181dc22e474bb0ea-HmeZ895X.reservations.json) | run 2 restored 1 held reservation(s), pays: period_over_budget | settled 0 + kept 20000 = 20000 that can land vs budget 30000
+c521b31 -> c521b31: run 1 502 (payload kept; on disk: 45a616d335ba43602cfe3b237a1ba203.reservations.json) | run 2 restored 1 held reservation(s), pays: period_over_budget | settled 0 + kept 20000 = 20000 that can land vs budget 30000
+142276f -> c521b31: run 1 502 (payload kept; on disk: e1758722fba0f05e-4QHRrqaX.reservations.json) | run 2 restored 0 held reservation(s), pays: 200 | settled 20000 + kept 20000 = 40000 that can land vs budget 30000
+### mig-old (142276f) then mig-new (wt-c521b31)
+old P1: reason=in_scope liable=principal provisional=true verdict_id=undefined
+old P2: reason=in_scope liable=principal provisional=false verdict_id=undefined
+old P3: reason=resource_not_allowed liable=seller provisional=false verdict_id=undefined
+old columns: tx_sig,mandate_sha,receipt_sha,verdict,refund_tx,created_at,refund_pending,refund_pending_at,provisional,replaced,receipt_json
+legacy P3 row: verdict_id=null grant_tx=null
+new  /dispute P3 (duplicate): reason=duplicate_dispute verdict_id=064ec74b2a3d75ba78593f2095c417dc92d4123b06197dafe3da0c05eb76ce95
+new  /v/P3: Verdict id:     -
+fresh store, same dispute: verdict_id=dd44609f8032c9cbabc54c0bf49cfcb9a16a0664febd024f70e4b699153355df
+auditor recompute (grant_tx from the bundle): dd44609f8032c9cbabc54c0bf49cfcb9a16a0664febd024f70e4b699153355df
+legacy id == fresh id? false   legacy id == recompute with grant_tx null? true
+new  /dispute P1 (duplicate of legacy provisional): reason=duplicate_dispute verdict_id=a314950591ab5e3a5c7e8c2ec2e99f9ac3ec08fc01df599abc1891df58e3e002
+new  /v/P1 before replacement: Verdict id:     -
+new  /dispute P1 (replaces provisional): reason=resource_not_allowed verdict_id=637006ae8ab41194232773e54646bbf2bc929988e318a84731b35e57e52f691f replaced[0].verdict_id=a314950591ab5e3a5c7e8c2ec2e99f9ac3ec08fc01df599abc1891df58e3e002  (== earlier duplicate id? true)
+new  /v/P1 after: Verdict id:     637006ae8ab41194232773e54646bbf2bc929988e318a84731b35e57e52f691f
+new  /dispute P2 (equivocation): reason=receipt_equivocation verdict_id=50f01f5a91b2f93895afc64f0a3a4c5e46283e5c5bb923facbaca1ed6d1b467c replaced.at(-1).verdict_id=d73e968dc0b372891bfddaf41cfdea9ee58cb3043d748e46b3256101b00ae7fc  (== earlier duplicate id d73e968dc0b372891bfddaf41cfdea9ee58cb3043d748
+new  /v/P2 after: Verdict id:     50f01f5a91b2f93895afc64f0a3a4c5e46283e5c5bb923facbaca1ed6d1b467c

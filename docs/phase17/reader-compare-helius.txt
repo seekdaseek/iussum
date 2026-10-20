@@ -1,0 +1,13 @@
+reader comparison, host devnet.helius-rpc.com (keyed), source H9w4NsSrmFHrGsrU8G9pAL3emFeaVtDfegk9KNQHhfVc, started 2026-10-20T16:28:45.270Z
+round 1 | Phase 1.5 one-by-one reader (142276f) | 30.8 s | 256 POSTs, 256 elements | whole-request 429: 0, rate-limited elements: 0 | complete true, 3 agent debits
+round 1 | Phase 1.6 batch reader (c521b31) | 1.9 s | 14 POSTs, 256 elements | whole-request 429: 0, rate-limited elements: 0 | complete true, 3 agent debits
+round 1 | paced reader (this tree) | 1.4 s | 14 POSTs, 256 elements | whole-request 429: 0, rate-limited elements: 0 | complete true, 3 agent debits
+round 2 | Phase 1.5 one-by-one reader (142276f) | 30.5 s | 256 POSTs, 256 elements | whole-request 429: 0, rate-limited elements: 0 | complete true, 3 agent debits
+round 2 | Phase 1.6 batch reader (c521b31) | 1.7 s | 14 POSTs, 256 elements | whole-request 429: 0, rate-limited elements: 0 | complete true, 3 agent debits
+round 2 | paced reader (this tree) | 1.4 s | 14 POSTs, 256 elements | whole-request 429: 0, rate-limited elements: 0 | complete true, 3 agent debits
+
+median wall time per reader:
+  Phase 1.5 one-by-one reader (142276f): 30.8 s over 2 reads (31, 31 s)
+  Phase 1.6 batch reader (c521b31): 1.9 s over 2 reads (2, 2 s)
+  paced reader (this tree): 1.4 s over 2 reads (1, 1 s)
+finished 2026-10-20T16:29:53.001Z

@@ -1,0 +1,52 @@
+✖ M1 core: a resumed scan sees the re-grant that landed after the cut-short scan began (r1)
+✖ M1 core: a resume after a restart (state from the store, new checker) sees it too
+✔ M1 core: when nothing new landed, a resumed scan answers current and reads the new part only once
+✖ M1 gate (default): nothing settles under M1 after G2 superseded it (r2)
+✖ M1 gate (after a gate restart): nothing settles under M1 after G2 superseded it (r2)
+✖ M1 gate (5 requests at once): nothing settles under M1 after G2 superseded it (r2)
+✖ M1 resolver: a final verdict is not stored for a payment made after M1 was superseded (r3)
+✖ M1 (a): a non-null element that is not a jsonParsed transaction is unreadable, not "does not supersede"
+✖ M1 (b): a scan_state row that does not parse is treated as absent: the scan restarts from the grant and the gate recovers
+✖ M2 a payment in flight at close() never signs a payload: B on the same directory cannot be exposed to 40000 against 30000 (v6-close)
+✖ M2 close() waits for the payments in flight, then releases the lock
+✖ M2 agent.client used after close() reads no chain, writes nothing, and cannot erase the next agent's held reservation (close-client)
+✖ M2 the naive agent cannot sign or pay through agent.client after close() (close-client-naive)
+✖ M2 a start that fails after the lock was taken releases it (leak-enospc: the directory becomes unwritable during the start)
+✖ M2 a start the caller abandons through cfg.signal releases the lock at once and writes nothing afterwards (leak-abandoned)
+✔ M3 (a) a payload kept in period 0 that lands at period 0 cannot take period 1 over budget (period-edge)
+✖ M3 (a) a payload kept in period 0 that lands at period 1 cannot take period 1 over budget (period-edge)
+✔ M3 (b) a restart against a caught-up node does not forget a payment that settled (restart-lag)
+✖ M3 (b) a restart against a lagging node does not forget a payment that settled (restart-lag)
+✖ M3 (c) a live legacy agent.lock (a 142276f process on the same directory) stops a new agent; a dead one and our own pid do not
+✖ M3 (c) the held entries of a 142276f reservations file are imported: a payload kept before the upgrade is not forgotten (upgrade-reservations)
+✖ M3 (d) an expiry answer without an integer context slot is not proof: false (no context) (i3-nocontext)
+✖ M3 (d) an expiry answer without an integer context slot is not proof: { value: false } (no context) (i3-nocontext)
+✔ M3 (d) an expiry answer without an integer context slot is not proof: { context: { slot: "200" }, value: false } (i3-nocontext)
+✖ M4 (a) a second filer's grant_tx never enters the record of a receipt-equivocation verdict (l2-eq-http)
+✖ M4 (b) a legacy row (stored before L2, no verdict_id column value) shows its computed id on /v/:tx, the one /dispute returns; the id hashes grant_tx null
+✖ M4 (c) a third party recomputes verdict_id from a response alone: fresh, duplicate, /v/:tx and every replaced entry
+✖ M4 (d) two services on one store: a replaced[] entry pairs a verdict with its own id, and an id a response returned is kept in the record (l2-two-instances)
+✖ M5 (a) supersession scans run at most a small number at a time, whatever the number of grants (r4)
+✖ M5 (a) a queued scan waits its turn; a full queue answers busy, and the gate turns busy into 503 (not 403)
+✖ M5 (a) the gate answers 503 with Retry-After at once for a check that finds no scan slot (not 403), while the running scan completes
+✖ M5 (a) an active check stops at the first superseding signature it finds
+✖ M5 (b) the grant cache is bounded and a grant_mismatch is not cached per mandate id (r8)
+✖ M5 (c) an unknown grant_tx costs one read inside a request, and an immediate repeat none (r11)
+✖ M5 (d) the budget timer is cleared when the check rejects, and a budget outside 1..2^31-1 refuses to start (r5, r12)
+✖ M5 (e) observe mode on a cold check still runs the scope checks and marks the check as pending (r6)
+✖ M6 the defaults: the public endpoints are paced from the measurement, any other endpoint starts fast, and { rate, burst } is configurable
+✖ M6 a paced read of 60 transactions through the measured limiter is never rejected, and takes about 60 / 0.8 s
+✔ M6 the same read without pacing (the batch reader of 1.6, rate and burst of 25) is rejected, waits out the blocks, and takes longer
+✖ M6 a batch is never larger than the burst
+✖ M6 a rate-limited answer empties the bucket and halves the rate; successes raise it back slowly; a rejected element is never retried at once
+✔ M6 fail-closed rules are unchanged under pacing: an errored element throws, a null element stays null
+✖ M6 one block is one halving: rejections that arrive while the same block lasts empty the bucket but do not halve the rate again
+✔ M7 usdc(): a missing account is 0, a rate limit or any other error throws, a malformed answer throws (s16-usdc)
+✖ M8 a 503 is retried only when Retry-After is whole seconds or a future HTTP-date; otherwise the paid request is sent once (retry-after)
+✖ M8 the reservations file is fsynced, then its directory after the rename (fsync-trace)
+ℹ tests 46
+ℹ pass 7
+ℹ fail 39
+ℹ cancelled 0
+ℹ skipped 0
+✖ failing tests:

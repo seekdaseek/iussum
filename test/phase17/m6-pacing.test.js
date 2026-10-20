@@ -28,13 +28,13 @@ function node({ quota = 10, windowMs = 10_000, blockMs = 18_000 } = {}) {
     return new Response(JSON.stringify(arr ? res : res[0]), { status: 200 });
   };
   const rpc = (extra = {}) => makeRpc('https://api.example.test', { fetchImpl, retries: 3, stallMs: 600_000, sleep: async (ms) => { clock.t += ms; }, now: () => clock.t, ...extra });
-  return { clock, st, rpc };
+  return { clock, st, rpc, fetchImpl };
 }
 
 test('M6 the defaults: the public endpoints are paced from the measurement, any other endpoint starts fast, and { rate, burst } is configurable', () => {
   const pub = makeRpc('https://api.devnet.solana.com').pacing();
-  assert.deepEqual([pub.rate, pub.burst], [0.8, 2]);
-  assert.deepEqual([makeRpc('https://api.mainnet-beta.solana.com').pacing().rate, makeRpc('https://api.mainnet-beta.solana.com').pacing().burst], [0.8, 2]);
+  assert.deepEqual([pub.rate, pub.burst], [0.6, 2]);
+  assert.deepEqual([makeRpc('https://api.mainnet-beta.solana.com').pacing().rate, makeRpc('https://api.mainnet-beta.solana.com').pacing().burst], [0.6, 2]);
   const other = makeRpc('https://rpc.example.test/?key=SECRET').pacing();
   assert.ok(other.rate >= 10 && other.burst >= 10, JSON.stringify(other));
   const cfg = makeRpc('https://api.devnet.solana.com', { rate: 0.5, burst: 4 }).pacing();
@@ -86,4 +86,15 @@ test('M6 fail-closed rules are unchanged under pacing: an errored element throws
   const fetchImpl = async (_u, o) => { const body = JSON.parse(o.body); return new Response(JSON.stringify(body.map((b, i) => (i === 1 ? { jsonrpc: '2.0', id: b.id, error: { code: -32000, message: 'boom' } } : { jsonrpc: '2.0', id: b.id, result: tx(b.params[0]) }))), { status: 200 }); };
   const rpc = makeRpc('http://x', { fetchImpl, rate: 50, burst: 50, sleep: async (ms) => { clock.t += ms; }, now: () => clock.t });
   await assert.rejects(() => rpc.getTransactions(sigs(3), { nullRetries: 0 }), /boom/);
+});
+
+test('M6 one block is one halving: rejections that arrive while the same block lasts empty the bucket but do not halve the rate again', async () => {
+  // a node stricter than the paced rate, so the reader is rejected once: 5 per 10 s window, and an 18 s block after the first rejection (the measured length)
+  const n = node({ quota: 5, windowMs: 10_000, blockMs: 18_000 });
+  const samples = [];
+  const rpc = makeRpc('https://api.example.test', { fetchImpl: async (u, o) => { samples.push(rpc.pacing().rate); return n.fetchImpl(u, o); }, retries: 3, stallMs: 600_000, sleep: async (ms) => { n.clock.t += ms; }, now: () => n.clock.t, rate: 0.8, burst: 2 });
+  await rpc.getTransactions(sigs(10), { nullRetries: 0 });
+  assert.ok(n.st.rejected > 0);
+  const minRate = Math.min(...samples);
+  assert.ok(minRate >= 0.4 - 1e-9, `the rate fell to ${minRate}/s: every rejection of one block halved it again`);
 });
