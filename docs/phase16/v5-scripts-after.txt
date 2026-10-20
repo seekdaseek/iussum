@@ -1,0 +1,25 @@
+### v5-lock.mjs
+L0 control: simultaneous start, no interleaving
+  A: refused: another agent holds the data directory /Volumes/D/iussum/review-20261020e/v5-dat; pid 44253
+  B: started (holds the lock); pid 44254
+  data directory holds 1 .lock.db file(s)
+L1 stale lock, both read the dead pid, A then B
+  A: started (holds the lock); pid 44266
+  B: refused: another agent holds the data directory /Volumes/D/iussum/review-20261020e/v5-dat; pid 44267
+  data directory holds 1 .lock.db file(s)
+L2 no prior lock, B starts while A is between create and pid write
+  A: refused: another agent holds the data directory /Volumes/D/iussum/review-20261020e/v5-dat; pid 44271
+  B: started (holds the lock); pid 44272
+  data directory holds 1 .lock.db file(s)
+### v5-lock-l2.mjs
+  A: refused: another agent holds the data directory /Volumes/D/iussum/review-20261020e/v5-dat; pid 44287
+  B: started (holds the lock); pid 44288
+  lock files in the data directory: 1 (the kernel holds the lock; no pid file)
+### v5-agent.mjs
+P1 lock file holds our own pid 44295: started
+P2 agent pid 44296 stopped with SIGTERM: a new agent on the same data directory: started (holds the lock); pid 44298
+R file intact (control): restart without close(): refused (lock); with close(): next payment period_over_budget; file left as it was: true
+R file missing: restart without close(): refused (lock); with close(): next payment 200; file left as it was: false
+R file empty (0 bytes): restart without close(): refused (lock); with close(): next payment history_incomplete; file left as it was: true
+R file truncated to half: restart without close(): refused (lock); with close(): next payment history_incomplete; file left as it was: true
+R file replaced by {}: restart without close(): refused (lock); with close(): next payment history_incomplete; file left as it was: true

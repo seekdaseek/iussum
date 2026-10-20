@@ -44,11 +44,14 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch } = {}) {
       const chunks = []; for (let i = 0; i < todo.length; i += batchSize) chunks.push(todo.slice(i, i + batchSize));
       // A rate-limited ELEMENT ("Too many requests for a specific RPC call", as the public devnet node answers inside a batch) is retried on its own with backoff while
       // the elements that succeeded are kept; a whole batch that gets HTTP 429 / 5xx is retried; any other errored element throws (fail closed).
-      const rounds = Math.max(retries, 30), RATE = /rate|limit|too many|429/i;
+      // Patience is measured in rounds WITHOUT PROGRESS: a round in which at least one element was answered resets the count, so a long read through a
+      // rate-limited node keeps going as long as the node keeps answering some elements, and gives up after `maxStall` rounds of nothing (fail closed).
+      const maxStall = Math.max(retries, 12), RATE = /rate|limit|too many|429/i;
       async function batch(idx) {
         const results = new Array(idx.length).fill(undefined);
-        let pending = idx.map((_, k) => k);
-        for (let round = 0; ; round++) {
+        let pending = idx.map((_, k) => k), stall = 0;
+        for (;;) {
+          const before = pending.length;
           try {
             const body = pending.map((k) => ({ jsonrpc: '2.0', id: ++id, method: 'getTransaction', params: [sigs[idx[k]], cfg] }));
             const r = await fetchImpl(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -65,11 +68,14 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch } = {}) {
             });
             if (!still.length) return results;
             pending = still;
-            throw Object.assign(new Error('getTransaction: rate limited'), { retry: true });
+            stall = still.length < before ? 0 : stall + 1;
+            if (stall > maxStall) throw new Error('getTransaction: rate limited, no progress');
+            await new Promise((res) => setTimeout(res, Math.min(5000, 400 * 2 ** Math.min(stall, 4)) * (0.75 + Math.random() / 2)));
           } catch (e) {
             if (e.whole && !e.retry) { const one = []; for (const i of idx) one.push(await rpcObj.getTransaction(sigs[i], { minContextSlot })); return one; } // a node that refuses batches: one by one
-            if (round >= rounds || !(e.retry || e.name === 'TypeError')) throw e;
-            await new Promise((res) => setTimeout(res, Math.min(5000, 400 * 2 ** Math.min(round, 4)) * (0.75 + Math.random() / 2)));
+            stall++;
+            if (stall > maxStall || !(e.retry || e.name === 'TypeError')) throw e;
+            await new Promise((res) => setTimeout(res, Math.min(5000, 400 * 2 ** Math.min(stall, 4)) * (0.75 + Math.random() / 2)));
           }
         }
       }
