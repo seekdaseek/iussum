@@ -123,3 +123,19 @@ test('M2 a start the caller abandons through cfg.signal releases the lock at onc
   const again = await start7(dataDir, rpc7()); // and its lock was released at once
   await again.close(); fs.rmSync(dataDir, { recursive: true, force: true });
 });
+
+test('M2 a closed agent sends no request at all, not even the unpaid first one (the top-level refusal in fetch)', async () => {
+  const facilitator = await startMockFacilitator();
+  const seller = await startSeller({ facilitator, mode: 'off', now: () => NOW, price: '100' });
+  const s = await newScenario(seller, { mandate: { period_budget: '100000', per_payment_max: '1000' } });
+  let sent = 0;
+  globalThis.fetch = async (req) => { sent++; return realFetch(req); };
+  const a = await createAgent({ mandate: s.mandate, grant_tx: s.grant_tx, signer: s.signer, rpc: seller.rpc, getBlockhash: blockhash, now: () => NOW });
+  globalThis.fetch = realFetch;
+  assert.equal(await out(a.fetch(seller.url)), 200);
+  const before = sent;
+  await a.close();
+  await assert.rejects(() => a.fetch(seller.url), /closed/);
+  assert.equal(sent, before, 'close() was followed by no request');
+  facilitator.close(); seller.close();
+});

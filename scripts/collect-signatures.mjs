@@ -8,9 +8,9 @@ const rows = [];
 for (const f of fs.readdirSync(DIR).filter((x) => /^run-\d+\.txt$/.test(x)).sort()) {
   let scenario = '';
   for (const line of fs.readFileSync(`${DIR}/${f}`, 'utf8').split('\n')) {
-    const h = /^=== Scenario (\d+)\./.exec(line); if (h) scenario = h[1];
+    const h = /^=== Scenario (\d+b?)\./.exec(line); if (h) scenario = h[1];
     if (/^\s+PASS|^\s+FAIL/.test(line) && !/refund|payment|grant/i.test(line)) continue;
-    const kind = /grant \(/.test(line) ? 'grant' : /Revoke/.test(line) ? 'revoke' : /refund tx|refund_tx/.test(line) ? 'refund' : /plain Transfer/.test(line) ? 'plain-transfer' : /payment tx|payment 1 |payment 2 |settled transactions|next payment |landed: /.test(line) ? 'payment' : null;
+    const kind = /submitted with skipPreflight/.test(line) ? 'failed-on-chain (expected)' : /grant \(/.test(line) ? 'grant' : /Revoke/.test(line) ? 'revoke' : /refund tx|refund_tx/.test(line) ? 'refund' : /plain Transfer/.test(line) ? 'plain-transfer' : /payment tx|payment 1 |payment 2 |settled transactions|next payment |landed: /.test(line) ? 'payment' : null;
     if (!kind) continue;
     for (const s of line.match(SIG) ?? []) if (!rows.some((r) => r.sig === s)) rows.push({ run: f.replace(/\D/g, ''), scenario, kind, sig: s });
   }
@@ -21,7 +21,9 @@ for (let i = 0; i < rows.length; i += 100) {
   const vals = (await rpc.call('getSignatureStatuses', [chunk.map((r) => r.sig), { searchTransactionHistory: true }])).value;
   chunk.forEach((r, j) => { const v = vals[j]; out.push({ ...r, status: v ? `${v.confirmationStatus}${v.err ? ' ERR ' + JSON.stringify(v.err) : ''}` : 'not found' }); });
 }
-const md = `# Devnet signatures printed by the five demo runs\n\nChecked with getSignatureStatuses on devnet. ${out.length} signatures. A payment that a seller refused (403) or a facilitator failed (402) has no signature and does not appear.\n\n| run | scenario | kind | status | signature |\n|---|---|---|---|---|\n${out.map((r) => `| ${r.run} | ${r.scenario} | ${r.kind} | ${r.status} | \`${r.sig}\` |`).join('\n')}\n`;
+const md = `# Devnet signatures printed by the five demo runs\n\nChecked with getSignatureStatuses on devnet. ${out.length} signatures. The rows of kind failed-on-chain (expected) are the scenario 16b transactions: they LANDED on chain and failed with the token program's InsufficientFunds (custom error 1), which is the point; every other row succeeded. A payment that a seller refused (403) or a facilitator failed (402) has no signature and does not appear.\n\n| run | scenario | kind | status | signature |\n|---|---|---|---|---|\n${out.map((r) => `| ${r.run} | ${r.scenario} | ${r.kind} | ${r.status} | \`${r.sig}\` |`).join('\n')}\n`;
 fs.writeFileSync(`${DIR}/signatures.md`, md);
-console.log(`${out.length} signatures; not finalized/confirmed: ${out.filter((r) => !/confirmed|finalized/.test(r.status) || /ERR/.test(r.status)).length}`);
+// every signature is confirmed or finalized and succeeded, except the transactions that scenario 16b submits to FAIL on chain: those must have failed with the token program's InsufficientFunds
+const bad = (r) => (r.kind === 'failed-on-chain (expected)' ? !/finalized|confirmed/.test(r.status) || !/ERR.*"Custom":1/.test(r.status) : !/confirmed|finalized/.test(r.status) || /ERR/.test(r.status));
+console.log(`${out.length} signatures; not finalized/confirmed or failing where they must not: ${out.filter(bad).length}`);
 console.log([...new Set(out.map((r) => r.kind))].map((k) => `${k}:${out.filter((r) => r.kind === k).length}`).join(' '));
