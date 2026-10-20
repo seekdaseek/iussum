@@ -13,7 +13,7 @@ Baseline for every regression test below: **`73fd95a`**, the public HEAD the thi
 | the new regression tests | `test/phase14`: 15 at the time of the baseline run, **12 fail and 3 pass on `73fd95a`** (the 3 are controls and guards: "the node says the blockhash is valid", "a restarted agent releases a proven-expired reservation", "an ordinary mint is accepted"): [docs/phase14/regression-on-73fd95a.txt](docs/phase14/regression-on-73fd95a.txt); a 16th test was added later; all pass after the fixes |
 | property test | passes on the fixed code in about 22 s; the same file **fails on `73fd95a`** (I1, I4 at seed 21: 70000 settled against a budget of 50000, I5 at seed 1: three different receipts for one transaction): [docs/phase14/property-on-73fd95a.txt](docs/phase14/property-on-73fd95a.txt) |
 | five clean devnet runs | `demo-runs-1.4/run-1.txt` to `run-5.txt`, each `63/63 checks passed`, exit code 0; 160 signatures, every one checked with `getSignatureStatuses` (160 finalized): [demo-runs-1.4/signatures.md](demo-runs-1.4/signatures.md) |
-| fresh clone of the final pushed HEAD | see the last section |
+| fresh clone of the final pushed HEAD | `npm ci && npm test` on a clone of `12668bb` (the pushed HEAD that carries everything else in this report): **348 tests, 348 pass, 0 fail, 0 skipped**; no private file in the tree or in any commit; all 36 commits authored and committed by `seekdaseek <ochinimus@gmail.com>`; no Co-Authored-By or Claude-Session line. The one commit after it only fills in this line; a second clone of that final HEAD was tested the same way (result in the closing message and the local log) |
 | sensitive scan over the new commits | the Addendum D patterns plus the device serial, positive controls first, over every commit since `73fd95a`: nothing new; the only hits are the environment-file ignore line in `.gitignore` and the provider name in `vendor/nuntius-mandate` (unchanged). The pattern list is not written into any tracked file |
 | relative links in tracked `.md` | all resolve to tracked files |
 
@@ -207,7 +207,3 @@ What the generators now produce, and where it shows in the numbers:
 - A wSOL account on chain: refused by `validateMandate`, so there is nothing to run.
 - The Seeker-signed grant through the iussum app (Phase 2), third-party sellers that adopt the middleware, anything on mainnet; a Token-2022 grant on chain (vector only); the period budget is still not enforced on chain.
 - Two leftovers disclosed earlier stay in the public history by decision (removing them would change every hash, including the baseline commits the reports cite): the treasury-address prefix in two commits of `REPORT-phase1.2.md`, and one line about a payout-documentation check in older versions of the Phase 0 and 1 reports.
-
-## Fresh clone
-
-(Filled in by the closing commit.)
