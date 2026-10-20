@@ -19,7 +19,7 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000,
   const bucket = { tokens: capacity, rate: maxRate, t: now() };
   const refill = () => { const t = now(); bucket.tokens = Math.min(capacity, bucket.tokens + ((t - bucket.t) / 1000) * bucket.rate); bucket.t = t; };
   async function take(n = 1) {
-    if (!fails('rpc.pace', true)) return;
+    if (!fails('rpc.pace', true)) { await sleep(1); return; } // a skipped check still yields a millisecond, so a fake clock advances and a mutated run cannot spin
     const need = Math.min(n, capacity);
     for (;;) {
       refill();
