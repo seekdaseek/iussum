@@ -1,0 +1,18 @@
+H5 on devnet, rpc https://api.devnet.solana.com
+throw-away principal Hz5hz3LBiKDu9dXu8fcG7yLXuGucmH6tfb7FxUYNNLGC
+grant (dedicated principal): 358HUopkMtgMRWZyNX5EGASApqBM34vADuGSeRRTqPJfqfCgdZR2aDTDereY5MLVZCsMASiCm3PD2oGXysBqrGsx
+mandate id f1464e9dc3b3690d9ede85bc344550d4520e2b96d50066c1fb3444569923927d
+  50 dust credits sent (143 s)
+  100 dust credits sent (294 s)
+  150 dust credits sent (453 s)
+  200 dust credits sent (604 s)
+  250 dust credits sent (752 s)
+250 dust credits of 1 base unit into HUKEm4vtpMKZtZWZtn6TtqSsuo5UkVZtPDMk9zGjLaxg; signatures in demo-runs-1.5/h5-dust-signatures.txt (250 distinct)
+the seller gate's first grant check (reads the history since the grant): ok true, 3 signature pages, 674 getTransaction calls, 678 RPC calls, 626.3 s
+the agent's first read at start (250 dust credits in the account): 6 signature pages, 673 transactions fetched, 680 RPC calls, 637.4 s
+agent payment 1: 3s2Nv2Ez72sEnQrBrCtQJuujFL4vdKC3qga34SGNf2FeyN9uv4oTyY5gi7EzhXpTAbvcLCL7wqgc1mveC3YAmaM6
+agent payment 2: LtkpkGveWg5FdQHecVG7tVqQwGR6Zs74oww5sbUo1MdkNFvR8TWZq45vFZZ3cpFuAEkHfY9MZejM3MzJVciD4N6
+agent payment 3: k64YyT449AAerwbeZx6uFzHvUkA2k8gTZx1FrSWzZSPKD3Moy2bnxKqT5wixYTq8esY16BuNKNf1pYeQVWdYFwU
+dispute 1 (first read of the whole history since the grant): verdict invalid/in_scope/principal | pages (getSignaturesForAddress) 6 | transactions fetched (getTransaction) 695 | RPC calls 702 | wall time 630.1 s
+dispute 2 (a different payment, the checkpoint is used): verdict invalid/in_scope/principal | pages (getSignaturesForAddress) 2 | transactions fetched (getTransaction) 0 | RPC calls 3 | wall time 1.3 s
+both disputes decided (not history_incomplete): YES

@@ -306,7 +306,9 @@ async function s14() {
       try { settled = await agent.fetch(sellers.A.url('mid')); break; } catch (e) { if (e.reason !== 'period_over_budget') throw e; }
     }
     const wall = ((Date.now() - t0) / 1000).toFixed(1);
-    step(`2. the release rule fired after ${wall} s and ${polls} polls: isBlockhashValid ${last.valid} (node slot ${last.slot}), block height ${last.height} > last valid ${res.lastValid}`);
+    const after = await probe().catch(() => last);
+    step(`2. the release rule fired after ${wall} s and ${polls} polls. Last poll before it (up to 5 s older than the agent's own check): isBlockhashValid ${last.valid} (node slot ${last.slot}), block height ${last.height}. Probe right after the release: isBlockhashValid ${after.valid} (node slot ${after.slot}), block height ${after.height}, last valid ${res.lastValid}`);
+    expect('2. right after the release the node says the blockhash is invalid and the height is past lastValidBlockHeight', [after.valid, after.height > Number(res.lastValid)], [false, true]);
     expect('2. the agent\'s own release rule fired within 3 minutes', settled !== null, true);
     expect('3. the next payment then settles', settled?.status, 200);
     step(`next payment ${settled?.receipt?.tx_sig}; reservation states ${agent.reservations.map((r) => r.state).join(',')}`);
