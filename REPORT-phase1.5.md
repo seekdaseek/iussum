@@ -38,7 +38,7 @@ The seller keeps the agent's signed payload and answers 502. Every run: (1) the 
 | 4 | 513056805 | 500267441 | 500267291 | 44.2 s | 7 | invalid, node slot 513056993, height 500267479 |
 | 5 | 513057703 | 500268336 | 500268186 | 44.1 s | 7 | invalid, node slot 513057891, height 500268370 |
 
-The lifetime is 150 blocks, and the release fired 38 to 45 s after the payload was created (the wall time is measured from the first poll after the refusal, polling every 5 s). The poll before the release is logged in each run output; in runs 2 and 3 it still showed "valid" at the very last block (height 500265661 and 500266563 against the last valid heights 500265660 and 500266563), which is the point of the rule: the agent releases only when the node says the blockhash is invalid AND the height is past the last valid one.
+The lifetime is 150 blocks, and the release fired 38 to 45 s after the polling began (it starts right after the refusal and polls every 5 s). The poll before the release is logged in each run output. In runs 2 and 3 that last poll showed the block height at or one block past the last valid height (500265661 against 500265660, and 500266563 against 500266563) while the node still answered "valid": `getBlockHeight` and `isBlockhashValid` are not in step on the node, which is why the rule needs both to say so.
 
 ### H4, scenario 15: restart with a data directory
 
