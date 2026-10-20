@@ -12,26 +12,32 @@ export function openStore(path = ':memory:') {
   const putCp = db.prepare('INSERT INTO checkpoints (key, json, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET json = excluded.json, updated_at = excluded.updated_at');
   const get = db.prepare('SELECT * FROM verdicts WHERE tx_sig = ?');
   const put = db.prepare('INSERT OR IGNORE INTO verdicts (tx_sig, mandate_sha, receipt_sha, verdict, refund_tx, created_at, provisional, replaced, receipt_json, grant_tx, verdict_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-  const replace = db.prepare('UPDATE verdicts SET mandate_sha = ?, receipt_sha = ?, verdict = ?, created_at = ?, provisional = 0, replaced = ?, receipt_json = ?, grant_tx = ?, verdict_id = ? WHERE tx_sig = ? AND provisional = 1');
-  const replaceAny = db.prepare('UPDATE verdicts SET mandate_sha = ?, receipt_sha = ?, verdict = ?, created_at = ?, provisional = 0, replaced = ?, receipt_json = ?, grant_tx = ?, verdict_id = ? WHERE tx_sig = ?');
+  const replace = db.prepare('UPDATE verdicts SET mandate_sha = ?, receipt_sha = ?, verdict = ?, created_at = ?, provisional = 0, replaced = ?, receipt_json = ?, grant_tx = ?, verdict_id = ? WHERE tx_sig = ? AND provisional = 1 AND created_at = ? AND verdict = ?');
+  const replaceAny = db.prepare('UPDATE verdicts SET mandate_sha = ?, receipt_sha = ?, verdict = ?, created_at = ?, provisional = 0, replaced = ?, receipt_json = ?, grant_tx = ?, verdict_id = ? WHERE tx_sig = ? AND created_at = ? AND verdict = ?');
   const setRefund = db.prepare('UPDATE verdicts SET refund_tx = ?, refund_pending = NULL WHERE tx_sig = ? AND refund_tx IS NULL');
   const setPending = db.prepare('UPDATE verdicts SET refund_pending = ?, refund_pending_at = ? WHERE tx_sig = ? AND refund_tx IS NULL');
+  const rowOf = (r) => ({ ...r, verdict: JSON.parse(r.verdict), provisional: r.provisional === 1, replaced: r.replaced ? JSON.parse(r.replaced) : [] });
   return {
     get(tx) { const r = get.get(tx); return r ? { ...r, verdict: JSON.parse(r.verdict), provisional: r.provisional === 1, replaced: r.replaced ? JSON.parse(r.replaced) : [] } : null; },
     put(tx, { mandate_sha, receipt_sha, verdict, refund_tx = null, now, provisional = false, receipt = null, grant_tx = null, verdict_id = null }) { return put.run(tx, mandate_sha, receipt_sha, JSON.stringify(verdict), refund_tx, now, provisional ? 1 : 0, null, receipt ? JSON.stringify(receipt) : null, grant_tx, verdict_id).changes === 1; },
-    // a provisional verdict is replaced by one decided with a verifying receipt; the replaced verdict stays in the record (replaced column)
-    replaceProvisional(tx, { mandate_sha, receipt_sha, verdict, now, receipt = null, grant_tx = null, verdict_id = null, replaced_verdict_id = null }) {
+    // A provisional verdict is replaced by one decided with a verifying receipt; the replaced verdict stays in the record (replaced column) with the id and the
+    // grant_tx and provisional flag its record hashed. Both replacements are compare-and-swap on the row the caller READ (`expect`: its created_at and verdict): a row
+    // that changed meanwhile (another service on the same store) is not replaced, and the caller answers from the row that is there (Addendum M, M4 d).
+    // `idOfOld(row)` computes the id of the row read INSIDE this call, so the kept id always pairs with the verdict it sits beside.
+    replaceProvisional(tx, { mandate_sha, receipt_sha, verdict, now, receipt = null, grant_tx = null, verdict_id = null, expect = null, idOfOld = () => null }) {
       const old = get.get(tx);
       if (!old || old.provisional !== 1) return false;
-      const history = [...(old.replaced ? JSON.parse(old.replaced) : []), { verdict: JSON.parse(old.verdict), mandate_sha: old.mandate_sha, receipt_sha: old.receipt_sha, decided_at: old.created_at, verdict_id: replaced_verdict_id }];
-      return replace.run(mandate_sha, receipt_sha, JSON.stringify(verdict), now, JSON.stringify(history), receipt ? JSON.stringify(receipt) : null, grant_tx, verdict_id, tx).changes === 1;
+      if (expect && (old.created_at !== expect.created_at || old.verdict !== JSON.stringify(expect.verdict))) return false;
+      const history = [...(old.replaced ? JSON.parse(old.replaced) : []), { verdict: JSON.parse(old.verdict), mandate_sha: old.mandate_sha, receipt_sha: old.receipt_sha, decided_at: old.created_at, grant_tx: old.grant_tx ?? null, provisional: true, verdict_id: idOfOld(rowOf(old)) }];
+      return replace.run(mandate_sha, receipt_sha, JSON.stringify(verdict), now, JSON.stringify(history), receipt ? JSON.stringify(receipt) : null, grant_tx, verdict_id, tx, old.created_at, old.verdict).changes === 1;
     },
     // receipt equivocation replaces whatever is stored, provisional or final; the replaced verdict stays in the record and the refund columns are kept
-    replaceAny(tx, { mandate_sha, receipt_sha, verdict, now, receipt, grant_tx = null, verdict_id = null, replaced_verdict_id = null }) {
+    replaceAny(tx, { mandate_sha, receipt_sha, verdict, now, receipt, grant_tx = null, verdict_id = null, expect = null, idOfOld = () => null }) {
       const old = get.get(tx);
       if (!old) return false;
-      const history = [...(old.replaced ? JSON.parse(old.replaced) : []), { verdict: JSON.parse(old.verdict), mandate_sha: old.mandate_sha, receipt_sha: old.receipt_sha, decided_at: old.created_at, verdict_id: replaced_verdict_id }];
-      return replaceAny.run(mandate_sha, receipt_sha, JSON.stringify(verdict), now, JSON.stringify(history), JSON.stringify(receipt), grant_tx, verdict_id, tx).changes === 1;
+      if (expect && (old.created_at !== expect.created_at || old.verdict !== JSON.stringify(expect.verdict))) return false;
+      const history = [...(old.replaced ? JSON.parse(old.replaced) : []), { verdict: JSON.parse(old.verdict), mandate_sha: old.mandate_sha, receipt_sha: old.receipt_sha, decided_at: old.created_at, grant_tx: old.grant_tx ?? null, provisional: old.provisional === 1, verdict_id: idOfOld(rowOf(old)) }];
+      return replaceAny.run(mandate_sha, receipt_sha, JSON.stringify(verdict), now, JSON.stringify(history), JSON.stringify(receipt), grant_tx, verdict_id, tx, old.created_at, old.verdict).changes === 1;
     },
     setRefund(tx, sig) { return setRefund.run(sig, tx).changes === 1; },
     setPending(tx, sig, at) { setPending.run(sig, at, tx); },

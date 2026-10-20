@@ -1,10 +1,13 @@
 import express from 'express';
+import { canonicalize } from '@iussum/core';
+import { rowId, rowRecordOut } from './service.js';
 export function createResolverApp(service) {
   const app = express();
   app.use(express.json({ limit: '200kb' }));
   app.post('/dispute', async (req, res) => {
     const b = req.body ?? {};
     if (typeof b.tx_sig !== 'string' || b.tx_sig.length < 80) return res.status(400).json({ error: 'tx_sig required' });
+    if (b.grant_tx != null && typeof b.grant_tx !== 'string') return res.status(400).json({ error: 'grant_tx must be a string or null' });
     try { res.json(await service.dispute({ tx_sig: b.tx_sig, mandate: b.mandate ?? null, grant_tx: b.grant_tx ?? null, receipt: b.receipt ?? null })); }
     catch (e) { res.status(502).json({ error: 'resolver_failed', message: e.message }); }
   });
@@ -14,7 +17,7 @@ export function createResolverApp(service) {
     if (!s) return res.status(404).send(`No verdict stored for ${req.params.tx}.\n`);
     const v = s.verdict;
     res.send([`iussum verdict for payment ${req.params.tx}`, '', `Dispute upheld: ${v.verdict === 'valid' ? 'yes' : 'no'}`, `Reason:         ${v.reason}`, `Liable:         ${v.liable}`,
-      `Status:         ${s.provisional ? 'provisional: decided without a seller receipt; a later dispute with a verifying receipt replaces it' : 'final'}`, `Mandate id:     ${v.mandate_id ?? '-'}`, `Verdict id:     ${s.verdict_id ?? '-'}`, `Time used:      ${v.time_source ?? '-'}`, '', 'What differs from what the person authorised:', ...(v.delta.length ? v.delta.map((d) => `  ${d.code ?? d.field}: authorised ${d.authorized}, actual ${d.actual}`) : ['  nothing']), '', `Refund transaction: ${s.refund_tx ?? 'none'}`, ...(s.replaced.length ? [`Replaced verdicts kept in the record: ${s.replaced.length}`] : []), ''].join('\n'));
+      `Status:         ${s.provisional ? 'provisional: decided without a seller receipt; a later dispute with a verifying receipt replaces it' : 'final'}`, `Mandate id:     ${v.mandate_id ?? '-'}`, `Verdict id:     ${rowId(s)}`, `Record:         ${canonicalize(rowRecordOut(s))}`, `Time used:      ${v.time_source ?? '-'}`, '', 'What differs from what the person authorised:', ...(v.delta.length ? v.delta.map((d) => `  ${d.code ?? d.field}: authorised ${d.authorized}, actual ${d.actual}`) : ['  nothing']), '', `Refund transaction: ${s.refund_tx ?? 'none'}`, ...(s.replaced.length ? [`Replaced verdicts kept in the record: ${s.replaced.length}`] : []), ''].join('\n'));
   });
   return app;
 }

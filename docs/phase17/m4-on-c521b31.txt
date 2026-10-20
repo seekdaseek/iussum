@@ -1,0 +1,6 @@
+ℹ fail 4
+ℹ pass 0
+✖ M4 (a) a second filer's grant_tx never enters the record of a receipt-equivocation verdict (l2-eq-http)
+✖ M4 (b) a legacy row (stored before L2, no verdict_id column value) shows its computed id on /v/:tx, the one /dispute returns; the id hashes grant_tx null
+✖ M4 (c) a third party recomputes verdict_id from a response alone: fresh, duplicate, /v/:tx and every replaced entry
+✖ M4 (d) two services on one store: a replaced[] entry pairs a verdict with its own id, and an id a response returned is kept in the record (l2-two-instances)

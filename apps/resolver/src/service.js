@@ -1,21 +1,24 @@
 // The resolver service: fetches the evidence, calls the pure resolve(), stores the decided verdict, and (demo simplification) pays the refund
 // from a refund-float wallet when the seller is liable. In production the seller would refund itself on a signed ruling; here the float
 // stands in for the seller's own refund key so the demo shows money actually moving back.
-import { resolve, verifyReceipt, parsePayment, agentSpendHistory, createGrantChecker, fillBlockIndices, validateMandate, mandateId, canonicalize, sha256Hex, verdictId, periodStart, R, fails, registerCheck } from '@iussum/core';
-export const RESOLVER_SERVICE_CHECKS = ['resolver.duplicate', 'resolver.refund_seller_only', 'resolver.refund_retry', 'resolver.refund_pending_guard', 'resolver.refund_decimals', 'resolver.provisional', 'resolver.provisional_needs_receipt', 'resolver.replace_binds_mandate', 'resolver.history_to_grant', 'resolver.equivocation', 'resolver.checkpoint', 'resolver.verdict_id_kept'].map(registerCheck);
+import { resolve, verifyReceipt, parsePayment, agentSpendHistory, createGrantChecker, fillBlockIndices, validateMandate, mandateId, canonicalize, sha256Hex, verdictId, verdictRecord, periodStart, R, fails, registerCheck } from '@iussum/core';
+export const RESOLVER_SERVICE_CHECKS = ['resolver.duplicate', 'resolver.refund_seller_only', 'resolver.refund_retry', 'resolver.refund_pending_guard', 'resolver.refund_decimals', 'resolver.provisional', 'resolver.provisional_needs_receipt', 'resolver.replace_binds_mandate', 'resolver.history_to_grant', 'resolver.equivocation', 'resolver.checkpoint', 'resolver.verdict_id_kept', 'resolver.record_out', 'resolver.eq_grant_stored', 'resolver.cas'].map(registerCheck);
 const sha = (x) => (x ? sha256Hex(canonicalize(x)) : null);
 // A rejected dispute (artifacts do not verify, evidence missing or incomplete, mandate mismatch or superseded) is not a decision about the
 // payment and may be resubmitted; a decided one is stored.
 const decided = (v) => v.liable !== null;
 // L2: the id of the record that is (or is about to be) stored for a verdict. A row from before verdict_id existed gets the same id computed on read.
 const idOf = (tx_sig, verdict, receipt_sha, grant_tx, provisional) => verdictId({ tx_sig, mandate_id: verdict.mandate_id, grant_tx, receipt_sha256: receipt_sha, verdict: verdict.verdict, reason: verdict.reason, liable: verdict.liable, delta: verdict.delta, unjudged: verdict.unjudged, provisional });
-const rowId = (s) => s.verdict_id ?? idOf(s.tx_sig, s.verdict, s.receipt_sha, s.grant_tx, s.provisional);
+const rowRecord = (s) => verdictRecord({ tx_sig: s.tx_sig, mandate_id: s.verdict.mandate_id, grant_tx: s.grant_tx, receipt_sha256: s.receipt_sha, verdict: s.verdict.verdict, reason: s.verdict.reason, liable: s.verdict.liable, delta: s.verdict.delta, unjudged: s.verdict.unjudged, provisional: s.provisional });
+export const rowId = (s) => s.verdict_id ?? idOf(s.tx_sig, s.verdict, s.receipt_sha, s.grant_tx, s.provisional); // a row stored before L2 has no id: it is computed from the row, and its grant_tx is null
+// what every response carries next to the id: the STORED record the id hashes, so an auditor can recompute the id from the response alone (Addendum M, M4 c)
+export const rowRecordOut = (s) => rowRecord(s);
 const PENDING_GRACE_S = 150; // a signed refund transaction may still land for about this long
 
 export function createResolver({ rpc, network, sellerKey, store, sendRefund = null, now = () => Math.floor(Date.now() / 1000), historyPageSize = 100, historyMaxPages = 1000 }) {
   const checker = createGrantChecker(rpc, { scanStore: { get: (k) => store.getCheckpoint(`scan|${k}`), put: (k, v) => store.putCheckpoint(`scan|${k}`, v, now()) } });
   const inflight = new Map();
-  const dup = (s, extra = {}) => ({ ...s.verdict, reason: R.duplicate_dispute, original_reason: s.verdict.reason, refund_tx: s.refund_tx, duplicate: true, provisional: s.provisional, verdict_id: rowId(s), ...extra });
+  const dup = (s, extra = {}) => ({ ...s.verdict, reason: R.duplicate_dispute, original_reason: s.verdict.reason, refund_tx: s.refund_tx, duplicate: true, provisional: s.provisional, verdict_id: rowId(s), record: fails('resolver.record_out', true) ? rowRecord(s) : undefined, ...extra });
 
   // Pay the refund for a stored seller-liable verdict exactly once. Safe to call again after a failure: a signed-but-unconfirmed attempt is
   // looked up on chain first, and only resent once it can no longer land.
@@ -86,9 +89,11 @@ export function createResolver({ rpc, network, sellerKey, store, sendRefund = nu
       const payment = parsePayment(await rpc.getTransaction(tx_sig));
       if (!payment.found || payment.err) return { verdict: 'invalid', tier: 1, reason: R.tx_not_found, delta: [{ field: 'tx_sig', authorized: 'a successful transaction', actual: 'not found' }], liable: null, time_source: null };
       const verdict = { verdict: 'valid', tier: 1, reason: R.receipt_equivocation, liable: 'seller', time_source: null, mandate_id: stored.verdict.mandate_id ?? null, delta: [{ code: R.receipt_equivocation, field: 'receipt', authorized: 'one receipt per settlement', actual: `two different receipts signed by ${receipt.seller} for ${tx_sig}: ${bodyHash(prevReceipt).slice(0, 16)}… and ${bodyHash(receipt).slice(0, 16)}…` }] };
-      const verdict_id = idOf(tx_sig, verdict, sha(receipt), bundle.grant_tx ?? null, false);
-      if (!store.replaceAny(tx_sig, { mandate_sha: sha(bundle.mandate), receipt_sha: sha(receipt), verdict, now: now(), receipt, grant_tx: bundle.grant_tx ?? null, verdict_id, replaced_verdict_id: fails('resolver.verdict_id_kept', true) ? rowId(stored) : null })) return dup(store.get(tx_sig));
-      const flags = { provisional: false, replaced: store.get(tx_sig).replaced, verdict_id };
+      // the second filer's grant_tx was never checked against this record: the verified one stays (Addendum M, M4 a)
+      const grant_tx = fails('resolver.eq_grant_stored', true) ? stored.grant_tx ?? null : bundle.grant_tx ?? null;
+      const verdict_id = idOf(tx_sig, verdict, sha(receipt), grant_tx, false);
+      if (!store.replaceAny(tx_sig, { mandate_sha: sha(bundle.mandate), receipt_sha: sha(receipt), verdict, now: now(), receipt, grant_tx, verdict_id, expect: fails('resolver.cas', true) ? stored : null, idOfOld: fails('resolver.verdict_id_kept', true) ? rowId : () => null })) return dup(store.get(tx_sig));
+      const flags = { provisional: false, replaced: store.get(tx_sig).replaced, verdict_id, record: fails('resolver.record_out', true) ? rowRecord(store.get(tx_sig)) : undefined };
       if (sendRefund) { try { return { ...verdict, ...flags, ...(await payRefund(tx_sig, payment)) }; } catch (e) { return { ...verdict, ...flags, refund_tx: null, refund_error: e.message }; } }
       return { ...verdict, ...flags, refund_tx: null };
     }
@@ -110,15 +115,17 @@ export function createResolver({ rpc, network, sellerKey, store, sendRefund = nu
     const verdict = resolve(g.e);
     // decide, reserve the tx_sig in the store FIRST, and only the request that reserved it may pay a refund
     if (decided(verdict)) {
-      const entry = { mandate_sha: sha(mandate), receipt_sha: sha(receipt), verdict, refund_tx: null, now: now(), provisional: !receipt, receipt, grant_tx: bundle.grant_tx ?? null, verdict_id: idOf(tx_sig, verdict, sha(receipt), bundle.grant_tx ?? null, !receipt) };
+      // only a grant_tx that was checked against the mandate enters the record (Addendum M, M4 a)
+      const grant_tx = g.e?.grant?.ok ? bundle.grant_tx : null;
+      const entry = { mandate_sha: sha(mandate), receipt_sha: sha(receipt), verdict, refund_tx: null, now: now(), provisional: !receipt, receipt, grant_tx, verdict_id: idOf(tx_sig, verdict, sha(receipt), grant_tx, !receipt) };
       if (replacing) {
         // only a verdict decided with a receipt that verifies and binds THIS mandate replaces the provisional one
         if (fails('resolver.replace_binds_mandate', !receipt || receipt.mandate_id !== verdict.mandate_id)) return dup(stored);
-        if (!store.replaceProvisional(tx_sig, { ...entry, replaced_verdict_id: fails('resolver.verdict_id_kept', true) ? rowId(stored) : null })) return dup(store.get(tx_sig));
+        if (!store.replaceProvisional(tx_sig, { ...entry, expect: fails('resolver.cas', true) ? stored : null, idOfOld: fails('resolver.verdict_id_kept', true) ? rowId : () => null })) return dup(store.get(tx_sig));
       } else if (!store.put(tx_sig, entry)) return dup(store.get(tx_sig));
     } else if (replacing) return dup(stored, { rejected_evidence: { reason: verdict.reason, delta: verdict.delta } }); // the new evidence does not verify: the stored verdict stays
     const kept = replacing ? store.get(tx_sig) : null;
-    const flags = decided(verdict) ? { provisional: !receipt, verdict_id: store.get(tx_sig).verdict_id, ...(kept ? { replaced: kept.replaced } : {}) } : {};
+    const flags = decided(verdict) ? { provisional: !receipt, verdict_id: store.get(tx_sig).verdict_id, record: fails('resolver.record_out', true) ? rowRecord(store.get(tx_sig)) : undefined, ...(kept ? { replaced: kept.replaced } : {}) } : {};
     if (verdict.verdict === 'valid' && fails('resolver.refund_seller_only', verdict.liable === 'seller') && sendRefund) {
       try { return { ...verdict, ...flags, ...(await payRefund(tx_sig, payment)) }; }
       catch (e) { return { ...verdict, ...flags, refund_tx: null, refund_error: e.message }; }
