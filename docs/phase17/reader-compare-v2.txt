@@ -1,0 +1,12 @@
+reader comparison, host api.devnet.solana.com (public), source H9w4NsSrmFHrGsrU8G9pAL3emFeaVtDfegk9KNQHhfVc, started 2026-10-20T16:57:20.447Z
+  (quiet 45 s before the read, so the previous read's block has passed)
+round 1 | paced reader (this tree) | 451.6 s | 134 POSTs, 260 elements | whole-request 429: 0, rate-limited elements: 4 | complete true, 3 agent debits
+  (quiet 45 s before the read, so the previous read's block has passed)
+round 1 | Phase 1.5 one-by-one reader (142276f) | 595.9 s | 647 POSTs, 647 elements | whole-request 429: 391, rate-limited elements: 0 | complete true, 3 agent debits
+  (quiet 45 s before the read, so the previous read's block has passed)
+round 1 | paced reader (this tree) | 458.2 s | 135 POSTs, 261 elements | whole-request 429: 0, rate-limited elements: 5 | complete true, 3 agent debits
+
+median wall time per reader:
+  paced reader (this tree): 458.2 s over 2 reads (452, 458 s)
+  Phase 1.5 one-by-one reader (142276f): 595.9 s over 1 reads (596 s)
+finished 2026-10-20T17:24:41.227Z
