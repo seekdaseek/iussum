@@ -7,7 +7,7 @@ import { randomBytes } from 'node:crypto';
 import { createAgent, IussumRefusal } from '@iussum/agent';
 import { createResolver, createResolverApp, openStore, makeRefundSender } from '@iussum/resolver';
 import { createGrantChecker, mandateId, summaryLine, verifyReceipt, principalAta } from '@iussum/core';
-import { loadKeys, makeCtx, sendGrant, sendRevoke, sendPlainTransfer, usdc, delegation, sleep, startDemoSeller, NETWORK, MINT, FACILITATOR, RPC_URL } from './demo-lib.mjs';
+import { loadKeys, makeCtx, sendGrant, sendRevoke, sendPlainTransfer, usdc, delegation, sendDelegateTransfer, fundSol, solBalance, sleep, startDemoSeller, NETWORK, MINT, FACILITATOR, RPC_URL } from './demo-lib.mjs';
 
 const ctx = makeCtx(), keys = await loadKeys();
 const results = []; let current = '';
@@ -370,11 +370,21 @@ async function s16() {
   step(`delegated amount left on chain: ${left.amount} of ${g.m.total_cap}`);
   expect('0.04 USDC of the allowance is left on chain', String(left.amount), '40000');
   const before = [await usdc(ctx, keys.principal.address), await usdc(ctx, keys.sellerC.address)];
+  expect('the principal\'s balance covers the payment, so the refusal cannot be an owner-balance shortfall', before[0] >= 60000n, true);
   const res = await naive.fetch(sellers.C.url('big'));
   const why = errOf(res) || (await res.text()).slice(0, 200);
   step(`the 0.06 USDC payment (above the 0.04 left, within per_payment_max ${g.m.per_payment_max}): HTTP ${res.status}, facilitator says: ${why}`);
   expect('the facilitator\'s verify fails (HTTP 402, a simulation error) and the seller does not serve', [res.status, /simulation|insufficient/i.test(why)], [402, true]);
-  const txB64 = JSON.parse(Buffer.from(seen.at(-1), 'base64').toString()).payload.transaction;
+  // the facilitator's own verify response, asked directly with the captured payload and the requirements the seller published: logged, not inferred
+  const prHeader = res.headers.get('payment-required');
+  const requirements = JSON.parse(Buffer.from(prHeader, 'base64').toString()).accepts[0];
+  const payload = JSON.parse(Buffer.from(seen.at(-1), 'base64').toString());
+  const vres = await fetch(`${FACILITATOR}/verify`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ x402Version: payload.x402Version ?? 2, paymentPayload: payload, paymentRequirements: requirements }) });
+  const vbody = await vres.text();
+  step(`the facilitator's /verify answer: HTTP ${vres.status} ${vbody.slice(0, 300)}`);
+  let vjson = null; try { vjson = JSON.parse(vbody); } catch { /* not json */ }
+  expect('the facilitator\'s verify answer says the payment is not valid (a simulation failure)', [vjson?.isValid === false, /simulation/i.test(JSON.stringify(vjson ?? vbody))], [true, true]);
+  const txB64 = payload.payload.transaction;
   const sim = await ctx.rpc.call('simulateTransaction', [txB64, { encoding: 'base64', sigVerify: false, commitment: 'confirmed' }]);
   const logs = (sim.value.logs ?? []).filter((l) => /rror|insufficient|failed/i.test(l));
   step(`the node simulating that payment: err ${JSON.stringify(sim.value.err)}; log: ${logs.join(' | ')}`);
@@ -384,10 +394,44 @@ async function s16() {
   step(`principal ${before[0]} -> ${after[0]}, seller C ${before[1]} -> ${after[1]}, delegated amount left ${left.amount} -> ${leftAfter.amount}`);
   expect('principal and seller C balances unchanged on chain', after.map(String), before.map(String));
   expect('the delegated amount left is unchanged', String(leftAfter.amount), String(left.amount));
+  // boundary control: the refusal was about the amount, not about this setup: a payment of exactly the 0.04 left settles
+  const exact = await naive.fetch(sellers.C.url('exact40'));
+  expect('a payment of exactly the 0.04 left settles at seller C', exact.status, 200);
+  expect('and the delegated amount left is now 0', String((await delegation(ctx, keys.principal.address)).amount), '0');
 }
 
-const scenarios = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16];
-const only = process.env.ONLY?.split(',').map((n) => `s${n}`); // ONLY=16 runs one scenario (debugging); the five clean runs never set it
+// ---- scenario 16b (Addendum M, M7): the SAME refusal, but submitted to the cluster. Scenario 16 shows simulations (the facilitator's verify, the node's simulateTransaction);
+// here the 0.06 USDC TransferChecked is signed by the agent as delegate, sent with the agent as fee payer and skipPreflight, so it LANDS on chain as a failed transaction.
+async function s16b() {
+  head('16b', 'above the remaining allowance, submitted to the chain: the transaction lands as FAILED with the token program\'s InsufficientFunds, and nothing moves');
+  const g = await newMandate({ total_cap: '60000', per_payment_max: '60000', period_budget: '200000' }, ['C']);
+  const naive = await agentFor(g, { localChecks: false });
+  const ok = await naive.fetch(sellers.C.url('mid'));
+  expect('the first, in-scope payment of 0.02 USDC settles', ok.status, 200);
+  step(`payment tx ${ok.receipt?.tx_sig}`);
+  const left = await delegation(ctx, keys.principal.address);
+  expect('0.04 USDC of the allowance is left on chain', String(left.amount), '40000');
+  const fee = 5_000_000n; // the agent pays the fee: it needs SOL (devnet only; the faucet is rate limited, so the throw-away principal sends it)
+  if ((await solBalance(ctx, keys.agent.address)) < fee) step(`funded the throw-away agent with SOL by transfer from the throw-away principal: ${await fundSol(ctx, keys, keys.agent.address, 10_000_000)}`);
+  const before = [await usdc(ctx, keys.principal.address), await usdc(ctx, keys.sellerC.address)];
+  expect('the principal\'s balance covers the payment', before[0] >= 60000n, true);
+  const agentSolBefore = await solBalance(ctx, keys.agent.address);
+  const { sig, err } = await sendDelegateTransfer(ctx, keys, { to: keys.sellerC.address, amount: '60000' });
+  step(`submitted with skipPreflight, agent as delegate and fee payer: ${sig}`);
+  step(`getSignatureStatuses err ${JSON.stringify(err)}`);
+  const t = await ctx.rpc.call('getTransaction', [sig, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0, commitment: 'confirmed' }]);
+  step(`getTransaction meta.err ${JSON.stringify(t.meta.err)}, fee ${t.meta.fee} lamports paid by ${t.transaction.message.accountKeys[0].pubkey === keys.agent.address ? 'the agent' : 'SOMEONE ELSE'}; log: ${(t.meta.logMessages ?? []).filter((l) => /Error|failed/i.test(l)).join(' | ')}`);
+  expect('the transaction is on chain and FAILED with the token program\'s InsufficientFunds (custom error 1)', [JSON.stringify(t.meta.err).includes('"Custom":1'), (t.meta.logMessages ?? []).some((l) => /insufficient funds/i.test(l))], [true, true]);
+  expect('the fee payer was the agent', t.transaction.message.accountKeys[0].pubkey, keys.agent.address);
+  const after = [await usdc(ctx, keys.principal.address), await usdc(ctx, keys.sellerC.address)];
+  const leftAfter = await delegation(ctx, keys.principal.address);
+  step(`principal ${before[0]} -> ${after[0]}, seller C ${before[1]} -> ${after[1]}, delegated amount left ${left.amount} -> ${leftAfter.amount}; agent SOL ${agentSolBefore} -> ${await solBalance(ctx, keys.agent.address)} (the fee)`);
+  expect('principal and seller C balances unchanged on chain', after.map(String), before.map(String));
+  expect('the delegated amount left is unchanged', String(leftAfter.amount), String(left.amount));
+}
+
+const scenarios = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s16b];
+const only = process.env.ONLY?.split(',').map((n) => `s${n}`); // ONLY=16,16b // ONLY=16 runs one scenario (debugging); the five clean runs never set it
 for (const f of scenarios.filter((f) => !only || only.includes(f.name))) { try { await f(); } catch (e) { results.push({ scenario: current, label: 'scenario threw', ok: false, actual: String(e.stack ?? e) }); say(`    FAIL scenario threw: ${e.stack ?? e}`); } }
 say('\n=== Summary');
 for (const sc of [...new Set(results.map((r) => r.scenario))]) { const rs = results.filter((r) => r.scenario === sc); say(`${rs.every((r) => r.ok) ? 'PASS' : 'FAIL'}  ${sc}  (${rs.filter((r) => r.ok).length}/${rs.length} checks)`); }
