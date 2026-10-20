@@ -1,0 +1,20 @@
+H5 on devnet, rpc https://api.devnet.solana.com
+throw-away principal CHbBczEbHw33PXhwGnzZnpAHszLFF8HQwxg1xDTUjZfK
+funded the throw-away principal (0.03 SOL, 0.2 USDC): 2WFs2hFmodeMsGXGUgHFukt8mfzCkTDy5cs6fjpTTAsm1sr4SVZgCT6mwvbxEMVUTEEGNnSa7mEX8b2piQuitic9
+grant (dedicated principal): 4PmrfbJHdyq6RaMwQp7XYWu3APPqTNzrc8PZLfv9T23A4myMtKd7HYNfdfxAoduqAdmHy1CgwGGF276XaMe3MPJt
+mandate id 14e75bc1c59ab9d11267c6d4d9bb63521e57c15a623c9c729975e3d3c904a47d
+  50 dust credits sent (114 s)
+  100 dust credits sent (245 s)
+  150 dust credits sent (373 s)
+  200 dust credits sent (494 s)
+  250 dust credits sent (614 s)
+250 dust credits of 1 base unit into H9w4NsSrmFHrGsrU8G9pAL3emFeaVtDfegk9KNQHhfVc; signatures in demo-runs-1.6/h5-dust-signatures.txt (250 distinct)
+the agent's first read at start (250 dust credits in the account): 6 signature pages, 0 getTransaction HTTP calls (594 RPC HTTP calls), 1071.3 s
+first gate request (cold grant check, 250 dust credits): HTTP 503, Retry-After 5, answered after 10.8 s (budget 10 s); payer balance unchanged: true
+the gate warmed up in the background after 1003 s from the first request (40 re-sends of the kept payload, each answered 503 until then); the kept payload then got HTTP 402 (expired: its blockhash lives about 90 s); a fresh payment settled with HTTP 200 ; the gate's own client made 5 signature-page calls and 604 RPC HTTP calls
+agent payment 1 (settled through the re-sent payload): 49CSPfrE8y249ex4f61upfE1iU3a4cdnHd7DE9QT7FvZqgnHUDFdAYT3ntv6txxwtcYGqPoneW2E28nm2AaARVnp
+agent payment 2: Mfyg7JAw7ZuhA954QAADD8mehGgujjrEJcBywvwmVNhr23KCpSt9Y93pmQC8VccboYbr6uGkASxhvASHttCzvdn
+agent payment 3: 4TuJhSSm93rdh7qMYxjoy8zRsNPiYvqkbyGGStn3fn4zd4c8G5qeoWbfnHWNSNMNBGu5r2nScWdjNFPXhAUE2qvh
+dispute 1 (first read of the whole history since the grant): verdict invalid/in_scope/principal | pages (getSignaturesForAddress) 6 | transactions fetched (getTransaction) 2 | RPC calls 657 | wall time 1197.5 s
+dispute 2 (a different payment, the checkpoint is used): verdict invalid/in_scope/principal | pages (getSignaturesForAddress) 2 | transactions fetched (getTransaction) 0 | RPC calls 3 | wall time 1.1 s
+both disputes decided (not history_incomplete): YES

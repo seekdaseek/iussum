@@ -1,0 +1,16 @@
+property I1: 600 histories (seeds 1..600), 3059 disputes, 2074 with a decided model verdict, 755 with a 3-signature page and maxPages 2 (the page limit was hit 391 times and the verdict still arrived)
+✔ property I1: 600 random histories, every dispute gets the model's verdict on a readable chain (seeds 1..600) (5981.196458ms)
+property I2: 1872 disputes with no verdict, 1187 with the model's verdict, 0 different (faults: batchError 420, account 471, batchNull 412, page 443, block 447, unreadable 419, heal 447)
+✔ property I2: RPC faults give the model's verdict or no verdict, never a different decided verdict (600 histories) (6738.993375ms)
+property I3: 559 refunds over 200 histories, never two for one payment
+✔ property I3: at most one refund per payment, and only on a seller-liable verdict (200 histories) (1314.368791ms)
+✖ property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds) (2633.794416ms)
+property I5: 39 repeated successes over 20 seeds, always the identical receipt
+✔ property I5: a facilitator that reports success twice for one transaction does not make an honest seller sign two receipts (20 seeds) (301.313791ms)
+property I6: 12 seeds, 0 final 503s with Retry-After (retries exhausted), 9 first payments that needed a retry, every settled payment matched a 200, no second reservation
+✔ property I6: a seller gate whose grant check is cold answers 503 with Retry-After, the agent retries with the SAME payload, nothing is lost or doubled (12 seeds) (3620.661083ms)
+ℹ pass 5
+ℹ fail 1
+✖ failing tests:
+✖ property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds) (2633.794416ms)
+  AssertionError [ERR_ASSERTION]: seed 17 price 20000 budget 70000: an honest agent refused for history_incomplete: [{"field":"history","authorized":"a complete record of this agent's payments in the period","actual":"could not be rebuilt from chain: the debit
