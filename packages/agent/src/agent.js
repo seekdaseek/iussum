@@ -106,9 +106,9 @@ async function build(cfg, guard) {
     fs.mkdirSync(dataDir, { recursive: true });
     const file = path.join(dataDir, `${stem}.lock.db`);
     // busy_timeout stays 0: a holder is a holder. Two processes that start in the same instant can each see the other's transient lock and BOTH get SQLITE_BUSY
-    // (fail closed, but nobody runs), so a BUSY is tried a few more times over about a tenth of a second; a real holder keeps the lock and every try fails.
+    // (fail closed, but nobody runs), so a BUSY is tried again with a random 5 to 30 ms pause for at least 8 tries and 0.4 s (a loaded machine stretches the window in which two starters see each other's transient lock); a real holder keeps the lock and every try fails, so a refusal takes about 0.4 s.
     let db, lastErr;
-    for (let attempt = 0; attempt < 8; attempt++) {
+    for (let attempt = 0, t0 = Date.now(); attempt < 8 || Date.now() - t0 < 400; attempt++) {
       try {
         db = new DatabaseSync(file, { timeout: 0 });
         db.exec('PRAGMA busy_timeout = 0');
