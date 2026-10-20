@@ -23,8 +23,9 @@ import { getTransferCheckedInstruction, TOKEN_PROGRAM_ADDRESS } from '@solana-pr
 import { assertOnlyComputeBudgetChanged } from './txguard.js';
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
-export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid', 'agent.release_needs_height', 'agent.min_context_slot', 'agent.consume_released', 'agent.persist_before_send', 'agent.restore_reservations', 'agent.checkpoint', 'agent.datadir_lock', 'agent.stale_lock_pid', 'agent.corrupt_reservations_refuse', 'agent.tmp_cleanup'].map(registerCheck);
+export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid', 'agent.release_needs_height', 'agent.min_context_slot', 'agent.consume_released', 'agent.persist_before_send', 'agent.restore_reservations', 'agent.checkpoint', 'agent.datadir_lock', 'agent.stale_lock_pid', 'agent.corrupt_reservations_refuse', 'agent.tmp_cleanup', 'agent.history_min_context', 'agent.keyed_by_grant', 'agent.retry_after'].map(registerCheck);
 const MARK = 'IUSSUM_REFUSAL:';
 const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export class IussumRefusal extends Error {
@@ -57,7 +58,10 @@ export async function createAgent(cfg) {
   // ---- persistence (R1, T2): one reservations file and one checkpoint file per mandate and agent under cfg.dataDir. Every write is temp file, fsync,
   // rename, so a crash leaves the old file or the new one, never half of one.
   const dataDir = cfg.dataDir ?? null;
-  const stem = dataDir && mandate ? `${mandateId(mandate).slice(0, 16)}-${signer.address.slice(0, 8)}` : null;
+  // keyed like the resolver's checkpoint: grant_tx, source, agent and asset (Addendum I, I4). A re-grant of the same mandate is a different grant: it never
+  // loads the files of the earlier one, and those files are neither read nor deleted.
+  const keyOf = () => (fails('agent.keyed_by_grant', true) ? `${grant_tx}|${source}|${signer.address}|${mandate.asset}` : `${mandateId(mandate)}|${signer.address}`);
+  const stem = dataDir && mandate ? createHash('sha256').update(keyOf()).digest('hex').slice(0, 32) : null;
   const fileOf = (kind) => path.join(dataDir, `${stem}.${kind}.json`);
   function writeAtomic(file, obj) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -72,7 +76,7 @@ export async function createAgent(cfg) {
     writeAtomic(fileOf('reservations'), { v: 1, reservations: reservations.filter((r) => r.state === 'held' && r.created).map((r) => ({ amount: String(r.amount), t: r.t, blockhash: r.blockhash, lastValidBlockHeight: r.lastValid === null || r.lastValid === undefined ? null : String(r.lastValid), contextSlot: r.contextSlot ?? null, agentSig: r.agentSig })) });
   };
   // ---- one agent per data directory (H2)
-  const lockPath = dataDir ? path.join(dataDir, 'agent.lock') : null;
+  const lockPath = dataDir && stem ? path.join(dataDir, `${stem}.lock`) : null;
   let lockHeld = false;
   const pidAlive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
   function acquireLock() {
@@ -202,6 +206,7 @@ export async function createAgent(cfg) {
     const open = reservations.filter((r) => r.state === 'held' && r.created && r.blockhash && r.contextSlot !== null && r.contextSlot !== undefined && r.lastValid !== null && r.lastValid !== undefined);
     if (!open.length) return;
     const expired = [];
+    let proofSlot = 0; // the newest slot any expiry answer came from: the history read below must ask a node that has reached it (Addendum I, I3)
     for (const r of open) {
       try {
         const opts = fails('agent.min_context_slot', true) ? { commitment: 'confirmed', minContextSlot: r.contextSlot } : { commitment: 'confirmed' };
@@ -209,11 +214,13 @@ export async function createAgent(cfg) {
         const invalid = (v?.value ?? v) === false;
         const height = await rpc.call('getBlockHeight', [opts]);
         const past = BigInt(height) > r.lastValid;
-        if (!fails('agent.blockhash_valid', !invalid) && !fails('agent.release_needs_height', !past)) expired.push(r); // otherwise the payload can still land
+        if (!fails('agent.blockhash_valid', !invalid) && !fails('agent.release_needs_height', !past)) { expired.push(r); proofSlot = Math.max(proofSlot, r.contextSlot ?? 0, v?.context?.slot ?? 0); } // otherwise the payload can still land
       } catch { /* cannot tell: stays held */ }
     }
     if (!expired.length) return;
-    const h = await agentSpendHistory(rpc, { source, agent: signer.address, mint: mandate.asset, until: grant_tx, checkpoint: cp });
+    // "did it land?": every call of this read takes minContextSlot >= the proof slot; "minimum context slot not reached" or any other error makes it incomplete and the
+    // reservation stays held
+    const h = await agentSpendHistory(rpc, { source, agent: signer.address, mint: mandate.asset, until: grant_tx, checkpoint: cp, minContextSlot: fails('agent.history_min_context', true) ? proofSlot : null });
     if (h.checkpoint) saveCheckpoint(h.checkpoint);
     if (!h.complete) return;
     for (const r of expired) {
@@ -259,7 +266,22 @@ export async function createAgent(cfg) {
       store?.ids.push(res.id);
     });
   }
-  const wrapped = wrapFetchWithPayment(fetch, client);
+  // A seller that answers 503 with Retry-After (its grant check is still running, Addendum I, J1) has not touched the payload: re-send the SAME paid request after
+  // the wait, a bounded number of times. The reservation is the one of the first attempt (held until proven expired or landed, as for any 502).
+  const baseFetch = fetch;
+  const retryMax = cfg.retry?.max ?? 3, retryCapMs = cfg.retry?.maxWaitMs ?? 30_000;
+  const paid = (input, init) => Boolean((input instanceof Request ? input.headers : new Headers(init?.headers ?? {})).get('payment-signature'));
+  const retryingFetch = async (input, init) => {
+    for (let attempt = 0; ; attempt++) {
+      const copy = input instanceof Request ? input.clone() : input;
+      const res = await baseFetch(copy, init);
+      if (res.status !== 503 || !paid(input, init) || attempt >= retryMax || !fails('agent.retry_after', true)) return res;
+      const wait = Number(res.headers.get('retry-after'));
+      if (!Number.isFinite(wait) || wait < 0) return res;
+      await new Promise((r) => setTimeout(r, Math.min(wait * 1000, retryCapMs)));
+    }
+  };
+  const wrapped = wrapFetchWithPayment(retryingFetch, client);
   async function pay(url, init) {
     const st = { url: normalizeResource(String(url)), ids: [] };
     let res;

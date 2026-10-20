@@ -10,7 +10,7 @@ import { findAssociatedTokenPda, TOKEN_PROGRAM_ADDRESS } from '@solana-program/t
 import { fails, registerCheck } from './guard.js';
 import { R } from './codes.js';
 import { summaryLine, mandateId } from './mandate.js';
-import { fillBlockIndices, comparePositions } from './chain.js';
+import { fillBlockIndices, comparePositions, readTransactions } from './chain.js';
 
 export const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export const MEMO_V2 = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
@@ -80,21 +80,24 @@ export function supersedes(tx, source) {
 // newest signature seen and the EARLIEST superseding transaction by position in the chain (slot, then index in the block; never signature
 // order). Throws if a page cannot be read OR a listed transaction cannot be read (Addendum E, B2): an unreadable transaction must not count
 // as "does not supersede", and the caller fails closed and does not advance past it.
-export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPages = 1000 } = {}) {
-  let before, newest = null;
-  const found = [];
+export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPages = 1000, resume = null, onProgress = null } = {}) {
+  // resumable (Addendum I, J1): `resume` = { cursor, newest, found } is the state after the last page that was read completely; onProgress(state) is called after each
+  // such page, so a scan that was cut short (a request that ran out of time budget, an RPC error) continues where it stopped instead of starting over
+  let before = resume?.cursor, newest = resume?.newest ?? null;
+  const found = [...(resume?.found ?? [])];
   for (let pages = 0; ; pages++) {
     if (pages >= maxPages) throw new Error('too many pages to scan');
     const page = await rpc.getSignaturesForAddress(source, { until: since, ...(before ? { before } : {}), limit: pageSize });
-    if (pages === 0 && page.length) newest = page[0].signature;
-    for (const e of page) {
-      if (e.err) continue;
-      const tx = await rpc.getTransaction(e.signature);
-      if (fails('grant.scan_unreadable', !tx)) throw new Error(`transaction ${e.signature} could not be read`);
-      if (supersedes(tx, source)) found.push({ sig: e.signature, tx_sig: e.signature, slot: tx.slot });
-    }
+    if (newest === null && pages === 0 && !resume && page.length) newest = page[0].signature;
+    const listed = page.filter((e) => !e.err);
+    const txs = await readTransactions(rpc, listed.map((e) => e.signature));
+    listed.forEach((e, k) => {
+      if (fails('grant.scan_unreadable', !txs[k])) throw new Error(`transaction ${e.signature} could not be read`);
+      if (supersedes(txs[k], source)) found.push({ sig: e.signature, tx_sig: e.signature, slot: txs[k].slot });
+    });
+    if (page.length) before = page[page.length - 1].signature;
     if (page.length < pageSize) break;
-    before = page[page.length - 1].signature;
+    onProgress?.({ cursor: before, newest, found: [...found] });
   }
   let earliest = null;
   if (found.length) {
@@ -116,7 +119,7 @@ export function createGrantChecker(rpc, { scanStore = null } = {}) {
     // scanStore (optional, { get(key), put(key, state) }) keeps the marker across restarts: each signature of the account is read once (Addendum G, T2)
     const st = scans.get(k) ?? (fails('grant.scan_store', true) ? scanStore?.get(k) : null) ?? { since: grantTx, superseded: null };
     if (st.superseded) return st.superseded;
-    const r = await scanSupersede(rpc, source, st.since);
+    const r = await scanSupersede(rpc, source, st.since, { resume: st.partial ?? null, onProgress: (partial) => { const cur = { since: st.since, superseded: null, partial }; scans.set(k, cur); scanStore?.put(k, cur); } });
     const next = { since: r.newest ?? st.since, superseded: r.superseded };
     scans.set(k, next); scanStore?.put(k, next);
     return r.superseded;

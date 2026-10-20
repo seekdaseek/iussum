@@ -2,7 +2,7 @@
 import { TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
 import { fails, registerCheck } from './guard.js';
 
-export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain.self_transfer', 'chain.missing_balance_zero', 'rpc.cache_bound'].map(registerCheck);
+export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain.self_transfer', 'chain.missing_balance_zero', 'rpc.cache_bound', 'rpc.batch', 'history.min_context'].map(registerCheck);
 
 export function makeRpc(url, { retries = 8, fetchImpl = fetch } = {}) {
   let id = 0;
@@ -22,18 +22,57 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch } = {}) {
   }
   const txCache = new Map(); // LRU, bounded: an outsider must not be able to grow it without limit (Addendum G, T2)
   const CACHE_MAX = 5000;
-  return {
+  const txConfig = (o = {}) => ({ encoding: 'jsonParsed', maxSupportedTransactionVersion: 0, commitment: 'confirmed', ...(o.minContextSlot != null ? { minContextSlot: o.minContextSlot } : {}) });
+  const keep = (sig, t) => { if (t) { txCache.set(sig, t); if (fails('rpc.cache_bound', txCache.size > CACHE_MAX)) txCache.delete(txCache.keys().next().value); } };
+  const rpcObj = {
     url, call,
-    async getTransaction(sig) {
+    async getTransaction(sig, opts = {}) {
       if (txCache.has(sig)) { const v = txCache.get(sig); txCache.delete(sig); txCache.set(sig, v); return v; }
-      let t = await call('getTransaction', [sig, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0, commitment: 'confirmed' }]);
-      for (let i = 0; i < 6 && !t; i++) { await new Promise((res) => setTimeout(res, 700)); t = await call('getTransaction', [sig, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0, commitment: 'confirmed' }]); }
-      if (t) { txCache.set(sig, t); if (fails('rpc.cache_bound', txCache.size > CACHE_MAX)) txCache.delete(txCache.keys().next().value); }
+      const cfg = txConfig(opts);
+      let t = await call('getTransaction', [sig, cfg]);
+      for (let i = 0; i < 6 && !t; i++) { await new Promise((res) => setTimeout(res, 700)); t = await call('getTransaction', [sig, cfg]); }
+      keep(sig, t);
       return t;
+    },
+    // Transactions in JSON-RPC batches (Addendum I, J2): an array of getTransaction requests in ONE POST, `batchSize` per batch (25), at most `concurrency`
+    // batches in flight, 429 / 5xx backoff on a batch. Result i belongs to sigs[i]. A null element is retried one by one like getTransaction does (nullRetries 0
+    // leaves it null) and stays null if the node still has nothing: the caller treats null as unreadable. An errored element throws: fail closed.
+    async getTransactions(sigs, { batchSize = 25, concurrency = 3, minContextSlot = null, nullRetries = 6 } = {}) {
+      const out = new Array(sigs.length), todo = [];
+      sigs.forEach((sg, i) => { if (txCache.has(sg)) { const v = txCache.get(sg); txCache.delete(sg); txCache.set(sg, v); out[i] = v; } else todo.push(i); });
+      const cfg = txConfig({ minContextSlot });
+      const chunks = []; for (let i = 0; i < todo.length; i += batchSize) chunks.push(todo.slice(i, i + batchSize));
+      async function batch(idx) {
+        for (let attempt = 0; ; attempt++) {
+          try {
+            const body = idx.map((i) => ({ jsonrpc: '2.0', id: ++id, method: 'getTransaction', params: [sigs[i], cfg] }));
+            const r = await fetchImpl(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+            if (r.status === 429 || r.status >= 500) throw Object.assign(new Error(`rpc http ${r.status}`), { retry: true });
+            const j = await r.json();
+            if (!Array.isArray(j)) { const m = j?.error?.message ?? 'not an array'; throw Object.assign(new Error(`batch rejected: ${m}`), { retry: /rate|limit|too many|429/i.test(m), whole: true }); }
+            const byId = new Map(j.map((e) => [e.id, e]));
+            return body.map((b, k) => {
+              const e = byId.get(b.id);
+              if (!e) throw new Error(`getTransaction ${sigs[idx[k]]}: no answer in the batch`);
+              if (e.error) throw Object.assign(new Error(`getTransaction: ${e.error.message}`), { retry: /rate|limit|too many|429/i.test(e.error.message) });
+              return e.result ?? null;
+            });
+          } catch (e) {
+            if (e.whole && !e.retry) { const one = []; for (const i of idx) one.push(await rpcObj.getTransaction(sigs[i], { minContextSlot })); return one; } // a node that refuses batches: one by one
+            if (attempt >= retries || !(e.retry || e.name === 'TypeError')) throw e;
+            await new Promise((res) => setTimeout(res, Math.min(5000, 400 * 2 ** attempt) * (0.75 + Math.random() / 2)));
+          }
+        }
+      }
+      let next = 0;
+      const worker = async () => { while (next < chunks.length) { const ch = chunks[next++]; const res = await batch(ch); ch.forEach((i, k) => { out[i] = res[k]; keep(sigs[i], res[k]); }); } };
+      await Promise.all(Array.from({ length: Math.min(concurrency, chunks.length) }, worker));
+      for (let i = 0; i < sigs.length; i++) if (out[i] === null && nullRetries > 0) out[i] = await rpcObj.getTransaction(sigs[i], { minContextSlot });
+      return out;
     },
     async getAccountInfoParsed(addr) { return (await call('getAccountInfo', [addr, { encoding: 'jsonParsed', commitment: 'confirmed' }])).value; },
     // the account together with the slot it was read at (context.slot): the allowance cross-check counts debits up to that slot
-    async getAccountContext(addr) { const r = await call('getAccountInfo', [addr, { encoding: 'jsonParsed', commitment: 'confirmed' }]); return { slot: r.context.slot, value: r.value }; },
+    async getAccountContext(addr, opts = {}) { const r = await call('getAccountInfo', [addr, { encoding: 'jsonParsed', commitment: 'confirmed', ...(opts.minContextSlot != null ? { minContextSlot: opts.minContextSlot } : {}) }]); return { slot: r.context.slot, value: r.value }; },
     // the signatures of one block in execution order (the transaction's index in the block orders payments within a slot)
     async getBlockSignatures(slot) {
       const b = await call('getBlock', [slot, { transactionDetails: 'signatures', rewards: false, maxSupportedTransactionVersion: 0, commitment: 'confirmed' }]);
@@ -49,6 +88,7 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch } = {}) {
       }
     },
   };
+  return rpcObj;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
@@ -100,6 +140,16 @@ export function reconcileAccount(payment, account) {
   const has = (v) => v !== null && v !== undefined;
   const dropped = !b ? 0n : (has(b.pre) && has(b.post)) || fails('chain.missing_balance_zero', true) ? BigInt(b.pre ?? 0) - BigInt(b.post ?? 0) : null;
   return { ok: dropped !== null && dropped === moved, moved, dropped };
+}
+
+// Read many transactions: in JSON-RPC batches when the client has them (Addendum I, J2), one by one otherwise. Result i belongs to sigs[i]; a null element is
+// returned as null (the callers fail closed on it), an errored one throws. minContextSlot makes every request ask a node that has reached that slot.
+export async function readTransactions(rpc, sigs, { minContextSlot = null } = {}) {
+  if (!sigs.length) return [];
+  if (rpc.getTransactions && fails('rpc.batch', true)) return rpc.getTransactions(sigs, { minContextSlot });
+  const out = [];
+  for (const sg of sigs) out.push(await rpc.getTransaction(sg, minContextSlot != null ? { minContextSlot } : undefined));
+  return out;
 }
 
 // Parse the token movements of one transaction. destination owner comes from postTokenBalances (accountIndex -> owner).
@@ -173,7 +223,8 @@ export const isAfter = (a, b, idxOf) => comparePositions(a, b, idxOf) > 0;
 //   resume = { top, cursor, entries }      a read that stopped early (maxPages, an error): signatures newer than `cursor` down to `top` are done
 // The next read continues from `resume.cursor` (older part), promotes it into `base`, then reads only what is newer than `base.newest`. A page counts
 // only after it has been read and reconciled completely, the way the supersession scan's `since` advances. Not used with `stopAtTime`.
-export async function agentSpendHistory(rpc, { source, agent, mint, until = null, stopAtTime = null, pageSize = 100, maxPages = 1000, checkpoint = null }) {
+export async function agentSpendHistory(rpc, { source, agent, mint, until = null, stopAtTime = null, pageSize = 100, maxPages = 1000, checkpoint = null, minContextSlot = null }) {
+  const mcs = fails('history.min_context', true) && minContextSlot != null ? { minContextSlot } : {}; // Addendum I, I3: ask a node that has caught up with the expiry proof
   const idxOf = { ...(checkpoint?.base?.blockIdx ?? {}) };
   let base = checkpoint?.base ? { newest: checkpoint.base.newest, entries: [...checkpoint.base.entries] } : null;
   let resume = checkpoint?.resume ? { ...checkpoint.resume, entries: [...checkpoint.resume.entries] } : null;
@@ -185,11 +236,12 @@ export async function agentSpendHistory(rpc, { source, agent, mint, until = null
       for (;;) {
         if (pagesLeft <= 0) { err = `more than ${maxPages} pages`; break; }
         pagesLeft--;
-        const page = await rpc.getSignaturesForAddress(source, { limit: pageSize, ...(floorSig ? { until: floorSig } : {}), ...(cursor ? { before: cursor } : {}) });
+        const page = await rpc.getSignaturesForAddress(source, { limit: pageSize, ...(floorSig ? { until: floorSig } : {}), ...(cursor ? { before: cursor } : {}), ...mcs });
         const batch = [];
-        for (const sg of page) {
-          if (sg.err) continue;
-          const p = parsePayment(await rpc.getTransaction(sg.signature));
+        const listed = page.filter((x) => !x.err);
+        const txs = await readTransactions(rpc, listed.map((x) => x.signature), mcs);
+        for (const [k, sg] of listed.entries()) {
+          const p = parsePayment(txs[k]);
           if (!p.found) throw new Error(`transaction ${sg.signature} could not be read`);
           if (p.err) continue;
           const rec = fails('history.reconcile', true) ? reconcileAccount(p, source) : { ok: true };

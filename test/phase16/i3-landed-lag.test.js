@@ -16,7 +16,8 @@ async function run(tc, { nodeSlot, listed, historyError }) {
   const seller = await startSeller({ facilitator, mode: 'off', now: () => NOW, price: '20000' });
   tc.after(() => { facilitator.close(); seller.close(); });
   const s = await newScenario(seller, { mandate: { period_budget: '30000', per_payment_max: '20000' } });
-  seller.rpc.call = async (m) => { if (m === 'isBlockhashValid') return { context: { slot: 200 }, value: false }; if (m === 'getBlockHeight') return 101; throw new Error(m); }; // expiry proven at slot 200
+  let proven = false;
+  seller.rpc.call = async (m) => { if (m === 'isBlockhashValid') return { context: { slot: 200 }, value: false }; if (m === 'getBlockHeight') { proven = true; seller.rpc.calls.minContext.push(['PROOF', null]); return 101; } throw new Error(m); }; // expiry proven at slot 200
   let withheld = null;
   globalThis.fetch = async (req) => { if (req.headers.get('payment-signature') && !withheld) { withheld = req.headers.get('payment-signature'); return new Response('{}', { status: 502 }); } return realFetch(req); };
   const a = await createAgent({ mandate: s.mandate, grant_tx: s.grant_tx, signer: s.signer, rpc: seller.rpc, getBlockhash: bh, now: () => NOW });
@@ -29,9 +30,10 @@ async function run(tc, { nodeSlot, listed, historyError }) {
   if (listed) seller.rpc.newer = [{ signature: landedSig, slot: 2000, blockTime: NOW, err: null }];
   seller.rpc.nodeSlot = nodeSlot;
   seller.rpc.calls.minContext.length = 0;
-  if (historyError) { const o = seller.rpc.getSignaturesForAddress.bind(seller.rpc); seller.rpc.getSignaturesForAddress = async (...x) => { throw new Error(historyError); }; void o; }
+  if (historyError) { const o = seller.rpc.getSignaturesForAddress.bind(seller.rpc); seller.rpc.getSignaturesForAddress = async (...x) => { if (proven) throw new Error(historyError); return o(...x); }; } // only the landed read, after the proof
   const r2 = await out(a.fetch(seller.url));
-  return { a, r2, settled: facilitator.counts.settle * 20000, calls: seller.rpc.calls.minContext };
+  const all = seller.rpc.calls.minContext, at = all.findIndex(([k]) => k === 'PROOF');
+  return { a, r2, settled: facilitator.counts.settle * 20000, calls: at < 0 ? [] : all.slice(at) }; // only the calls AFTER the proof: the landed read
 }
 test('I3 control: a history node that has caught up lists the landed payment: consumed, the next payment is refused', async (tc) => {
   const x = await run(tc, { nodeSlot: 300, listed: true });

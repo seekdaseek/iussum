@@ -8,7 +8,7 @@ import { createGrantChecker, scopeViolations, validateMandate, mandateId, signRe
 import { decodePayment, readPaymentHeader } from './decode.js';
 import { openReceiptStore } from './receipt-store.js';
 
-export const SELLER_CHECKS = ['seller.enforce', 'seller.observe_passes', 'seller.off_skips', 'seller.require_mandate', 'seller.receipt_issued', 'seller.receipt_binds_mandate', 'seller.mandate_invalid', 'seller.payment_unreadable', 'seller.payment_source', 'seller.origin_required', 'seller.resource_from_origin', 'seller.one_receipt_per_tx', 'seller.store_receipts', 'seller.no_receipt_on_failed_write'].map(registerCheck);
+export const SELLER_CHECKS = ['seller.enforce', 'seller.observe_passes', 'seller.off_skips', 'seller.require_mandate', 'seller.receipt_issued', 'seller.receipt_binds_mandate', 'seller.mandate_invalid', 'seller.payment_unreadable', 'seller.payment_source', 'seller.origin_required', 'seller.resource_from_origin', 'seller.one_receipt_per_tx', 'seller.store_receipts', 'seller.no_receipt_on_failed_write', 'seller.grant_budget', 'seller.grant_budget_observe'].map(registerCheck);
 export const MODES = ['off', 'observe', 'enforce'];
 
 export function createSellerGate(cfg) {
@@ -18,12 +18,17 @@ export function createSellerGate(cfg) {
   if (fails('seller.origin_required', typeof origin !== 'string' || !/^https?:\/\//.test(origin) || new URL(origin).origin !== origin)) throw new Error('createSellerGate: `origin` is required and must be a canonical scheme://host[:port] (no path, no trailing slash), e.g. https://api.example.com');
   let mode = cfg.mode ?? 'enforce';
   if (!MODES.includes(mode)) throw new Error(`mode must be one of ${MODES.join(', ')}`);
-  const checker = createGrantChecker(rpc);
+  // The grant check inside a request has a time budget (J1): a cold first read of a long history can take minutes on a public RPC, and anyone can lengthen it with
+  // dust credits. Past the budget the gate answers 503 with Retry-After and nothing settles; the check keeps running in the background (concurrent requests join it
+  // and its progress is kept), so a retry finds it warm.
+  const budgetMs = cfg.grantCheckBudgetMs ?? 10_000, retryAfterSeconds = cfg.retryAfterSeconds ?? 5;
+  let checker;
   // ONE receipt per settled transaction (Addendum G, S1): a facilitator that reports success twice for one tx_sig must not make this seller sign a second
   // receipt (that is receipt_equivocation). The first receipt's bytes are returned again. Bounded: least recently used out at 10,000.
   // With cfg.dataDir the issued receipts are also kept in the gate's own SQLite file (H1): written BEFORE the response that carries the receipt is sent, so
   // a repeated success after a restart returns the stored bytes. cfg.receiptStore replaces it (tests). An unreadable or corrupt store stops the start.
   const store = fails('seller.store_receipts', true) ? (cfg.receiptStore ?? (cfg.dataDir ? openReceiptStore(cfg.dataDir) : null)) : null;
+  checker = createGrantChecker(rpc, { scanStore: store?.getScan ? { get: (k) => store.getScan(k), put: (k, v) => store.putScan(k, v) } : null });
   const signed = new Map();
   const remember = (tx, bytes) => { signed.delete(tx); signed.set(tx, bytes); if (signed.size > 10_000) signed.delete(signed.keys().next().value); };
   const resourceUrl = (req) => `${fails('seller.resource_from_origin', true) ? origin : `${req.protocol}://${req.get('host')}`}${req.originalUrl.split('?')[0]}`;
@@ -39,7 +44,13 @@ export function createSellerGate(cfg) {
     out.mandate = info.mandate; out.grant_tx = info.grant_tx ?? null;
     const errs = validateMandate(info.mandate);
     if (fails('seller.mandate_invalid', errs.length > 0)) { out.violations.push({ code: R.mandate_invalid, field: 'mandate', authorized: 'valid', actual: errs.join('; ') }); return out; }
-    const g = await checker.check(info.mandate, info.grant_tx, { active: true });
+    const running = checker.check(info.mandate, info.grant_tx, { active: true });
+    running.catch(() => {}); // it may finish (or fail) after the request has been answered
+    let timer;
+    const late = Symbol('pending');
+    const g = fails('seller.grant_budget', true) ? await Promise.race([running, new Promise((r) => { timer = setTimeout(() => r(late), budgetMs); })]) : await running;
+    clearTimeout(timer);
+    if (g === late) { out.pending = true; return out; }
     if (!g.ok) out.violations.push({ code: g.reason, field: 'grant', authorized: 'an active ApproveChecked + Memo bound to the mandate id', actual: g.detail });
     // the payment must come out of the granted account, otherwise it is not a payment under this mandate (Addendum C, fix 6)
     else if (fails('seller.payment_source', out.payment.source !== g.source)) out.violations.push({ code: R.grant_mismatch, field: 'source', authorized: g.source, actual: out.payment.source });
@@ -54,6 +65,11 @@ export function createSellerGate(cfg) {
       const payload = readPaymentHeader(req);
       if (!payload) return next(); // no payment yet: x402 issues the 402 challenge
       const ev = await evaluate(req, payload);
+      if (ev.pending) {
+        log({ mode: eff, grant_check: 'pending', budget_ms: budgetMs });
+        if (eff === 'enforce' || !fails('seller.grant_budget_observe', true)) return res.status(503).set('Retry-After', String(retryAfterSeconds)).json({ error: 'iussum_grant_check_pending', reason: 'grant_check_pending', retry_after: retryAfterSeconds });
+        // observe mode never blocks and never refuses: the payment goes on and the receipt records what was presented, unchecked
+      }
       req.iussum = { mode: eff, mandate_id: ev.mandate ? mandateId(ev.mandate) : null, grant_tx: ev.grant_tx, violations: ev.violations };
       const refuse = ev.violations.length > 0 && (eff === 'enforce' ? !isMutated('seller.enforce') : eff === 'observe' && isMutated('seller.observe_passes'));
       if (ev.violations.length) log({ mode: eff, refuse, reason: ev.violations[0].code, resource: resourceUrl(req) });

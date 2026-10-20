@@ -5,18 +5,20 @@ import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createAgent } from '@iussum/agent';
 import { T0 } from '../fixtures.mjs';
-import { startMockFacilitator, startSeller, newScenario, blockhash } from '../harness.mjs';
+import { startMockFacilitator, startSeller, newScenario, blockhash, fakeRpc } from '../harness.mjs';
 
 const realFetch = globalThis.fetch, sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 afterEach(() => { globalThis.fetch = realFetch; });
-async function cold(tc, { mode = 'enforce', slowMs = 400, budget = 80, extraGate = {}, agentOpts = {} } = {}) {
+async function cold(tc, { mode = 'enforce', slowMs = 400, slowCalls = 1, budget = 80, extraGate = {}, agentOpts = {} } = {}) {
   const facilitator = await startMockFacilitator();
   const seller = await startSeller({ facilitator, mode, now: () => T0 + 1000, price: '10000', gateOpts: { grantCheckBudgetMs: budget, retryAfterSeconds: 1, ...extraGate } });
   tc.after(() => { facilitator.close(); seller.close(); });
   const s = await newScenario(seller, { mandate: { period_budget: '100000', per_payment_max: '20000' } });
   const orig = seller.rpc.getSignaturesForAddress.bind(seller.rpc);
-  let slow = true; seller.rpc.getSignaturesForAddress = async (...a) => { if (slow) await sleep(slowMs); return orig(...a); }; // the cold first read
-  const a = await createAgent({ mandate: s.mandate, grant_tx: s.grant_tx, signer: s.signer, rpc: seller.rpc, getBlockhash: blockhash, now: () => T0 + 1000, ...agentOpts });
+  let slow = true, n = 0; seller.rpc.getSignaturesForAddress = async (...a) => { if (slow && n++ < slowCalls) await sleep(slowMs); return orig(...a); }; // the cold first read (the first `slowCalls` calls are slow)
+  const agentRpc = fakeRpc(); // the agent has its own, fast node: only the SELLER's first read is cold
+  agentRpc.grants = seller.rpc.grants; agentRpc.account = seller.rpc.account;
+  const a = await createAgent({ mandate: s.mandate, grant_tx: s.grant_tx, signer: s.signer, rpc: agentRpc, getBlockhash: blockhash, now: () => T0 + 1000, ...agentOpts });
   return { facilitator, seller, s, a, fast: () => { slow = false; } };
 }
 test('J1 the first request on a cold grant check answers 503 with Retry-After within the budget; nothing settles', async (tc) => {
@@ -45,7 +47,7 @@ test('J1 the reference agent honours Retry-After: it re-sends the same payload a
   assert.deepEqual(t.a.reservations.map((x) => x.state), ['consumed']);
 });
 test('J1 the agent retries a bounded number of times, then returns the 503; the reservation stays held', async (tc) => {
-  const t = await cold(tc, { slowMs: 60000, budget: 40, agentOpts: { retry: { max: 2 } } });
+  const t = await cold(tc, { slowMs: 60000, slowCalls: Infinity, budget: 40, agentOpts: { retry: { max: 2 } } });
   const t0 = Date.now();
   const r = await t.a.fetch(t.seller.url);
   assert.equal(r.status, 503); assert.equal(t.facilitator.counts.settle, 0);

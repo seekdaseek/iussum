@@ -14,16 +14,21 @@ export function openReceiptStore(dataDir) {
     const ok = db.prepare('PRAGMA integrity_check').get();
     if (!ok || Object.values(ok)[0] !== 'ok') throw new Error('integrity check failed');
     db.exec('CREATE TABLE IF NOT EXISTS receipts (tx_sig TEXT PRIMARY KEY, bytes TEXT NOT NULL, issued_at INTEGER NOT NULL)');
+    db.exec('CREATE TABLE IF NOT EXISTS scan_state (key TEXT PRIMARY KEY, json TEXT NOT NULL)'); // the grant checker\'s supersession scan marker (Addendum I, J1)
   } catch (e) {
     try { db?.close(); } catch { /* already unusable */ }
     throw new Error(`createSellerGate: the receipt store ${file} is unreadable or corrupt (${e.message}); refusing to start`);
   }
   const get = db.prepare('SELECT bytes FROM receipts WHERE tx_sig = ?');
   const put = db.prepare('INSERT OR IGNORE INTO receipts (tx_sig, bytes, issued_at) VALUES (?, ?, ?)');
+  const getKv = db.prepare('SELECT json FROM scan_state WHERE key = ?');
+  const putKv = db.prepare('INSERT INTO scan_state (key, json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET json = excluded.json');
   return {
     get: (tx) => get.get(tx)?.bytes,
     // returns the bytes that are stored for this tx_sig after the write: ours, or the ones another writer got in first
     put(tx, bytes) { put.run(tx, bytes, Date.now()); return get.get(tx).bytes; },
+    getScan: (k) => { const r = getKv.get(k); return r ? JSON.parse(r.json) : undefined; },
+    putScan: (k, v) => { putKv.run(k, JSON.stringify(v)); },
     close() { db.close(); },
   };
 }
