@@ -1,10 +1,10 @@
-baseline: 347 tests, 347 pass, 0 fail
-checks mutated: 115, survived (vacuous): 2
+baseline: 348 tests, 348 pass, 0 fail
+checks mutated: 115, survived (vacuous): 0
 
 | check skipped | tests that fail | first failing test |
 |---|---|---|
 | `agent.attach_mandate` | 15 | an in-scope payment goes through, attaches extensions.iussum.info, and is recorded in the ledger |
-| `agent.blockhash_valid` | 0 |  |
+| `agent.blockhash_valid` | 1 | T1 both answers are needed: a node that says the blockhash is still valid keeps the reservation held even when the height is past lastValidBlockHeight |
 | `agent.checkpoint` | 1 | T2 a restarted agent reads only what is new since its checkpoint |
 | `agent.consume_released` | 1 | T1 a success that arrives AFTER a proven release is still counted (the reservation is consumed, the ledger has it) |
 | `agent.decimals` | 1 | F11: the agent builds TransferChecked with the mint's decimals (9), not a constant 6 |
@@ -18,8 +18,8 @@ checks mutated: 115, survived (vacuous): 2
 | `agent.ledger` | 5 | refuses locally: its own running period spend would cross period_budget (second payment) |
 | `agent.ledger_rebuild` | 5 | F7: a restarted agent rebuilds its ledger from chain and refuses the payment that would cross the period budget |
 | `agent.min_context_slot` | 1 | T1 isBlockhashValid and getBlockHeight are both asked with minContextSlot = the slot getLatestBlockhash returned |
-| `agent.own_blockhash` | 0 |  |
-| `agent.period` | 14 | refuses locally: its own running period spend would cross period_budget (second payment) |
+| `agent.own_blockhash` | 1 | N12 a seller that says lastValidBlockHeight=1 cannot make the agent release the reservation: the second payment is refused and the total stays at the budget |
+| `agent.period` | 15 | refuses locally: its own running period spend would cross period_budget (second payment) |
 | `agent.persist_before_send` | 3 | property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds) |
 | `agent.rebuild_allowance` | 1 | C1 the agent's ledger rebuild uses the same check: a restarted agent whose history misses a debit refuses to pay (history_incomplete) |
 | `agent.release_needs_height` | 2 | property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds) |
@@ -28,7 +28,7 @@ checks mutated: 115, survived (vacuous): 2
 | `agent.requested_url` | 1 | review 1: a seller that OMITS resource.url does not stop an in-scope payment: the agent judges the URL it requested |
 | `agent.requested_url_present` | 1 | review 1: a payment that was not created through agent.fetch has no requested URL and is refused (resource_mismatch) |
 | `agent.reserve_atomic` | 2 | B5 five concurrent payments against a budget that fits three: exactly three settle, two are refused locally with period_over_budget |
-| `agent.reserve_held` | 10 | B5 five concurrent payments against a budget that fits three: exactly three settle, two are refused locally with period_over_budget |
+| `agent.reserve_held` | 11 | B5 five concurrent payments against a budget that fits three: exactly three settle, two are refused locally with period_over_budget |
 | `agent.resource_mismatch` | 1 | F8: a seller that DECLARES an allowed resource.url while the agent asked for another URL is refused as resource_mismatch |
 | `agent.restore_reservations` | 2 | property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds) |
 | `agent.scope` | 7 | refuses locally: amount over per_payment_max |
