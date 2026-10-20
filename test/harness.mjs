@@ -29,17 +29,19 @@ export async function startMockFacilitator({ fixedTx = null } = {}) {
 }
 
 export function fakeRpc() {
-  const s = { grants: new Map(), account: null, newer: [], mints: new Map([[A.asset, 6]]), calls: { getTransaction: 0, getAccountInfoParsed: 0, minContext: [] }, nodeSlot: null };
+  const s = { grants: new Map(), account: null, newer: [], mints: new Map([[A.asset, 6]]), calls: { getTransaction: 0, getAccountInfoParsed: 0, minContext: [] }, nodeSlot: null, lagHides: false };
   // a node that lags: when s.nodeSlot is set, a request with a minContextSlot above it fails the way agave does
   const lag = (kind, opts) => { s.calls.minContext.push([kind, opts?.minContextSlot ?? null]); if (s.nodeSlot !== null && opts?.minContextSlot > s.nodeSlot) throw new Error('Minimum context slot has not been reached'); };
   return Object.assign(s, {
-    async getTransaction(sig, opts) { lag('getTransaction', opts); s.calls.getTransaction++; return s.grants.get(sig) ?? null; },
+    async getTransaction(sig, opts) { lag('getTransaction', opts); s.calls.getTransaction++; const t = s.grants.get(sig) ?? null; return t && s.lagHides && s.nodeSlot !== null && t.slot > s.nodeSlot ? null : t; },
     async getAccountInfoParsed(addr) { s.calls.getAccountInfoParsed++; if (s.mints.has(addr)) return { data: { parsed: { info: { decimals: s.mints.get(addr) } } } }; return s.account; },
     async getAccountContext(addr, opts) { lag('getAccountContext', opts); s.calls.getAccountInfoParsed++; return { slot: s.contextSlot ?? 1_000_000_000, value: s.account }; },
     // newest first, like the real RPC: `before` and `until` are exclusive signatures, `limit` caps the page
     async getSignaturesForAddress(_addr, opts = {}) {
       lag('getSignaturesForAddress', opts);
       let list = s.newer;
+      // lagHides: a node that is behind does not list (or serve) what landed after its own slot, instead of refusing; it is what a client sees when it forgot minContextSlot (Addendum M, M8)
+      if (s.lagHides && s.nodeSlot !== null) list = list.filter((x) => x.slot === undefined || x.slot <= s.nodeSlot);
       if (opts.before) { const i = list.findIndex((x) => x.signature === opts.before); if (i >= 0) list = list.slice(i + 1); }
       if (opts.until) { const i = list.findIndex((x) => x.signature === opts.until); if (i >= 0) list = list.slice(0, i); }
       return list.slice(0, opts.limit ?? 1000);

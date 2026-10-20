@@ -2,21 +2,48 @@
 import { TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
 import { fails, registerCheck } from './guard.js';
 
-export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain.self_transfer', 'chain.missing_balance_zero', 'rpc.cache_bound', 'rpc.batch', 'history.min_context'].map(registerCheck);
+export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain.self_transfer', 'chain.missing_balance_zero', 'rpc.cache_bound', 'rpc.batch', 'history.min_context', 'rpc.pace', 'rpc.pace_halve', 'rpc.batch_burst'].map(registerCheck);
 
-export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000, sleep = (ms) => new Promise((res) => setTimeout(res, ms)), now = () => Date.now() } = {}) {
+// What the public endpoints allow, measured from a Mac in Node on 2026-10-20 (docs/phase17/limiter-probe.txt): about 10 getTransaction calls per 10 s window (a burst of
+// 10 is answered, the 11th is rejected; 1.0/s is answered, 1.25/s is not), a batch element counts like a call, and a block lasts about 18 s after the first rejection.
+// A token bucket holds BURST + RATE x 10 s under that quota: rate 0.8/s with a burst of 2 is at most 10 in any window and 8 a window once running.
+const PUBLIC_HOSTS = new Set(['api.devnet.solana.com', 'api.mainnet-beta.solana.com', 'api.testnet.solana.com']);
+export const PUBLIC_PACE = { rate: 0.8, burst: 2 };
+const OPEN_PACE = { rate: 25, burst: 25 }; // any other endpoint starts fast; the first rate-limited answer halves the rate (and so on) until it stops
+export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000, sleep = (ms) => new Promise((res) => setTimeout(res, ms)), now = () => Date.now(), rate, burst } = {}) {
   let id = 0;
+  // ONE token bucket per client, shared by single calls and batch elements (Addendum M, M6). A rate-limited answer empties it and halves the rate; every answered
+  // element raises the rate again by 5% up to the configured rate. A rejected call is therefore never repeated at once: it waits for a token at the lower rate.
+  const dflt = PUBLIC_HOSTS.has(new URL(url).host) ? PUBLIC_PACE : OPEN_PACE;
+  const maxRate = rate ?? dflt.rate, capacity = burst ?? dflt.burst, MIN_RATE = 0.05;
+  const bucket = { tokens: capacity, rate: maxRate, t: now() };
+  const refill = () => { const t = now(); bucket.tokens = Math.min(capacity, bucket.tokens + ((t - bucket.t) / 1000) * bucket.rate); bucket.t = t; };
+  async function take(n = 1) {
+    if (!fails('rpc.pace', true)) return;
+    const need = Math.min(n, capacity);
+    for (;;) {
+      refill();
+      if (bucket.tokens >= need - 1e-9) { bucket.tokens -= need; return; }
+      await sleep(Math.max(1, Math.ceil(((need - bucket.tokens) / bucket.rate) * 1000)));
+    }
+  }
+  const limited = () => { if (!fails('rpc.pace_halve', true)) return; refill(); bucket.tokens = 0; bucket.rate = Math.max(MIN_RATE, bucket.rate / 2); };
+  const answeredEls = (k = 1) => { if (bucket.rate < maxRate) bucket.rate = Math.min(maxRate, bucket.rate * 1.05 ** k); };
+  const RATE_LIMITED = /rate|limit|too many|429/i;
   async function call(method, params) {
     for (let attempt = 0; ; attempt++) {
       try {
+        await take(1);
         const r = await fetchImpl(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method, params }) });
-        if (r.status === 429 || r.status >= 500) throw Object.assign(new Error(`rpc http ${r.status}`), { retry: true });
+        if (r.status === 429 || r.status >= 500) throw Object.assign(new Error(`rpc http ${r.status}`), { retry: true, limited: r.status === 429 });
         const j = await r.json();
-        if (j.error) throw Object.assign(new Error(`${method}: ${j.error.message}`), { retry: /rate|limit|too many|429/i.test(j.error.message) });
+        if (j.error) throw Object.assign(new Error(`${method}: ${j.error.message}`), { retry: RATE_LIMITED.test(j.error.message), limited: RATE_LIMITED.test(j.error.message) });
+        answeredEls();
         return j.result;
       } catch (e) {
+        if (e.limited) limited();
         if (attempt >= retries || !(e.retry || e.name === 'TypeError')) throw e;
-        await new Promise((res) => setTimeout(res, Math.min(5000, 400 * 2 ** attempt) * (0.75 + Math.random() / 2)));
+        await sleep(Math.min(5000, 400 * 2 ** attempt) * (0.75 + Math.random() / 2));
       }
     }
   }
@@ -26,12 +53,13 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000,
   const keep = (sig, t) => { if (t) { txCache.set(sig, t); if (fails('rpc.cache_bound', txCache.size > CACHE_MAX)) txCache.delete(txCache.keys().next().value); } };
   const rpcObj = {
     url, call,
+    pacing: () => ({ rate: bucket.rate, maxRate, burst: capacity, tokens: bucket.tokens }),
     async getTransaction(sig, opts = {}) {
       if (txCache.has(sig)) { const v = txCache.get(sig); txCache.delete(sig); txCache.set(sig, v); return v; }
       const cfg = txConfig(opts);
       let t = await call('getTransaction', [sig, cfg]);
       // a transaction a node does not have yet is asked again a few times (the index lags); inside a request that must not cost seconds: nullRetries 0 reads once
-      for (let i = 0; i < (opts.nullRetries ?? 6) && !t; i++) { await new Promise((res) => setTimeout(res, 700)); t = await call('getTransaction', [sig, cfg]); }
+      for (let i = 0; i < (opts.nullRetries ?? 6) && !t; i++) { await sleep(700); t = await call('getTransaction', [sig, cfg]); }
       keep(sig, t);
       return t;
     },
@@ -42,25 +70,27 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000,
       const out = new Array(sigs.length), todo = [];
       sigs.forEach((sg, i) => { if (txCache.has(sg)) { const v = txCache.get(sg); txCache.delete(sg); txCache.set(sg, v); out[i] = v; } else todo.push(i); });
       const cfg = txConfig({ minContextSlot });
-      const chunks = []; for (let i = 0; i < todo.length; i += batchSize) chunks.push(todo.slice(i, i + batchSize));
+      // a batch is never larger than the burst: the bucket could never hold the tokens for more (Addendum M, M6)
+      const size = Math.max(1, fails('rpc.batch_burst', true) ? Math.min(batchSize, Math.floor(capacity)) : batchSize);
+      const chunks = []; for (let i = 0; i < todo.length; i += size) chunks.push(todo.slice(i, i + size));
       // A rate-limited ELEMENT ("Too many requests for a specific RPC call", as the public devnet node answers inside a batch) is retried on its own with backoff while
       // the elements that succeeded are kept; a whole batch that gets HTTP 429 / 5xx is retried; any other errored element throws (fail closed).
       // A read through a rate-limited node can take minutes (the public devnet node answers about 9 elements per 10 s), so patience is measured in TIME without progress,
-      // not in rounds: the read gives up (fail closed) only after `maxStall` rounds AND `stallMs` in which no element was answered. All workers of one call share one
-      // cooldown, and after a limited round the next request carries only about twice what the last one got answered, so the node is not hammered with what it refuses.
-      const maxStall = Math.max(retries, 12), RATE = /rate|limit|too many|429/i;
-      let coolUntil = 0;
+      // not in rounds: the read gives up (fail closed) only after `stallMs` (and at least two rounds) in which no element was answered. Every POST first takes its tokens
+      // from the client's bucket, which a rate-limited answer empties and slows, so a rejected element waits for a token instead of being repeated at once; after a
+      // limited round the next request carries only about twice what the last one got answered.
+      const RATE = /rate|limit|too many|429/i;
       async function batch(idx) {
         const results = new Array(idx.length).fill(undefined);
         let pending = idx.map((_, k) => k), stall = 0, limit = pending.length, lastProgress = now();
         while (pending.length) {
-          if (coolUntil > now()) await sleep(coolUntil - now());
-          const slice = pending.slice(0, limit);
+          const slice = pending.slice(0, Math.min(limit, size));
+          await take(slice.length);
           let answered = 0, retryable = false;
           try {
             const body = slice.map((k) => ({ jsonrpc: '2.0', id: ++id, method: 'getTransaction', params: [sigs[idx[k]], cfg] }));
             const r = await fetchImpl(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-            if (r.status === 429 || r.status >= 500) throw Object.assign(new Error(`rpc http ${r.status}`), { retry: true });
+            if (r.status === 429 || r.status >= 500) throw Object.assign(new Error(`rpc http ${r.status}`), { retry: true, limited: r.status === 429 });
             const j = await r.json();
             if (!Array.isArray(j)) { const m = j?.error?.message ?? 'not an array'; throw Object.assign(new Error(`batch rejected: ${m}`), { retry: RATE.test(m), whole: true }); }
             const byId = new Map(j.map((e) => [e.id, e]));
@@ -71,17 +101,19 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000,
               if (e.error) { if (RATE.test(e.error.message)) still.push(k); else throw new Error(`getTransaction: ${e.error.message}`); }
               else { results[k] = e.result ?? null; answered++; }
             });
-            pending = [...still, ...pending.slice(limit)];
+            pending = [...still, ...pending.slice(slice.length)];
             retryable = still.length > 0;
+            if (still.length) limited();
+            if (answered) answeredEls(answered);
           } catch (e) {
             if (e.whole && !e.retry) { for (const k of pending) results[k] = await rpcObj.getTransaction(sigs[idx[k]], { minContextSlot }); return results; } // a node that refuses batches: one by one
+            if (e.limited) limited();
             if (!(e.retry || e.name === 'TypeError')) throw e;
             retryable = true;
           }
           if (!pending.length) break;
-          if (answered) { stall = 0; lastProgress = now(); limit = Math.min(pending.length, Math.max(4, answered * 2)); }
-          else { stall++; limit = Math.min(limit, 4); if (stall > maxStall && now() - lastProgress >= stallMs) throw new Error('getTransaction: rate limited, no progress'); }
-          if (retryable || answered) coolUntil = Math.max(coolUntil, now() + Math.min(5000, 400 * 2 ** Math.min(stall, 4)) * (0.75 + Math.random() / 2));
+          if (answered) { stall = 0; lastProgress = now(); limit = Math.min(pending.length, Math.max(1, answered * 2)); }
+          else { stall++; limit = 1; if (stall >= 2 && now() - lastProgress >= stallMs) throw new Error('getTransaction: rate limited, no progress'); }
         }
         return results;
       }

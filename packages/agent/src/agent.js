@@ -29,7 +29,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 
-export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid', 'agent.release_needs_height', 'agent.min_context_slot', 'agent.consume_released', 'agent.persist_before_send', 'agent.restore_reservations', 'agent.checkpoint', 'agent.datadir_lock', 'agent.closed_refuses', 'agent.corrupt_reservations_refuse', 'agent.tmp_cleanup', 'agent.history_min_context', 'agent.keyed_by_grant', 'agent.retry_after', 'agent.closed_hook', 'agent.closed_scheme', 'agent.write_needs_lock', 'agent.held_any_period', 'agent.keep_settled', 'agent.legacy_lock', 'agent.legacy_import', 'agent.expiry_context', 'agent.retry_after_header', 'agent.close_waits', 'agent.start_releases'].map(registerCheck);
+export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid', 'agent.release_needs_height', 'agent.min_context_slot', 'agent.consume_released', 'agent.persist_before_send', 'agent.restore_reservations', 'agent.checkpoint', 'agent.datadir_lock', 'agent.closed_refuses', 'agent.corrupt_reservations_refuse', 'agent.tmp_cleanup', 'agent.history_min_context', 'agent.keyed_by_grant', 'agent.retry_after', 'agent.closed_hook', 'agent.closed_scheme', 'agent.write_needs_lock', 'agent.held_any_period', 'agent.keep_settled', 'agent.legacy_lock', 'agent.legacy_import', 'agent.expiry_context', 'agent.retry_after_header', 'agent.fsync_dir', 'agent.close_waits', 'agent.start_releases'].map(registerCheck);
 const MARK = 'IUSSUM_REFUSAL:';
 const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export class IussumRefusal extends Error {
@@ -89,6 +89,8 @@ async function build(cfg, guard) {
     const fd = fs.openSync(tmp, 'w', 0o600);
     try { fs.writeSync(fd, JSON.stringify(obj)); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
     fs.renameSync(tmp, file);
+    // the rename itself is only durable once the directory is: without this a power loss right after a payload leaves can lose the reservation (Addendum M, M8)
+    if (fails('agent.fsync_dir', true)) { try { const dfd = fs.openSync(path.dirname(file), 'r'); try { fs.fsyncSync(dfd); } finally { fs.closeSync(dfd); } } catch { /* a platform that cannot fsync a directory */ } }
   }
   const readJson = (file) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; } };
   const persistReservations = () => {

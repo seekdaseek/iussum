@@ -257,7 +257,7 @@ const b58 = getBase58Decoder(), txDec = getTransactionDecoder(), msgDec = getCom
 const decodeTx = (b64) => txDec.decode(Uint8Array.from(Buffer.from(b64, 'base64')));
 test('property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds)', async (tc) => {
   const NOW = T0 + 1000;
-  let settledTotal = 0, refusals = 0, restarts = 0, restartsWithKept = 0, expiries = 0, lags = 0, histLags = 0, regrants = 0;
+  let settledTotal = 0, refusals = 0, restarts = 0, restartsWithKept = 0, expiries = 0, lags = 0, histLags = 0, regrants = 0, i3s = 0;
   for (const seed of seeds.slice(0, 60)) {
     const r = rngFor(seed * 101 + 9);
     const price = pick(r, [10000, 20000]), budget = pick(r, [30000, 50000, 70000]);
@@ -268,8 +268,10 @@ test('property I4: the agent never settles more than period_budget under concurr
     // the chain: a height, the last valid height of every blockhash the agent was handed, and a node that may lag
     let height = 50, lagging = false, issued = 0;
     const lastValidOf = new Map();
+    const PROOF_SLOT = 5000; // the slot the expiry answers come from; a lagging history node sits just below it and does not list what landed after its own slot
+    seller.rpc.lagHides = true;
     seller.rpc.call = async (m, p) => {
-      if (m === 'isBlockhashValid') return { context: { slot: 11 }, value: lagging ? false : (lastValidOf.get(p[0]) ?? 0) >= height }; // a lagging node: false for everything it has not seen
+      if (m === 'isBlockhashValid') return { context: { slot: PROOF_SLOT }, value: lagging ? false : (lastValidOf.get(p[0]) ?? 0) >= height }; // a lagging node: false for everything it has not seen
       if (m === 'getBlockHeight') return lagging ? height - 300 : height; // ... and its height is behind
       throw new Error(`unexpected rpc call ${m}`);
     };
@@ -282,10 +284,11 @@ test('property I4: the agent never settles more than period_budget under concurr
       for (; mirrored < facilitator.settled.length; mirrored++) {
         const id = `MOCKSETTLE${mirrored + 1}`.padEnd(88, 'x');
         const agentSig = b58.decode(decodeTx(facilitator.settled[mirrored].payload.transaction).signatures[s.signer.address]);
-        const tx = payTx({ slot: 2000 + mirrored, blockTime: T0 + 500, amount: String(price), authority: s.signer.address });
+        const landSlot = histLag ? PROOF_SLOT + mirrored : 2000 + mirrored; // landed during a lag phase: after the lagging node's slot
+        const tx = payTx({ slot: landSlot, blockTime: T0 + 500, amount: String(price), authority: s.signer.address });
         tx.transaction.signatures = [id, agentSig];
         seller.rpc.grants.set(id, tx);
-        seller.rpc.newer = [{ signature: id, slot: 2000 + mirrored, blockTime: T0 + 500, err: null }, ...seller.rpc.newer];
+        seller.rpc.newer = [{ signature: id, slot: landSlot, blockTime: T0 + 500, err: null }, ...seller.rpc.newer];
       }
       seller.rpc.account = { data: { parsed: { info: { owner: s.mandate.principal, mint: s.mandate.asset, delegate: s.mandate.agent, delegatedAmount: { amount: String(10000000 - (mirrored - mirrorBase) * price) } } } } };
     };
@@ -319,13 +322,16 @@ test('property I4: the agent never settles more than period_budget under concurr
         else if (op < 0.28) tamper = !tamper;
         else if (op < 0.34) { lagging = !lagging; if (lagging) lags++; }
         else if (op < 0.40) { height += 200; expiries++; } // blockhashes handed out so far expire: the kept payloads can no longer land
-        else if (op < 0.46) { histLag = !histLag; seller.rpc.nodeSlot = histLag ? 1 : null; if (histLag) histLags++; } // the node that answers the history reads is behind (after an expiry, I3)
-        else if (op < 0.50 && dropNext === 0 && withhold === 0 && withheld.length === 0) { // the principal re-grants the SAME mandate; the agent restarts on the new grant with the same data directory (I4)
+        else if (op < 0.46) { histLag = !histLag; seller.rpc.nodeSlot = histLag ? PROOF_SLOT - 1 : null; if (histLag) histLags++; } // the node that answers the history reads is behind (after an expiry, I3)
+        else if ((op < 0.50 || (op >= 0.60 && op < 0.66)) && withheld.length > 0 && !histLag) { // I3: the seller lands a kept payload while the history node is 1 slot behind the proof slot, then the blockhash expires
+          histLag = true; seller.rpc.nodeSlot = PROOF_SLOT - 1; histLags++; sync(); await land(); sync(); height += 200; expiries++; i3s++;
+        }
+        else if (op < 0.50 && dropNext === 0 && withhold === 0 && withheld.length === 0 && !histLag) { // the principal re-grants the SAME mandate; the agent restarts on the new grant with the same data directory (I4)
           sync(); await agent.close(); regrants++;
           grantSig = `REGRANT${regrants}`.padEnd(88, 'g'); seller.rpc.grants.set(grantSig, grantTx(s.mandate));
           mirrorBase = mirrored; settleBase = facilitator.counts.settle; seller.rpc.newer = []; sync(); agent = await make();
         }
-        else if (op < 0.66 && dropNext === 0 && withhold === 0) { sync(); if (withheld.length) restartsWithKept++; await agent.close(); agent = await make(); restarts++; } // restart: the ledger comes from the chain, the held reservations from disk
+        else if (op < 0.66 && dropNext === 0 && withhold === 0 && !histLag) { sync(); if (withheld.length) restartsWithKept++; await agent.close(); agent = await make(); restarts++; } // restart: the ledger comes from the chain, the held reservations from disk
         trace(op < 0.08 ? 'lose' : op < 0.22 ? 'withhold' : op < 0.28 ? 'tamper' : op < 0.34 ? 'lag' : op < 0.40 ? 'expire' : op < 0.46 ? 'histlag' : op < 0.50 ? 'regrant?' : op < 0.66 ? 'restart?' : 'plain');
         if (r() < 0.3) { trace('land kept payloads'); await land(); }
         sync(); // the chain is live: whatever the facilitator settled so far is on it, with the agent's signature
@@ -340,7 +346,7 @@ test('property I4: the agent never settles more than period_budget under concurr
       settledTotal += facilitator.counts.settle;
     } finally { globalThis.fetch = realFetch; await agent.close(); facilitator.close(); seller.close(); fs.rmSync(dataDir, { recursive: true, force: true }); }
   }
-  console.log(`property I4: 60 seeds, ${settledTotal} payments settled, ${refusals} local refusals (all period_over_budget), ${restarts} restarts (${restartsWithKept} while a seller held a payload), ${expiries} expiries, ${lags} lagging-node phases, ${histLags} lagging-history-node phases, ${regrants} same-mandate re-grants with the data directory reused, never above the budget`);
+  console.log(`property I4: 60 seeds, ${i3s} landings behind a lagging history node followed by an expiry, ${settledTotal} payments settled, ${refusals} local refusals (all period_over_budget), ${restarts} restarts (${restartsWithKept} while a seller held a payload), ${expiries} expiries, ${lags} lagging-node phases, ${histLags} lagging-history-node phases, ${regrants} same-mandate re-grants with the data directory reused, never above the budget`);
 });
 
 test('property I5: a facilitator that reports success twice for one transaction does not make an honest seller sign two receipts (20 seeds)', async (tc) => {

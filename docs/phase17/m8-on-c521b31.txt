@@ -1,0 +1,5 @@
+ℹ fail 2
+ℹ pass 0
+✖ M8 a 503 is retried only when Retry-After is whole seconds or a future HTTP-date; otherwise the paid request is sent once (retry-after)
+✖ M8 the reservations file is fsynced, then its directory after the rename (fsync-trace)
+✖ failing tests:

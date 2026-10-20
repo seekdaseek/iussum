@@ -91,7 +91,7 @@ let fresh = null;
 if (!settled) { fresh = await agent.fetch(A.url('quote')); if (fresh.status !== 200) throw new Error(`fresh payment after the warm-up: HTTP ${fresh.status}`); settled = fresh; }
 say(`the gate warmed up in the background after ${warmS} s from the first request (${tries} re-sends of the kept payload, each answered 503 until then); the kept payload then got ${keptOutcome}${fresh ? ' (expired: its blockhash lives about 90 s)' : ''}; ${fresh ? 'a fresh payment' : 'the kept payload'} settled with HTTP 200 ; the gate's own client made ${gateRpc.k.c.getSignaturesForAddress ?? 0} signature-page calls and ${gateRpc.k.total} RPC HTTP calls`);
 const rcpts = [decodeReceipt(settled.headers.get('x-iussum-receipt'))];
-say(`agent payment 1 (settled through the re-sent payload): ${rcpts[0].tx_sig}`);
+say(`agent payment 1 (the kept payload if it settled, else the fresh payment made after the warm-up): ${rcpts[0].tx_sig}`);
 for (let i = 1; i < 3; i++) { const r = await agent.fetch(A.url('quote')); if (r.status !== 200) throw new Error(`payment ${i + 1}: HTTP ${r.status}`); rcpts.push(r.receipt); say(`agent payment ${i + 1}: ${r.receipt.tx_sig}`); }
 
 // two disputes with an instrumented resolver RPC (a fresh client with an empty cache), the same service and store

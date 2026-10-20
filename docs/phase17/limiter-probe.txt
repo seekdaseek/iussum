@@ -1,0 +1,55 @@
+limiter probe, host api.devnet.solana.com, 250 signatures, started 2026-10-20T15:19:34.343Z
+
+== 1. burst: back-to-back single calls (one at a time) after 30 s quiet, until the first rejected call
+  (quiet 30 s)
+  rep 1: 10 answered before the first rejection (http429), 725 ms
+  (quiet 30 s)
+  rep 2: 10 answered before the first rejection (http429), 2649 ms
+  (quiet 30 s)
+  rep 3: 10 answered before the first rejection (http429), 607 ms
+
+== 2. paced single calls for 60 s at each rate, after 30 s quiet
+  (quiet 30 s)
+  0.5/s: 31 calls, answered 31, element-limited 0, http 429 0, other errors 0
+  (quiet 30 s)
+  0.8/s: 49 calls, answered 49, element-limited 0, http 429 0, other errors 0
+  (quiet 30 s)
+  1/s: 61 calls, answered 60, element-limited 0, http 429 1, other errors 0
+  (quiet 30 s)
+  1.25/s: 76 calls, answered 10, element-limited 0, http 429 66, other errors 0
+
+== 3. does a rejected call prolong the block? A: provoke a block with a burst, then wait quietly and probe once per second (time to the first answer). B: provoke it the same way, then keep hammering at 5 calls/s for 10 s, then probe once per second
+  (quiet 30 s)
+  A (quiet after the block): burst answered 10, then quiet probes
+  A (quiet after the block): first answer 18.4 s after the block began (16 probes at 1/s)
+  (quiet 30 s)
+  B (hammering during the block): burst answered 10, then 30 calls in 10 s during the block
+  B (hammering during the block): first answer 19.5 s after the block began (8 probes at 1/s)
+  (quiet 30 s)
+  A again: burst answered 10, then quiet probes
+  A again: first answer 18.4 s after the block began (16 probes at 1/s)
+  (quiet 30 s)
+  B again: burst answered 10, then 30 calls in 10 s during the block
+  B again: first answer 19.5 s after the block began (8 probes at 1/s)
+
+== 4. batches: one POST of N getTransaction elements after 30 s quiet, three times per size
+  (quiet 30 s)
+  batch of 5 (rep 1): answered 5, element-limited 0, other errors 0, 149 ms
+  (quiet 30 s)
+  batch of 5 (rep 2): answered 5, element-limited 0, other errors 0, 163 ms
+  (quiet 30 s)
+  batch of 5 (rep 3): answered 5, element-limited 0, other errors 0, 163 ms
+  (quiet 30 s)
+  batch of 10 (rep 1): answered 9, element-limited 1, other errors 0, 165 ms
+  (quiet 30 s)
+  batch of 10 (rep 2): answered 9, element-limited 1, other errors 0, 187 ms
+  (quiet 30 s)
+  batch of 10 (rep 3): answered 9, element-limited 1, other errors 0, 171 ms
+  (quiet 30 s)
+  batch of 20 (rep 1): answered 9, element-limited 11, other errors 0, 164 ms
+  (quiet 30 s)
+  batch of 20 (rep 2): answered 9, element-limited 11, other errors 0, 204 ms
+  (quiet 30 s)
+  batch of 20 (rep 3): answered 9, element-limited 11, other errors 0, 164 ms
+
+finished 2026-10-20T15:35:01.225Z

@@ -26,7 +26,7 @@ const sigs = (n) => Array.from({ length: n }, (_, i) => `S${i}`.padEnd(88, 'x'))
 test('J2 60 signatures go out as 3 batches (25, 25, 10), results aligned with the request', async () => {
   const { rpc, log } = node();
   const r = await rpc.getTransactions(sigs(60));
-  assert.deepEqual(log.posts, [25, 25, 10]); assert.equal(r.length, 60);
+  assert.deepEqual([...log.posts].sort((a, b) => b - a), [25, 25, 10]); // two workers share the bucket: the order of the POSTs varies assert.equal(r.length, 60);
   r.forEach((t, i) => assert.equal(t.transaction.signatures[0], sigs(60)[i]));
 });
 test('J2 the batch size and the concurrency are limits', async () => {
@@ -106,5 +106,5 @@ test('J2 a node that answers HTTP 429 for 40 s and then recovers is waited out',
 test('J2 a node that answers nothing for stallMs gives up (fail closed), after that long and not before', async () => {
   const { rpc, clock } = limited({ alwaysFor: Infinity });
   await assert.rejects(() => rpc.getTransactions(sigs(5), { nullRetries: 0 }), /rate limited|429/);
-  assert.ok(clock.t >= 90_000 && clock.t < 200_000, `${clock.t} ms`);
+  assert.ok(clock.t >= 90_000 && clock.t < 125_000, `${clock.t} ms`);
 });
