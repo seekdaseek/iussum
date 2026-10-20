@@ -47,13 +47,12 @@ export function createResolver({ rpc, network, sellerKey, store, sendRefund = nu
       catch (e) { return { early: { verdict: 'invalid', tier: 1, reason: R.history_incomplete, delta: [{ field: 'supersession scan', authorized: 'complete', actual: e.message }], liable: null, time_source: null } }; }
       // While the grant is current the allowance cross-check (C1) compares ALL debits since the grant with the allowance that is left, so the
       // history must reach the grant: no cut at the start of the period (Addendum F, N1). A superseded grant skips C1, and the period is enough.
-      // A superseded grant skips C1 and only needs the period (no checkpoint). A current one reads back to the grant, ONCE: the verified history is kept as a
-      // checkpoint per grant, so a later dispute reads only what is new, and a read that stops at maxPages keeps its progress (Addendum G, T2).
-      const startsAt = superseded && payment.block_time != null ? periodStart(mandate, payment.block_time) : null;
+      // The history is read back to the grant, ONCE: the verified debits are kept as a checkpoint per grant, so a later dispute reads only what is new, and a
+      // read that stops at maxPages keeps its progress (Addendum G, T2). This holds for a superseded grant too (a cut at the period start has no progress to keep).
       const cpKey = `${grant_tx}|${grant.source}|${mandate.agent}|${mandate.asset}`;
-      const useCp = !superseded && fails('resolver.checkpoint', true);
-      history = await agentSpendHistory(rpc, { source: grant.source, agent: mandate.agent, mint: mandate.asset, until: grant_tx, stopAtTime: fails('resolver.history_to_grant', true) ? startsAt : (payment.block_time != null ? periodStart(mandate, payment.block_time) : null), pageSize: historyPageSize, maxPages: historyMaxPages, checkpoint: useCp ? store.getCheckpoint(cpKey) : null });
-      if (useCp && history.checkpoint) store.putCheckpoint(cpKey, history.checkpoint, now());
+      const full = fails('resolver.history_to_grant', true);
+      history = await agentSpendHistory(rpc, { source: grant.source, agent: mandate.agent, mint: mandate.asset, until: grant_tx, stopAtTime: full || payment.block_time == null ? null : periodStart(mandate, payment.block_time), pageSize: historyPageSize, maxPages: historyMaxPages, checkpoint: full && fails('resolver.checkpoint', true) ? store.getCheckpoint(cpKey) : null });
+      if (full && history.checkpoint && fails('resolver.checkpoint', true)) store.putCheckpoint(cpKey, history.checkpoint, now());
       Object.assign(blockIdx, history.blockIdx);
       // order the transactions that are compared (S7): the block is read only where two relevant transactions share a slot
       try { await fillBlockIndices(rpc, [{ slot: grant.grant_slot, tx_sig: grant_tx }, { slot: payment.slot, tx_sig }, ...(superseded ? [{ slot: superseded.slot, tx_sig: superseded.sig }] : []), ...history.entries], blockIdx); }

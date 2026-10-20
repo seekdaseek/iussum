@@ -45,3 +45,22 @@ export function recreateTx(slot, amount = '1') {
   tx.meta.postTokenBalances = tx.meta.postTokenBalances.map((b) => (b.accountIndex === 2 ? { ...b, uiTokenAmount: { amount: String(5000000n - BigInt(amount)), decimals: 6 } } : b));
   return tx;
 }
+
+// a self-transfer made by CPI (an inner instruction of another program)
+export function selfInner(slot, { amount = '50000' } = {}) {
+  const tx = selfTransfer('transferChecked', { slot, amount });
+  const ixs = tx.transaction.message.instructions;
+  const i = ixs.findIndex((x) => x.parsed?.type === 'transferChecked');
+  const inner = ixs[i];
+  ixs[i] = { programId: 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4', accounts: [SRC], data: 'abc' };
+  tx.meta.innerInstructions = [{ index: i, instructions: [{ ...inner, stackHeight: 2 }] }];
+  return tx;
+}
+// a self-transfer authorised through a multisig authority (the info names multisigAuthority, not authority)
+export function selfMulti(slot, { amount = '50000' } = {}) {
+  const tx = selfTransfer('transferChecked', { slot, amount });
+  const i = tx.transaction.message.instructions.findIndex((x) => x.parsed?.type === 'transferChecked');
+  const { authority, ...rest } = tx.transaction.message.instructions[i].parsed.info;
+  tx.transaction.message.instructions[i].parsed.info = { ...rest, multisigAuthority: authority, signers: [authority] };
+  return tx;
+}

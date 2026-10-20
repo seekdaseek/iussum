@@ -1,0 +1,1 @@
+On 73fd95a (same file, same seeds): I1 fails (the maxPages limit is never reached because the old code ignores the page options, and 600 histories cannot be completed under it), I2 and I3 pass, I4 fails at seed 21 (settled 70000 against a budget of 50000), I5 fails at seed 1 (3 different receipts for one transaction).

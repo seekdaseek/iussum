@@ -14,18 +14,18 @@ export const DEVNET = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1';
 export const listen = (srv) => new Promise((r) => srv.listen(0, '127.0.0.1', () => r(srv.address().port)));
 
 export async function startMockFacilitator({ fixedTx = null } = {}) {
-  const counts = { verify: 0, settle: 0 }; let n = 0;
+  const counts = { verify: 0, settle: 0 }; let n = 0; const settled = []; // the payloads settled, in order
   const srv = http.createServer((req, res) => {
     let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => {
       res.setHeader('content-type', 'application/json');
       if (req.url === '/supported') return res.end(JSON.stringify({ kinds: [{ x402Version: 2, scheme: 'exact', network: DEVNET, extra: { feePayer: A.thief } }], extensions: [], signers: { 'solana:*': [A.thief] } }));
       if (req.url === '/verify') { counts.verify++; return res.end(JSON.stringify({ isValid: true, payer: A.agent })); }
-      if (req.url === '/settle') { counts.settle++; return res.end(JSON.stringify({ success: true, transaction: fixedTx ?? `MOCKSETTLE${++n}`.padEnd(88, 'x'), network: DEVNET, payer: JSON.parse(b).paymentPayload ? A.agent : A.agent })); }
+      if (req.url === '/settle') { counts.settle++; try { settled.push(JSON.parse(b).paymentPayload); } catch { /* ignore */ } return res.end(JSON.stringify({ success: true, transaction: fixedTx ?? `MOCKSETTLE${++n}`.padEnd(88, 'x'), network: DEVNET, payer: JSON.parse(b).paymentPayload ? A.agent : A.agent })); }
       res.statusCode = 404; res.end('{}');
     });
   });
   const port = await listen(srv);
-  return { url: `http://127.0.0.1:${port}`, counts, close: () => srv.close() };
+  return { url: `http://127.0.0.1:${port}`, counts, settled, close: () => srv.close() };
 }
 
 export function fakeRpc() {
@@ -34,7 +34,13 @@ export function fakeRpc() {
     async getTransaction(sig) { s.calls.getTransaction++; return s.grants.get(sig) ?? null; },
     async getAccountInfoParsed(addr) { s.calls.getAccountInfoParsed++; if (s.mints.has(addr)) return { data: { parsed: { info: { decimals: s.mints.get(addr) } } } }; return s.account; },
     async getAccountContext(addr) { s.calls.getAccountInfoParsed++; return { slot: s.contextSlot ?? 1_000_000_000, value: s.account }; },
-    async getSignaturesForAddress() { return s.newer; }, // signatures newer than the grant on the source account (none unless a test sets them)
+    // newest first, like the real RPC: `before` and `until` are exclusive signatures, `limit` caps the page
+    async getSignaturesForAddress(_addr, opts = {}) {
+      let list = s.newer;
+      if (opts.before) { const i = list.findIndex((x) => x.signature === opts.before); if (i >= 0) list = list.slice(i + 1); }
+      if (opts.until) { const i = list.findIndex((x) => x.signature === opts.until); if (i >= 0) list = list.slice(0, i); }
+      return list.slice(0, opts.limit ?? 1000);
+    }, // signatures newer than the grant on the source account (none unless a test sets them)
     async call() { throw new Error('unexpected rpc call'); },
   });
 }

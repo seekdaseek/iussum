@@ -1,0 +1,13 @@
+property I1: 600 histories (seeds 1..600), 3059 disputes, 2074 with a decided model verdict, 755 with a 3-signature page and maxPages 2 (the page limit was hit 391 times and the verdict still arrived)
+✔ property I1: 600 random histories, every dispute gets the model's verdict on a readable chain (seeds 1..600)
+property I2: 2234 disputes with no verdict, 825 with the model's verdict, 0 different (faults: account 616, page 588, unreadable 611, heal 623, block 621)
+✔ property I2: RPC faults give the model's verdict or no verdict, never a different decided verdict (600 histories)
+property I3: 559 refunds over 200 histories, never two for one payment
+✔ property I3: at most one refund per payment, and only on a seller-liable verdict (200 histories)
+property I4: 60 seeds, 201 payments settled, 1179 local refusals (all period_over_budget), 62 restarts (7 while a seller held a payload), 27 expiries, 27 lagging-node phases, never above the budget
+✔ property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds)
+property I5: 39 repeated successes over 20 seeds, always the identical receipt
+✔ property I5: a facilitator that reports success twice for one transaction does not make an honest seller sign two receipts (20 seeds)
+ℹ tests 5
+ℹ pass 5
+ℹ fail 0
