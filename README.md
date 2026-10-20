@@ -32,7 +32,7 @@ Requires **Node 24 or newer** (`engines` says `>=24`; `node:sqlite` and a depend
 
 ```bash
 npm ci
-npm test                 # 346 tests plus the property test (600 random histories among them), no network
+npm test                 # 348 tests (600 random histories among them), no network
 npm run mutation         # breaks each of the checks one at a time and requires a test to fail
 npm run demo:devnet      # thirteen scenarios on devnet with real USDC and a real facilitator (needs funded throw-away keys, see JUDGE_GUIDE.md)
 ```
