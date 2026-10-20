@@ -1,5 +1,7 @@
 // Devnet plumbing for the demo: keys, token accounts, the grant and revoke transactions, demo sellers on the REAL x402 stack, balances.
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import http from 'node:http';
 import express from 'express';
 import { createKeyPairSignerFromBytes, pipe, createTransactionMessage, setTransactionMessageFeePayerSigner, setTransactionMessageLifetimeUsingBlockhash, appendTransactionMessageInstructions, signTransactionMessageWithSigners, getBase64EncodedWireTransaction, getSignatureFromTransaction } from '@solana/kit';
@@ -68,7 +70,8 @@ export async function startDemoSeller(ctx, { name, signer, mode }) {
   const srv = http.createServer();
   await new Promise((r) => srv.listen(0, '127.0.0.1', r));
   const origin = `http://127.0.0.1:${srv.address().port}`; // the seller's own canonical origin: the resource it signs is origin + path, never the Host header
-  const gate = createSellerGate({ mode, payTo: signer.address, asset: MINT, network: NETWORK, rpc: ctx.rpc, origin, key: receiptKey(), log: (e) => { if (e.reason) console.log(`      [seller ${name}] mode=${e.mode} ${e.refuse ? 'REFUSES' : 'saw'} ${e.reason}`); } });
+  const gateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'iussum-gate-')); // the gate keeps the receipts it signs in its own SQLite file (Phase 1.5, H1)
+  const gate = createSellerGate({ mode, payTo: signer.address, asset: MINT, network: NETWORK, rpc: ctx.rpc, origin, dataDir: gateDir, key: receiptKey(), log: (e) => { if (e.reason) console.log(`      [seller ${name}] mode=${e.mode} ${e.refuse ? 'REFUSES' : 'saw'} ${e.reason}`); } });
   const server = new x402ResourceServer(new HTTPFacilitatorClient({ url: FACILITATOR }));
   registerExactSvmScheme(server, { networks: [NETWORK] });
   const route = (amount) => ({ accepts: [{ scheme: 'exact', price: { amount, asset: MINT }, network: NETWORK, payTo: signer.address }], description: `demo ${amount}`, mimeType: 'application/json' });
@@ -78,6 +81,6 @@ export async function startDemoSeller(ctx, { name, signer, mode }) {
   app.use(paymentMiddleware({ 'GET /v1/quote': route('10000'), 'GET /v1/mid': route('20000'), 'GET /v1/big': route('60000') }, server));
   for (const p of ['quote', 'mid', 'big']) app.get(`/v1/${p}`, (_req, res) => res.json({ ok: true, seller: name, item: p }));
   srv.on('request', app);
-  return { name, origin, gate, address: signer.address, url: (p = 'quote') => `${origin}/v1/${p}`, close: () => srv.close() };
+  return { name, origin, gate, address: signer.address, url: (p = 'quote') => `${origin}/v1/${p}`, close: () => { srv.close(); gate.close(); fs.rmSync(gateDir, { recursive: true, force: true }); } };
 }
 export { mandateId };

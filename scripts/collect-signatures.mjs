@@ -10,7 +10,7 @@ for (const f of fs.readdirSync(DIR).filter((x) => /^run-\d+\.txt$/.test(x)).sort
   for (const line of fs.readFileSync(`${DIR}/${f}`, 'utf8').split('\n')) {
     const h = /^=== Scenario (\d+)\./.exec(line); if (h) scenario = h[1];
     if (/^\s+PASS|^\s+FAIL/.test(line) && !/refund|payment|grant/i.test(line)) continue;
-    const kind = /grant \(/.test(line) ? 'grant' : /Revoke/.test(line) ? 'revoke' : /refund tx|refund_tx/.test(line) ? 'refund' : /plain Transfer/.test(line) ? 'plain-transfer' : /payment tx|payment 1 |payment 2 |settled transactions/.test(line) ? 'payment' : null;
+    const kind = /grant \(/.test(line) ? 'grant' : /Revoke/.test(line) ? 'revoke' : /refund tx|refund_tx/.test(line) ? 'refund' : /plain Transfer/.test(line) ? 'plain-transfer' : /payment tx|payment 1 |payment 2 |settled transactions|next payment |landed: /.test(line) ? 'payment' : null;
     if (!kind) continue;
     for (const s of line.match(SIG) ?? []) if (!rows.some((r) => r.sig === s)) rows.push({ run: f.replace(/\D/g, ''), scenario, kind, sig: s });
   }

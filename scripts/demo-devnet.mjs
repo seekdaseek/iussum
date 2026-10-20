@@ -1,10 +1,13 @@
-// npm run demo:devnet : thirteen scenarios on devnet, real facilitator, real USDC, throw-away principal (no phone). Exit code 1 if any expectation fails.
+// npm run demo:devnet : fifteen scenarios on devnet, real facilitator, real USDC, throw-away principal (no phone). Exit code 1 if any expectation fails.
 import http from 'node:http';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { createAgent, IussumRefusal } from '@iussum/agent';
 import { createResolver, createResolverApp, openStore, makeRefundSender } from '@iussum/resolver';
 import { createGrantChecker, mandateId, summaryLine, verifyReceipt, principalAta } from '@iussum/core';
-import { loadKeys, makeCtx, sendGrant, sendRevoke, sendPlainTransfer, usdc, startDemoSeller, NETWORK, MINT, FACILITATOR, RPC_URL } from './demo-lib.mjs';
+import { loadKeys, makeCtx, sendGrant, sendRevoke, sendPlainTransfer, usdc, sleep, startDemoSeller, NETWORK, MINT, FACILITATOR, RPC_URL } from './demo-lib.mjs';
 
 const ctx = makeCtx(), keys = await loadKeys();
 const results = []; let current = '';
@@ -266,7 +269,91 @@ async function s13() {
   step(`refund tx ${second.refund_tx}`);
 }
 
-const scenarios = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13];
+// ---- scenarios 14 and 15 (Phase 1.5): a seller KEEPS the agent's signed payload and answers 502. Kept payloads are replayed to the seller later, as a seller would.
+// The wrapper below is installed while the agent is created (the agent captures the global fetch then); it keeps the first paid request's header.
+async function agentKeeping(g, dataDir, state) {
+  const real = globalThis.fetch;
+  globalThis.fetch = async (req, init) => {
+    const h = req?.headers?.get?.('payment-signature');
+    if (h && state.keep > 0) { state.keep--; state.kept.push(h); return new Response('{}', { status: 502 }); }
+    return real(req, init);
+  };
+  try { return await agentFor(g, { dataDir }); } finally { globalThis.fetch = real; }
+}
+const replayKept = (header, url) => fetch(url, { headers: { 'PAYMENT-SIGNATURE': header } }); // the seller lands (or tries to land) the payload it kept
+const errOf = (res) => { const pr = res.headers.get('payment-required'); try { return pr ? JSON.parse(Buffer.from(pr, 'base64').toString()).error ?? '' : ''; } catch { return ''; } };
+async function s14() {
+  head(14, 'EXPIRY on a real node: a kept payload keeps the budget occupied until the agent can PROVE its blockhash expired (isBlockhashValid false and block height above lastValidBlockHeight, both at the payload\'s context slot)');
+  const g = await newMandate({ per_payment_max: '20000', period_budget: '30000' }, ['A']);
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'iussum-demo-agent-'));
+  const state = { keep: 1, kept: [] };
+  const agent = await agentKeeping(g, dataDir, state);
+  try {
+    const first = await agent.fetch(sellers.A.url('mid')).then((r) => r.status, (e) => e.reason ?? e.message);
+    expect('the seller kept the payload and answered 502', [first, state.kept.length], [502, 1]);
+    const res = agent.reservations[0];
+    step(`payload: blockhash ${res.blockhash}, context slot ${res.contextSlot}, lastValidBlockHeight ${res.lastValid}, agent signature ${res.agentSig}`);
+    const opts = { commitment: 'confirmed', minContextSlot: res.contextSlot };
+    const probe = async () => { const v = await ctx.rpc.call('isBlockhashValid', [res.blockhash, opts]); const h = await ctx.rpc.call('getBlockHeight', [opts]); return { valid: v.value, slot: v.context.slot, height: h }; };
+    const p0 = await probe();
+    step(`at once: isBlockhashValid ${p0.valid} (node slot ${p0.slot}), block height ${p0.height}, last valid ${res.lastValid}`);
+    const early = await agent.fetch(sellers.A.url('mid')).then((r) => 'paid', (e) => e.reason ?? e.message);
+    expect('1. before the blockhash expires the next payment (it would cross the 0.03 budget) is refused', early, 'period_over_budget');
+    const t0 = Date.now(); let settled = null, last = p0, polls = 0;
+    while (Date.now() - t0 < 180_000) {
+      await sleep(5000);
+      last = await probe().catch(() => last); polls++;
+      try { settled = await agent.fetch(sellers.A.url('mid')); break; } catch (e) { if (e.reason !== 'period_over_budget') throw e; }
+    }
+    const wall = ((Date.now() - t0) / 1000).toFixed(1);
+    step(`2. the release rule fired after ${wall} s and ${polls} polls: isBlockhashValid ${last.valid} (node slot ${last.slot}), block height ${last.height} > last valid ${res.lastValid}`);
+    expect('2. the agent\'s own release rule fired within 3 minutes', settled !== null, true);
+    expect('3. the next payment then settles', settled?.status, 200);
+    step(`next payment ${settled?.receipt?.tx_sig}; reservation states ${agent.reservations.map((r) => r.state).join(',')}`);
+    const before = await usdc(ctx, keys.principal.address);
+    const replay = await replayKept(state.kept[0], sellers.A.url('mid'));
+    const why = errOf(replay) || (await replay.text()).slice(0, 200);
+    step(`4. the seller submits the kept payload: HTTP ${replay.status}, ${why}`);
+    expect('4. the kept payload no longer lands (HTTP is not 200, no money moved)', [replay.status !== 200, String(await usdc(ctx, keys.principal.address))], [true, String(before)]);
+    // the facilitator words it as a failed simulation; ask the node itself what is wrong with the kept transaction
+    const txB64 = JSON.parse(Buffer.from(state.kept[0], 'base64').toString()).payload.transaction;
+    const sim = await ctx.rpc.call('simulateTransaction', [txB64, { encoding: 'base64', sigVerify: false, commitment: 'confirmed' }]);
+    step(`the node simulating the kept transaction: err ${JSON.stringify(sim.value.err)}`);
+    expect('4. the refusal is a blockhash error (the node says BlockhashNotFound)', sim.value.err, 'BlockhashNotFound');
+  } finally { await agent.close(); fs.rmSync(dataDir, { recursive: true, force: true }); }
+}
+async function s15() {
+  head(15, 'RESTART with a data directory: a restarted agent still counts the payload a seller kept, and counts it once after the seller lands it');
+  const g = await newMandate({ per_payment_max: '20000', period_budget: '30000' }, ['A']);
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'iussum-demo-agent-'));
+  const state = { keep: 1, kept: [] };
+  let agent = await agentKeeping(g, dataDir, state);
+  try {
+    const first = await agent.fetch(sellers.A.url('mid')).then((r) => r.status, (e) => e.reason ?? e.message);
+    expect('1. the agent signs a payload, the seller keeps it (502)', [first, state.kept.length], [502, 1]);
+    const agentSig = agent.reservations[0].agentSig;
+    step(`the reservation is on disk: ${fs.readdirSync(dataDir).filter((f) => f.includes('.reservations.')).join(', ')} (agent signature ${agentSig})`);
+    await agent.close(); // the process dies; a new createAgent on the same dataDir is the restart
+    agent = await agentFor(g, { dataDir });
+    expect('the restarted agent loaded the held reservation', agent.reservations.map((r) => [r.state, r.agentSig === agentSig]), [['held', true]]);
+    const refused = await agent.fetch(sellers.A.url('mid')).then(() => 'paid', (e) => e.reason ?? e.message);
+    expect('2. the restarted agent refuses a payment that would cross the budget while the kept payload can still land', refused, 'period_over_budget');
+    const landed = await replayKept(state.kept[0], sellers.A.url('mid'));
+    const settle = JSON.parse(Buffer.from(landed.headers.get('payment-response') ?? 'e30=', 'base64').toString());
+    expect('3. the seller lands the kept payload', [landed.status, !!settle.transaction], [200, true]);
+    step(`landed: ${settle.transaction}`);
+    await agent.close(); // restart again: the history now shows the payment
+    agent = await agentFor(g, { dataDir });
+    const sigs = agent.ledger.map((e) => e.sig);
+    expect('4. the landed payment is in the rebuilt ledger exactly once', sigs.filter((x) => x === settle.transaction).length, 1);
+    expect('4. and the restored reservation is consumed, not held a second time', agent.reservations.map((r) => r.state), ['consumed']);
+    const ok = await agent.fetch(sellers.A.url('quote')).then((r) => r.status, (e) => e.reason ?? e.message);
+    const over = await agent.fetch(sellers.A.url('quote')).then((r) => r.status, (e) => e.reason ?? e.message);
+    expect('4. counted once: 0.02 + 0.01 fits the 0.03 budget, a further 0.01 does not', [ok, over], [200, 'period_over_budget']);
+  } finally { await agent.close(); fs.rmSync(dataDir, { recursive: true, force: true }); }
+}
+
+const scenarios = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15];
 for (const f of scenarios) { try { await f(); } catch (e) { results.push({ scenario: current, label: 'scenario threw', ok: false, actual: String(e.stack ?? e) }); say(`    FAIL scenario threw: ${e.stack ?? e}`); } }
 say('\n=== Summary');
 for (const sc of [...new Set(results.map((r) => r.scenario))]) { const rs = results.filter((r) => r.scenario === sc); say(`${rs.every((r) => r.ok) ? 'PASS' : 'FAIL'}  ${sc}  (${rs.filter((r) => r.ok).length}/${rs.length} checks)`); }
