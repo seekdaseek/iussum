@@ -117,6 +117,7 @@ Moved out by H1 to H5: the gate's receipt memory across a restart, the agent's d
 - The gate's supersession marker is in memory only (a restarted gate rescans the history on its first request); a seller facing a long history needs a keyed RPC or a pre-warm. A first read on a keyed RPC was not measured.
 - A wSOL account on chain (refused by `validateMandate`, nothing to run); a Token-2022 grant on chain (vector only).
 - The Seeker-signed grant through the iussum app (Phase 2), third-party sellers that adopt the middleware, anything on mainnet. The period budget is still not enforced on chain; only `total_cap` is.
+- **A mistake of mine, not rewritten:** a `git add -A` swept the fourth review\'s three scripts (`review-20261020d/`, internal review material that the earlier review folders kept out of git) into commit `533e49b`, which was pushed. They contain no sensitive pattern and are untracked and gitignored from the next commit on, but they remain in the public history; removing them needs a history rewrite, which this pass does not do.
 - Two leftovers disclosed earlier stay in the public history by decision: the treasury-address prefix in two commits of `REPORT-phase1.2.md`, and one line about a payout-documentation check in older versions of the Phase 0 and 1 reports.
 
 ## Fresh clone
