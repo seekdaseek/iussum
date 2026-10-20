@@ -1,0 +1,10 @@
+ℹ fail 8
+ℹ pass 0
+✖ M5 (a) a queued scan waits its turn; a full queue answers busy, and the gate turns busy into 503 (not 403)
+✖ M5 (a) an active check stops at the first superseding signature it finds
+✖ M5 (a) supersession scans run at most a small number at a time, whatever the number of grants (r4)
+✖ M5 (a) the gate answers 503 with Retry-After at once for a check that finds no scan slot (not 403), while the running scan completes
+✖ M5 (b) the grant cache is bounded and a grant_mismatch is not cached per mandate id (r8)
+✖ M5 (c) an unknown grant_tx costs one read inside a request, and an immediate repeat none (r11)
+✖ M5 (d) the budget timer is cleared when the check rejects, and a budget outside 1..2^31-1 refuses to start (r5, r12)
+✖ M5 (e) observe mode on a cold check still runs the scope checks and marks the check as pending (r6)

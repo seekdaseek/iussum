@@ -30,7 +30,8 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000,
       if (txCache.has(sig)) { const v = txCache.get(sig); txCache.delete(sig); txCache.set(sig, v); return v; }
       const cfg = txConfig(opts);
       let t = await call('getTransaction', [sig, cfg]);
-      for (let i = 0; i < 6 && !t; i++) { await new Promise((res) => setTimeout(res, 700)); t = await call('getTransaction', [sig, cfg]); }
+      // a transaction a node does not have yet is asked again a few times (the index lags); inside a request that must not cost seconds: nullRetries 0 reads once
+      for (let i = 0; i < (opts.nullRetries ?? 6) && !t; i++) { await new Promise((res) => setTimeout(res, 700)); t = await call('getTransaction', [sig, cfg]); }
       keep(sig, t);
       return t;
     },

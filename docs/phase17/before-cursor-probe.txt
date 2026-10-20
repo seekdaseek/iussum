@@ -1,0 +1,12 @@
+M5 unverified item: what does api.devnet.solana.com answer for getSignaturesForAddress with a valid-format `before` the node has never seen?
+Probed 2026-10-20 from the Mac in Node (public endpoint, read-only), account HUKEm4vtpMKZtZWZtn6TtqSsuo5UkVZtPDMk9zGjLaxg, three random 64-byte base58 signatures
+(88 characters), limit 100, 1.5 s apart, and once with an unseen `until` as well:
+
+  HTTP 200, JSON-RPC error {"code":-32020,"message":"Transaction <the signature> not found"}   (all four probes)
+
+A first attempt with a random 88-character string that did not decode to 64 bytes answered {"code":-32602,"message":"Invalid param: WrongSize"} (a malformed
+cursor, not an unseen one).
+
+Result: the node answers an ERROR, not [] . The existing code already treats -32020 as "not found yet" (a few retries) and then lets the read fail, so a scan that
+meets an unseen cursor on this endpoint does not end as complete. The empty-page case of r13 (a lagging node behind a load balancer that answers [] for a cursor it
+has not indexed) is not shown by this endpoint; it stays UNTESTED for other providers. No change to scanSupersede for it.

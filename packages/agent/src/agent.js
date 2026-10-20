@@ -208,7 +208,7 @@ async function build(cfg, guard) {
     abortCheck();
     // is the grant current? That decides how far back the history must reach: while it is, the cross-check compares ALL debits since the grant, so no
     // cut at the start of the period (Addendum F, N1)
-    try { superseded = await checker.supersededBy(source, grant_tx); } catch (e) { scanFailed = scanFailed ?? `could not verify the grant is current: ${e.message}`; }
+    try { superseded = await checker.supersededBy(source, grant_tx, { first: true }); } catch (e) { scanFailed = scanFailed ?? `could not verify the grant is current: ${e.message}`; }
     const full = fails('agent.history_to_grant', true); // the history is read back to the grant, once (checkpoint), whether or not the grant is still current
     const h = await agentSpendHistory(rpc, { source, agent: signer.address, mint: mandate.asset, until: grant_tx, stopAtTime: full ? null : periodStart(mandate, now()), checkpoint: full ? cp : null });
     if (full && h.checkpoint) saveCheckpoint(h.checkpoint);
