@@ -1,0 +1,9 @@
+ℹ fail 5
+ℹ pass 1
+✔ L2 a rejected dispute stores nothing and has no verdict_id (2.853ms)
+✖ L2 /dispute returns the verdict_id of the stored record, and a duplicate returns the same id (10.291334ms)
+✖ L2 /v/:tx shows the verdict_id (21.849959ms)
+✖ L2 a provisional verdict replaced by one with a receipt gets a new id; the record keeps the old id beside the replaced verdict (4.802166ms)
+✖ L2 golden vectors: a fixed record gives a fixed verdict_id (expected values computed outside this code base, sorted-key JSON + sha256) (1.236041ms)
+✖ L2 receipt equivocation replaces the verdict with a new id and keeps the old one beside it (4.15375ms)
+✖ failing tests:

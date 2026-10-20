@@ -9,6 +9,7 @@
 //   burnChecked, top level or CPI). A payment with none is not under this mandate (tx_mismatch, liable null). One top-level TransferChecked is
 //   an x402 payment and is judged as before. Anything else cannot have gone through x402 or a seller gate: debit_not_x402, agent operator.
 import { fails, isMutated, registerCheck } from './guard.js';
+import { canonicalize, sha256Hex } from './jcs.js';
 import { R, SELLER_VISIBLE } from './codes.js';
 import { validateMandate, mandateId, scopeViolations, periodSpendAt } from './mandate.js';
 import { verifyReceipt } from './receipt.js';
@@ -108,4 +109,17 @@ function judgeX402(e, mid, x) {
   const order = [...SELLER_VISIBLE, R.period_over_budget];
   const first = [...delta].sort((a, b) => order.indexOf(a.code) - order.indexOf(b.code))[0].code;
   return { verdict: 'valid', tier: 1, reason: first, delta, liable, ...extra };
+}
+
+// Addendum L, L2: the external reference for a decided dispute. The record is exactly what the resolver stores for a verdict; verdict_id is the hex
+// sha256 of its RFC 8785 JCS. Missing members are written as null (receipt_sha256, mandate_id, grant_tx) or empty (delta, unjudged), so one stored
+// verdict has one id.
+export const VERDICT_ID_CHECKS = ['resolver.verdict_id'].map(registerCheck);
+export function verdictRecord({ tx_sig, mandate_id = null, grant_tx = null, receipt_sha256 = null, verdict, reason, liable = null, delta = [], unjudged = [], provisional = false }) {
+  return { tx_sig, mandate_id: mandate_id ?? null, grant_tx: grant_tx ?? null, receipt_sha256: receipt_sha256 ?? null, verdict, reason, liable: liable ?? null, delta: JSON.parse(JSON.stringify(delta ?? [])), unjudged: JSON.parse(JSON.stringify(unjudged ?? [])), provisional: Boolean(provisional) };
+}
+export function verdictId(record) {
+  const r = verdictRecord(record);
+  // a skipped check hashes only the transaction signature, which is what an id that ignores the verdict would look like
+  return sha256Hex(canonicalize(fails('resolver.verdict_id', true) ? r : { tx_sig: r.tx_sig }));
 }

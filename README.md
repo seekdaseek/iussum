@@ -21,6 +21,7 @@ It is pronounced YOOS-sum (Latin *iussum*, "an order, an authorisation"), and wr
    - A payment is judged at its own position in the chain (slot, then its index in the block). A repeat dispute returns the stored verdict (`duplicate_dispute`) and never pays a second refund.
    - A seller that signs two different receipts for one payment is liable for it (`receipt_equivocation`).
    - **Provisional verdicts.** A verdict decided without a seller receipt is stored as provisional, so whoever files first does not pick the evidence. A later dispute that carries a receipt which verifies against the seller key and binds the same mandate replaces it (the replaced verdict stays in the record, and the refund is paid if the seller is liable). A verdict decided with a verifying receipt is final. The response and `/v/:tx` say which it is.
+   - **Verdict id.** Every stored verdict has a `verdict_id`: the hex sha256 of the RFC 8785 JCS of the stored record (`tx_sig`, `mandate_id`, `grant_tx`, the receipt's sha256 or null, `verdict`, `reason`, `liable`, `delta`, `unjudged`, `provisional`). `/dispute` returns it, `/v/:tx` shows it, and a duplicate dispute returns the same one. A replaced verdict (provisional, or `receipt_equivocation`) gets a new id, and the record keeps the old id beside the replaced verdict. `verdict_id` is the intended external reference for a decided dispute, for example for an auditor or a journal entry.
 
 ## What the person saw (read this before quoting it)
 
