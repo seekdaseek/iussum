@@ -11,6 +11,9 @@
 // A success that arrives for a released reservation is still counted. With cfg.dataDir the held reservations are written to disk (temp file, fsync,
 // rename) before the signed payload leaves the agent and loaded at start, so a restart does not forget a payload a seller kept; the verified history
 // is kept there as a checkpoint, so a restart reads only what is new.
+// Phase 1.5 (Addendum H): ONE agent per data directory (an exclusive lock file with the PID, created with O_EXCL; a stale lock is cleared only when that
+// PID is not running); a partial or corrupt reservations file makes the agent refuse to pay, it is never read as empty; a temp file left by a crash
+// between write and rename is ignored (the last complete file is loaded) and removed.
 import { x402Client } from '@x402/core/client';
 import { wrapFetchWithPayment } from '@x402/fetch';
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -21,7 +24,7 @@ import { assertOnlyComputeBudgetChanged } from './txguard.js';
 import fs from 'node:fs';
 import path from 'node:path';
 
-export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid', 'agent.release_needs_height', 'agent.min_context_slot', 'agent.consume_released', 'agent.persist_before_send', 'agent.restore_reservations', 'agent.checkpoint'].map(registerCheck);
+export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid', 'agent.release_needs_height', 'agent.min_context_slot', 'agent.consume_released', 'agent.persist_before_send', 'agent.restore_reservations', 'agent.checkpoint', 'agent.datadir_lock', 'agent.stale_lock_pid', 'agent.corrupt_reservations_refuse', 'agent.tmp_cleanup'].map(registerCheck);
 const MARK = 'IUSSUM_REFUSAL:';
 const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export class IussumRefusal extends Error {
@@ -68,6 +71,44 @@ export async function createAgent(cfg) {
     if (!dataDir) return;
     writeAtomic(fileOf('reservations'), { v: 1, reservations: reservations.filter((r) => r.state === 'held' && r.created).map((r) => ({ amount: String(r.amount), t: r.t, blockhash: r.blockhash, lastValidBlockHeight: r.lastValid === null || r.lastValid === undefined ? null : String(r.lastValid), contextSlot: r.contextSlot ?? null, agentSig: r.agentSig })) });
   };
+  // ---- one agent per data directory (H2)
+  const lockPath = dataDir ? path.join(dataDir, 'agent.lock') : null;
+  let lockHeld = false;
+  const pidAlive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+  function acquireLock() {
+    fs.mkdirSync(dataDir, { recursive: true });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const fd = fs.openSync(lockPath, 'wx', 0o600); // O_CREAT | O_EXCL: exactly one creator wins
+        try { fs.writeSync(fd, `${process.pid}\n`); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
+        lockHeld = true; return;
+      } catch (e) {
+        if (e.code !== 'EEXIST') throw e;
+        const pid = Number.parseInt(fs.readFileSync(lockPath, 'utf8'), 10);
+        if (fails('agent.stale_lock_pid', Number.isInteger(pid) && pid > 0 && pidAlive(pid))) throw new Error(`another agent (pid ${pid}) holds the data directory ${dataDir}: one agent per data directory`);
+        try { fs.renameSync(lockPath, `${lockPath}.stale-${process.pid}`); fs.rmSync(`${lockPath}.stale-${process.pid}`, { force: true }); } catch { /* another starter cleared it first */ }
+      }
+    }
+    throw new Error(`could not take the lock on the data directory ${dataDir}`);
+  }
+  const releaseLock = () => { if (lockHeld) { lockHeld = false; try { if (Number.parseInt(fs.readFileSync(lockPath, 'utf8'), 10) === process.pid) fs.rmSync(lockPath, { force: true }); } catch { /* already gone */ } } };
+  if (dataDir && mandate && fails('agent.datadir_lock', true)) { acquireLock(); process.once('exit', releaseLock); }
+  // temp files a crash left between write and rename are never read (the rename is atomic: the last complete file is the truth); remove them now that the lock is ours
+  if (dataDir && mandate && lockHeld && fails('agent.tmp_cleanup', true)) for (const f of fs.readdirSync(dataDir)) if (f.startsWith(stem) && f.endsWith('.tmp')) fs.rmSync(path.join(dataDir, f), { force: true });
+  // the reservations file is read STRICTLY: a missing file is empty, a file that does not parse is not (H2)
+  let reservationsCorrupt = null;
+  const strictReservations = () => {
+    if (!dataDir || !mandate) return [];
+    const file = fileOf('reservations');
+    if (!fs.existsSync(file)) return [];
+    try {
+      const j = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (j?.v !== 1 || !Array.isArray(j.reservations)) throw new Error('unexpected shape');
+      for (const x of j.reservations) if (typeof x.amount !== 'string' || !/^\d+$/.test(x.amount) || typeof x.t !== 'number' || typeof x.blockhash !== 'string' || typeof x.agentSig !== 'string') throw new Error('a reservation is incomplete');
+      return j.reservations;
+    } catch (e) { reservationsCorrupt = `the reservations file ${file} is corrupt or partial (${e.message})`; return []; }
+  };
+  const savedReservations = strictReservations();
   if (dataDir && mandate) scanFile = fileOf('scan');
   let cp = dataDir && !isMutated('agent.checkpoint') ? readJson(fileOf('checkpoint')) : null; // the verified history so far (core agentSpendHistory checkpoint)
   const saveCheckpoint = (c) => { cp = c; if (dataDir && c) writeAtomic(fileOf('checkpoint'), c); };
@@ -77,7 +118,7 @@ export async function createAgent(cfg) {
   // Reservations that a previous run persisted: a payload may still be out there. They are held again; if the rebuilt history shows the agent's signature
   // from that payload, it landed and is already in the ledger (consumed). They are resolved later by the same proven-expiry rule as any other.
   function restoreReservations(entries) {
-    const saved = dataDir && mandate && fails('agent.restore_reservations', true) ? readJson(fileOf('reservations'))?.reservations ?? [] : [];
+    const saved = dataDir && mandate && fails('agent.restore_reservations', true) ? savedReservations : [];
     for (const x of saved) {
       const landed = entries?.find((e) => x.agentSig && e.signatures.includes(x.agentSig));
       reservations.push({ id: nextReservation++, amount: BigInt(x.amount), t: x.t, state: landed ? 'consumed' : 'held', created: true, agentSig: x.agentSig, blockhash: x.blockhash, lastValid: x.lastValidBlockHeight == null ? null : BigInt(x.lastValidBlockHeight), contextSlot: x.contextSlot, sig: landed?.tx_sig ?? null, restored: true });
@@ -96,6 +137,7 @@ export async function createAgent(cfg) {
     ledgerComplete = h.complete; ledgerReason = h.reason;
     for (const e of h.entries) ledger.push({ amount: e.amount, t: e.block_time ?? now(), sig: e.tx_sig });
     restoreReservations(ledgerComplete ? h.entries : null);
+    if (reservationsCorrupt && fails('agent.corrupt_reservations_refuse', true)) { ledgerComplete = false; ledgerReason = reservationsCorrupt; }
     if (ledgerComplete && fails('agent.rebuild_allowance', true)) {
       if (scanFailed) { ledgerComplete = false; ledgerReason = scanFailed; }
       else if (!superseded) {
@@ -124,7 +166,7 @@ export async function createAgent(cfg) {
       if (fails('agent.tx_guard', true)) assertOnlyComputeBudgetChanged(sent, signed);
       // the reservation of this payment learns that a payload exists, which agent signature it carries and until which block it can land
       const mine = requested.getStore()?.ids.map((id) => reservations[id]).findLast((r) => r.state === 'held' && !r.created);
-      if (mine) { mine.created = true; mine.blockhash = bh.blockhash; mine.lastValid = bh.lastValidBlockHeight === undefined ? null : BigInt(bh.lastValidBlockHeight); mine.contextSlot = bh.contextSlot ?? null; mine.agentSig = agentSignature(signed); if (fails('agent.persist_before_send', true)) persistReservations(); } // on disk before the payload leaves
+      if (mine) { mine.created = true; mine.blockhash = bh.blockhash; mine.lastValid = bh.lastValidBlockHeight === undefined ? null : BigInt(bh.lastValidBlockHeight); mine.contextSlot = bh.contextSlot ?? null; mine.agentSig = agentSignature(signed); if (fails('agent.persist_before_send', true)) { try { persistReservations(); } catch (e) { mine.created = false; throw e; } } } // on disk before the payload leaves (if it cannot be written the payload is not returned and the reservation is released)
       return { x402Version, payload: { transaction: signed } };
     },
   };
@@ -243,5 +285,5 @@ export async function createAgent(cfg) {
     res.receipt = rh ? decodeReceipt(rh) : null;
     return res;
   }
-  return { fetch: pay, client, ledger, reservations, source, mandateId: mandate ? mandateId(mandate) : null, address: signer.address };
+  return { fetch: pay, client, ledger, reservations, async close() { releaseLock(); }, source, mandateId: mandate ? mandateId(mandate) : null, address: signer.address };
 }

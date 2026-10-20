@@ -52,7 +52,7 @@ test('T2 a restarted agent reads only what is new since its checkpoint', async (
   for (let i = 1; i <= 150; i++) c.add(`D${i}`, dustCredit(1000 + i));
   c.setAccount(SRC, live(s.mandate)); c.setAccount(A.asset, { data: { parsed: { info: { decimals: 6 } } } });
   const mk = () => createAgent({ mandate: s.mandate, grant_tx: G, signer: s.signer, rpc: c, getBlockhash: blockhash, now: () => T0 + 1000, dataDir });
-  await mk();
+  await (await mk()).close();
   const first = c.calls.getTransaction;
   for (let i = 151; i <= 155; i++) c.add(`D${i}`, dustCredit(1000 + i));
   const a2 = await mk();

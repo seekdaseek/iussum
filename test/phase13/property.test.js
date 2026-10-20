@@ -313,7 +313,7 @@ test('property I4: the agent never settles more than period_budget under concurr
         else if (op < 0.28) tamper = !tamper;
         else if (op < 0.34) { lagging = !lagging; if (lagging) lags++; }
         else if (op < 0.40) { height += 200; expiries++; } // blockhashes handed out so far expire: the kept payloads can no longer land
-        else if (op < 0.60 && dropNext === 0 && withhold === 0) { sync(); if (withheld.length) restartsWithKept++; agent = await make(); restarts++; } // restart: the ledger comes from the chain, the held reservations from disk
+        else if (op < 0.60 && dropNext === 0 && withhold === 0) { sync(); if (withheld.length) restartsWithKept++; await agent.close(); agent = await make(); restarts++; } // restart: the ledger comes from the chain, the held reservations from disk
         trace(op < 0.08 ? 'lose' : op < 0.22 ? 'withhold' : op < 0.28 ? 'tamper' : op < 0.34 ? 'lag' : op < 0.40 ? 'expire' : op < 0.60 ? 'restart?' : 'plain');
         if (r() < 0.3) { trace('land kept payloads'); await land(); }
         sync(); // the chain is live: whatever the facilitator settled so far is on it, with the agent's signature
@@ -326,7 +326,7 @@ test('property I4: the agent never settles more than period_budget under concurr
       await land(); // finally the seller lands everything it kept that can still land
       assert.ok(facilitator.counts.settle * price <= budget, `${ctxs}: after the seller landed what it kept, settled ${facilitator.counts.settle * price} > budget ${budget}`);
       settledTotal += facilitator.counts.settle;
-    } finally { globalThis.fetch = realFetch; facilitator.close(); seller.close(); fs.rmSync(dataDir, { recursive: true, force: true }); }
+    } finally { globalThis.fetch = realFetch; await agent.close(); facilitator.close(); seller.close(); fs.rmSync(dataDir, { recursive: true, force: true }); }
   }
   console.log(`property I4: 60 seeds, ${settledTotal} payments settled, ${refusals} local refusals (all period_over_budget), ${restarts} restarts (${restartsWithKept} while a seller held a payload), ${expiries} expiries, ${lags} lagging-node phases, never above the budget`);
 });

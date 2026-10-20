@@ -6,8 +6,9 @@
 // After settlement the receipt (seller-signed, carrying mandate_id and grant_tx) goes back in the X-IUSSUM-RECEIPT header.
 import { createGrantChecker, scopeViolations, validateMandate, mandateId, signReceipt, receiptKey, offerHash, encodeReceipt, R, fails, registerCheck, isMutated } from '@iussum/core';
 import { decodePayment, readPaymentHeader } from './decode.js';
+import { openReceiptStore } from './receipt-store.js';
 
-export const SELLER_CHECKS = ['seller.enforce', 'seller.observe_passes', 'seller.off_skips', 'seller.require_mandate', 'seller.receipt_issued', 'seller.receipt_binds_mandate', 'seller.mandate_invalid', 'seller.payment_unreadable', 'seller.payment_source', 'seller.origin_required', 'seller.resource_from_origin', 'seller.one_receipt_per_tx'].map(registerCheck);
+export const SELLER_CHECKS = ['seller.enforce', 'seller.observe_passes', 'seller.off_skips', 'seller.require_mandate', 'seller.receipt_issued', 'seller.receipt_binds_mandate', 'seller.mandate_invalid', 'seller.payment_unreadable', 'seller.payment_source', 'seller.origin_required', 'seller.resource_from_origin', 'seller.one_receipt_per_tx', 'seller.store_receipts', 'seller.no_receipt_on_failed_write'].map(registerCheck);
 export const MODES = ['off', 'observe', 'enforce'];
 
 export function createSellerGate(cfg) {
@@ -20,6 +21,9 @@ export function createSellerGate(cfg) {
   const checker = createGrantChecker(rpc);
   // ONE receipt per settled transaction (Addendum G, S1): a facilitator that reports success twice for one tx_sig must not make this seller sign a second
   // receipt (that is receipt_equivocation). The first receipt's bytes are returned again. Bounded: least recently used out at 10,000.
+  // With cfg.dataDir the issued receipts are also kept in the gate's own SQLite file (H1): written BEFORE the response that carries the receipt is sent, so
+  // a repeated success after a restart returns the stored bytes. cfg.receiptStore replaces it (tests). An unreadable or corrupt store stops the start.
+  const store = fails('seller.store_receipts', true) ? (cfg.receiptStore ?? (cfg.dataDir ? openReceiptStore(cfg.dataDir) : null)) : null;
   const signed = new Map();
   const remember = (tx, bytes) => { signed.delete(tx); signed.set(tx, bytes); if (signed.size > 10_000) signed.delete(signed.keys().next().value); };
   const resourceUrl = (req) => `${fails('seller.resource_from_origin', true) ? origin : `${req.protocol}://${req.get('host')}`}${req.originalUrl.split('?')[0]}`;
@@ -64,11 +68,19 @@ export function createSellerGate(cfg) {
             if (settle.success && settle.transaction) {
               const bind = fails('seller.receipt_binds_mandate', true) && ev.mandate && ev.grant_tx;
               const body = { v: 'iussum/0.2', mandate_id: bind ? mandateId(ev.mandate) : null, grant_tx: bind ? ev.grant_tx : null, offer_hash: offerHash(payload.accepted ?? {}), resource: resourceUrl(req), pay_to: payTo, asset, network, amount: ev.payment.amount, payer: ev.payment.authority, tx_sig: settle.transaction, settled_at: now(), seller: key.publicKey };
-              const again = fails('seller.one_receipt_per_tx', true) ? signed.get(settle.transaction) : undefined;
-              const bytes = again ?? encodeReceipt(signReceipt(body, key));
-              remember(settle.transaction, bytes);
-              res.setHeader('X-IUSSUM-RECEIPT', bytes);
-              req.iussum.receipt_tx = settle.transaction;
+              let bytes = fails('seller.one_receipt_per_tx', true) ? (signed.get(settle.transaction) ?? store?.get(settle.transaction)) : undefined;
+              if (!bytes) {
+                bytes = encodeReceipt(signReceipt(body, key));
+                if (store) { // on disk before the response goes out; if that fails, no receipt is better than one that can conflict later
+                  try { bytes = store.put(settle.transaction, bytes); }
+                  catch (e) { log({ receipt_error: `receipt store write failed: ${e.message}`, tx_sig: settle.transaction }); if (fails('seller.no_receipt_on_failed_write', true)) bytes = null; }
+                }
+              }
+              if (bytes) {
+                remember(settle.transaction, bytes);
+                res.setHeader('X-IUSSUM-RECEIPT', bytes);
+                req.iussum.receipt_tx = settle.transaction;
+              }
             }
           }
         } catch (e) { log({ receipt_error: e.message }); }
@@ -79,5 +91,5 @@ export function createSellerGate(cfg) {
   };
 
   const wellKnown = (_req, res) => res.json({ v: 'iussum/0.2', seller: key.publicKey, receipt_alg: 'ed25519', pay_to: payTo, asset, network, mode });
-  return { middleware, wellKnown, setMode(m) { if (!MODES.includes(m)) throw new Error('bad mode'); mode = m; }, get mode() { return mode; }, publicKey: key.publicKey, key };
+  return { middleware, wellKnown, setMode(m) { if (!MODES.includes(m)) throw new Error('bad mode'); mode = m; }, get mode() { return mode; }, publicKey: key.publicKey, key, close() { store?.close?.(); } };
 }

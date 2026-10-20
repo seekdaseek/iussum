@@ -46,6 +46,7 @@ test('R1 restart while a seller holds a payload: the new agent counts it as held
   globalThis.fetch = async (req) => { if (req.headers.get('payment-signature')) { withheld = req.headers.get('payment-signature'); return new Response('{}', { status: 502 }); } return realFetch(req); };
   const a1 = await t.make(); globalThis.fetch = realFetch;
   await a1.fetch(t.seller.url).catch(() => {});
+  await a1.close(); // the first process is gone: its lock is released
   const a2 = await t.make(); // restart: a new process would load the same data directory
   assert.deepEqual(a2.reservations.map((r) => r.state), ['held'], 'the held payload is known to the new agent');
   const r = await a2.fetch(t.seller.url).catch((e) => e.reason ?? e.message);
@@ -58,6 +59,7 @@ test('R1 a restarted agent releases the persisted reservation once its expiry is
   globalThis.fetch = async (req) => (req.headers.get('payment-signature') ? new Response('{}', { status: 502 }) : realFetch(req));
   const a1 = await t.make(); globalThis.fetch = realFetch;
   await a1.fetch(t.seller.url).catch(() => {});
+  await a1.close();
   t.chain.valid = false; t.chain.height = 500; // proven expired, nothing landed
   const a2 = await t.make();
   const r = await a2.fetch(t.seller.url).catch((e) => e.reason ?? e.message);
