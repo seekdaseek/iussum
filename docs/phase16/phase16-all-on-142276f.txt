@@ -1,0 +1,40 @@
+ℹ fail 28
+ℹ pass 8
+ℹ tests 36
+✔ I3 any other error of the history read also leaves the reservation held
+✔ I3 control: a history node that has caught up lists the landed payment: consumed, the next payment is refused
+✔ J1 a warm check is not delayed: with the scan done the request is answered at once
+✔ J1 an observe-mode gate never blocks on the cold check (it proceeds and records what was presented)
+✔ J1 the reference agent honours Retry-After: it re-sends the same payload and the payment settles once, with one reservation
+✔ K1 L0 control: two processes start at once on one data directory: exactly one runs, the other is refused
+✔ K1 repeated: 8 rounds of two processes starting together never give two running agents
+✔ L2 a rejected dispute stores nothing and has no verdict_id
+✖ I3 a history node 1 to 2 slots behind the proof does not list the landed payment: the read fails ("minimum context slot not reached") and the reservation stays held
+✖ I3 every call of the landed read carries minContextSlot at or above the proof slot (200)
+✖ I4 one lock per grant: two grants of one agent can run in one data directory, one grant cannot run twice
+✖ I4 the files of the other grant are ignored and never deleted
+✖ I4 the principal re-grants the SAME mandate (G2): a restarted agent on G2 with the data directory of G1 pays
+✖ J1 the agent retries a bounded number of times, then returns the 503; the reservation stays held
+✖ J1 the first request on a cold grant check answers 503 with Retry-After within the budget; nothing settles
+✖ J1 the scan keeps running in the background: after it finished the same payload is accepted and settles
+✖ J2 60 signatures go out as 3 batches (25, 25, 10), results aligned with the request
+✖ J2 a long rate-limited stretch is waited out: 60 signatures through a node that answers 9 elements per 10 s window
+✖ J2 a node that answers HTTP 429 for 40 s and then recovers is waited out
+✖ J2 a node that answers nothing for stallMs gives up (fail closed), after that long and not before
+✖ J2 a rate-limited ELEMENT is retried on its own and the elements that succeeded are kept (no refetch of them)
+✖ J2 a rate-limited batch (HTTP 429) is retried with backoff
+✖ J2 an errored element makes the call throw (fail closed); a null element stays null for the caller to treat as unreadable
+✖ J2 in the history a null element makes the read incomplete and an errored element too (the same as today)
+✖ J2 the batch size and the concurrency are limits
+✖ J2 the spend history and the supersession scan use the batch call when the RPC has it
+✖ K1 L2: B starts while A is at its lock attempt (between the create and the pid write of the old lock): exactly one agent runs
+✖ K1 the same process cannot take the lock twice, and no pid file or stale-lock file exists
+✖ K2 the holder is stopped with SIGKILL: a new agent starts at once, even when the restart gets the same pid as a live process (a container: pid 1)
+✖ K2 the holder is stopped with SIGTERM: a new agent starts at once, even when the restart gets the same pid as a live process (a container: pid 1)
+✖ K3 after close() the agent refuses to fetch, and nothing is written to the data directory
+✖ L2 /dispute returns the verdict_id of the stored record, and a duplicate returns the same id
+✖ L2 /v/:tx shows the verdict_id
+✖ L2 a provisional verdict replaced by one with a receipt gets a new id; the record keeps the old id beside the replaced verdict
+✖ L2 golden vectors: a fixed record gives a fixed verdict_id (expected values computed outside this code base, sorted-key JSON + sha256)
+✖ L2 receipt equivocation replaces the verdict with a new id and keeps the old one beside it
+✖ failing tests:

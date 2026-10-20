@@ -1,0 +1,30 @@
+H5 on devnet, rpc https://api.devnet.solana.com
+throw-away principal 5mWxBZWH6qjpdx3UAWYUGfrmAJRz4JiWzuGYH6a96UUg
+funded the throw-away principal (0.03 SOL, 0.2 USDC): WfG35QJz6vWuUnhVW4E4dogiDSBCfnH2kkdPd9PC7UXq6mXWSq3NfQqWttybA3uYFFFL6Dj3BpUGwtSgLWrYNSW
+grant (dedicated principal): 4vuuRnznAJprUqnH6nNY69kuVJcrd4LTfmHjsKiLV4sqx9t1ZAsDpNBRaPAmw9rz7Xon2AQVXQF1H69zFk1jgJUH
+mandate id b69c80c26aa08603abfe0a357f9a37b27ac54f256ef7b5dc09b917ffb58429f6
+  50 dust credits sent (144 s)
+  100 dust credits sent (301 s)
+  150 dust credits sent (452 s)
+  200 dust credits sent (594 s)
+  250 dust credits sent (738 s)
+250 dust credits of 1 base unit into FUcrDXnT8jdPrcCSWrcv5qSSXhLQ8d9PF9nYNVZoT6nL; signatures in demo-runs-1.6/h5-dust-signatures.txt (250 distinct)
+the agent's first read at start (250 dust credits in the account): 2 signature pages, 0 getTransaction HTTP calls (140 RPC HTTP calls), 224.6 s
+file:///<repo>/packages/agent/src/agent.js:300
+      if (i >= 0) { const j = JSON.parse(e.message.slice(i + MARK.length)); throw new IussumRefusal(j.reason, j.delta); }
+                                                                                  ^
+
+IussumRefusal: iussum refuses to pay: history_incomplete
+    at Object.pay [as fetch] (file:///<repo>/packages/agent/src/agent.js:300:83)
+    at async file:///<repo>/scripts/h5-scale.mjs:75:15 {
+  reason: 'history_incomplete',
+  delta: [
+    {
+      field: 'history',
+      authorized: "a complete record of this agent's payments in the period",
+      actual: 'could not be rebuilt from chain: rpc http 429'
+    }
+  ]
+}
+
+Node.js v24.16.0

@@ -1,0 +1,22 @@
+H5 on devnet, rpc https://api.devnet.solana.com
+throw-away principal 9BXAHDsu362KL13rhD7nBndbL3BCptpNzadDxGYsGBNy
+funded the throw-away principal (0.03 SOL, 0.2 USDC): 2qfeG5qYRW3YFdoYWxtYzrkAsvqLnhJyWWMcaRHAeafgaop4F2VpyfotgvYxYsUQb8weznnzLLPZHfYrr5Szyqyn
+grant (dedicated principal): 43i4AiH1jZaLCo9h6simmwRd7phxB63MoYcmyQEEohstUJ9vxSAPKsRRrp3fo83yAXTT5rdfi4Z5669qM6PdCRS5
+mandate id 8cbcb2ba4e086f86ed71f1180b1386aa018c126d9f28bf151e6b141811556252
+  50 dust credits sent (143 s)
+  100 dust credits sent (282 s)
+  150 dust credits sent (426 s)
+  200 dust credits sent (572 s)
+  250 dust credits sent (720 s)
+250 dust credits of 1 base unit into AwUUwvppyhRoLtcL6ShHb4WYuxuBFptgBuRfoGBZgp9f; signatures in demo-runs-1.6/h5-dust-signatures.txt (250 distinct)
+the agent's first read at start (250 dust credits in the account): 6 signature pages, 0 getTransaction HTTP calls (565 RPC HTTP calls), 1079.3 s
+first gate request (cold grant check, 250 dust credits): HTTP 503, Retry-After 5, answered after 10.9 s (budget 10 s); payer balance unchanged: true
+file:///<repo>/scripts/h5-scale.mjs:85
+  if (rr.status !== 503) throw new Error(`unexpected HTTP ${rr.status} while the gate warms up`);
+                               ^
+
+Error: unexpected HTTP 402 while the gate warms up
+    at file:///<repo>/scripts/h5-scale.mjs:85:32
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+Node.js v24.16.0

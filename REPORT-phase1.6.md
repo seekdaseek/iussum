@@ -1,0 +1,93 @@
+# REPORT: iussum Phase 1.6 (2026-10-20)
+
+Baseline for the new regression tests: **`142276f`**, the public HEAD at the end of Phase 1.5. This pass covers Addendum I (two open agent defects, the cold first read, fewer HTTP calls), Addendum K (the data-directory lock) and Addendum L (a rejection above the allowance on chain, and a verdict id). The tests were committed first (`1af5464` for I and J, `18c6138` for K; the L2 test was written before its fix and fails the same way, see below), then the fixes. Normal pushes only; devnet and localnet only; nothing on the VPS; nothing was posted anywhere.
+
+## Gate
+
+| gate | result |
+|---|---|
+| `npm test` | **393 tests, 393 pass, 0 fail, 0 skipped** (was 356), about 30 s, the property test included |
+| `npm run mutation` | baseline 393 / 393; **130 checks mutated, survived 0** (was 121); run twice, the second after the last code change ([mutation-table.md](mutation-table.md)) |
+| the new regression tests | `test/phase16`: 36 tests, **28 fail on `142276f`**, the other 8 are controls and guards: [docs/phase16/phase16-all-on-142276f.txt](docs/phase16/phase16-all-on-142276f.txt); per group: [I and J](docs/phase16/regression-on-142276f.txt), [K](docs/phase16/k-regression-on-142276f.txt), [L2](docs/phase16/l2-regression-on-142276f.txt) |
+| property test | green: [docs/phase16/property-run.txt](docs/phase16/property-run.txt), 600 histories, new generators I2 (batch with a null or errored element), I4 (lagging history node after a proven expiry, same-mandate re-grant with a reused data directory), I6 (cold gate, 503, agent retries); **fails on `142276f`** in I4 at seed 17 (an honest agent refused with `history_incomplete` after a re-grant): [docs/phase16/property-on-142276f.txt](docs/phase16/property-on-142276f.txt) |
+| `v4-t1.mjs` and `v4-cp.mjs` | wrong at `142276f`, right after: [before](docs/phase16/review-scripts-before.txt), [after](docs/phase16/review-scripts-after.txt) |
+| `v5-lock.mjs`, `v5-agent.mjs` | L1 and L2 start two agents at `142276f` and exactly one after the fix; P1, P2 and R give the fixed outcomes: [before](docs/phase16/v5-scripts-before.txt), [after](docs/phase16/v5-scripts-after.txt) |
+| five clean devnet runs of scenarios 1 to 16 | [demo-runs-1.6/run-1.txt](demo-runs-1.6/run-1.txt) to `run-5.txt`, each ends `exit code 0`: 86, 86, 86, 85, 86 checks passed (run 4 has one check fewer because no two of its scenario 12 payments shared a slot). 190 signatures, every one checked with `getSignatureStatuses`, 190 finalized: [demo-runs-1.6/signatures.md](demo-runs-1.6/signatures.md). These runs are on the final code. An earlier set of five, run before the last change to the batch retry, is kept in [demo-runs-1.6-first](demo-runs-1.6-first/signatures.md): 86 / 86 each, 190 finalized |
+| H5 | run once more with a fresh throw-away principal and 250 dust credits: [demo-runs-1.6/h5-scale.txt](demo-runs-1.6/h5-scale.txt); the 250 credit signatures: [demo-runs-1.6/h5-dust-signatures.txt](demo-runs-1.6/h5-dust-signatures.txt). Two earlier attempts failed and are kept: [attempt 1](demo-runs-1.6/h5-attempt1.txt), [attempt 2](demo-runs-1.6/h5-attempt2.txt), see H5 below |
+| fresh clone of the final pushed HEAD | see the last section |
+| sensitive scan over the new commits | see the last section |
+| relative links in tracked `.md` | see the last section |
+
+## Before and after
+
+| # | item | before (`142276f`) | after |
+|---|---|---|---|
+| I3 | the "did it land?" read after a proven expiry can read a lagging node | the expiry proof asked with `minContextSlot`, the history read that followed did not: the seller landed its kept payload in the last valid block, a history node 1 to 2 slots behind did not list it, the reservation was released and `v4-t1` shows **40000 settled against a 30000 budget** | every call of that read (signatures, transactions, the account) carries `minContextSlot` at or above the slot of the `getBlockHeight` answer that proved the expiry. A node that has not reached it, or any other error, leaves the reservation held: `v4-t1` shows the reservation `held`, the next payment `period_over_budget`, **20000 settled against 30000** |
+| I4 | the agent's files are keyed by mandate and signer, not by grant | after the principal re-granted the same mandate, a restarted agent loaded the G1 checkpoint and failed the allowance cross-check on every restart (`v4-cp` D: "the debits found (200) do not add up to the allowance that is gone (100)") | checkpoint, reservations, scan and lock files are keyed by `grant_tx`, source, agent and asset. The files of another grant are ignored and never deleted. `v4-cp` D: the agent on G2 with the G1 data directory pays (200), also after another restart |
+| J1 | a cold first read hangs a request | with 250 dust credits the gate's first grant check took 626 s on the public node and ran past the client's 300 s header wait, so the first payment failed | the grant check inside a request has a time budget (default 10 s, `grantCheckBudgetMs`). Past it the gate answers **503 with `Retry-After`** and nothing settles; the scan keeps running in the background, resumable (with a `dataDir` its partial state is kept in the gate's own SQLite file). The reference agent honours `Retry-After` a bounded number of times (default 3, at most 30 s each) with the SAME payload, so there is no second reservation; a 503'd payload's reservation is held until proven expired or landed. An observe-mode gate never blocks on the cold check |
+| J2 | too many HTTP calls per history read | one `getTransaction` POST per transaction | JSON-RPC batches of 25 in both the spend history and the supersession scan, with a concurrency limit and backoff. A rate-limited element is retried on its own; a null or errored element makes the read incomplete as before. Measured result on the public node: see H5 (fewer calls, **not** faster) |
+| K1 | two agents can both take the lock | the PID lock was check-then-act: `v5-lock` L1 (stale lock, both read the dead PID) and L2 (B starts between A's create and A's pid write) **start both agents** | an OS-level lock: a `node:sqlite` connection on `<dataDir>/<grant key>.lock.db`, `busy_timeout` 0, `BEGIN EXCLUSIVE` at `createAgent`, held until `close()` or process exit. A second agent, in this process or another, refuses to start. All PID and stale-lock code is deleted. `v5-lock` L0, L1, L2: exactly one agent runs. Two processes starting at once can both see SQLITE_BUSY, so a refusal is retried up to 8 times with a 5 to 30 ms jitter (the lock itself stays `busy_timeout` 0) |
+| K2 | a lock left by SIGTERM blocks a restart | `v5-agent` P2: an agent stopped with SIGTERM left `agent.lock` holding its pid; P1: a lock naming the starter's own pid counted as alive (PID 1 in a container refuses after `docker stop`) | the kernel drops the lock when the process dies. Real child processes: SIGTERM and SIGKILL of the holder, a new agent starts at once, also when the restart gets the same pid as a live process. `v5-agent` P1: started, P2: a new agent starts after the SIGTERM |
+| K3 | `close()` released the lock but the agent kept working | payments after `close()` still wrote to the data directory without the lock | after `close()`, `fetch` refuses with a clear error and nothing writes to the data directory |
+| L1 | nothing showed the chain itself refusing a payment above the allowance | scenario 2 covers the per-payment cap through the seller's 403 only | devnet scenario 16, see below |
+| L2 | no external reference for a decided dispute | none | `verdict_id`, see below |
+
+### L1, scenario 16: above the remaining allowance, the chain refuses
+
+The setup bypasses every off-chain check: a naive agent (`localChecks: false`), seller C in observe mode, a grant with `total_cap` 60000 and `per_payment_max` 60000 (the mandate rules allow them to be equal: `validateMandate` only requires `per_payment_max` not to exceed `total_cap`, so this is a legal mandate as it stands and `validateMandate` is untouched). The agent first spends 0.02 USDC with one in-scope payment (HTTP 200, a real settlement), which leaves a delegated amount of 40000 on chain. It then sends one 0.06 USDC payment: above the 0.04 left, within `per_payment_max`. In all five runs:
+
+- the facilitator's verify fails and the seller answers HTTP 402; the facilitator's error is `invalid_exact_svm_transaction_simulation_failed`;
+- asked directly, the node simulating the captured payload says `{"InstructionError":[2,{"Custom":1}]}` with the log lines `Program log: Error: insufficient funds` and `Program Tokenkeg… failed: custom program error: 0x1`, which is the token program's insufficient-funds error for the delegate;
+- nothing settles: the principal's balance, seller C's balance and the delegated amount left (40000) are identical before and after, read from the chain. For example run 1: principal 5110000 → 5110000, seller C 3710000 → 3710000, delegated 40000 → 40000.
+
+Printed in [demo-runs-1.6/run-1.txt](demo-runs-1.6/run-1.txt) to `run-5.txt` under "Scenario 16", 7 checks each.
+
+### L2, the verdict id
+
+Every stored verdict has `verdict_id`: the hex sha256 of the RFC 8785 JCS of the stored record (`tx_sig`, `mandate_id`, `grant_tx`, the receipt's sha256 or null, `verdict`, `reason`, `liable`, `delta`, `unjudged`, `provisional`; a missing member is written as null or empty, so one stored verdict has one id). `/dispute` returns it, `/v/:tx` shows it as "Verdict id", and `duplicate_dispute` returns the same id. A replaced verdict, whether provisional or by `receipt_equivocation`, gets a new id and the record keeps the old id beside the replaced verdict (`replaced[].verdict_id`). A rejected dispute (nothing stored) has no id. Two golden vectors in `test/phase16/l2-verdict-id.test.js`: a fixed record gives a fixed id, with the expected hash computed outside this code base. Mutation rows: `resolver.verdict_id` and `resolver.verdict_id_kept`. README item 4 carries the sentence the brief asked for. Rows stored before this change get the same id computed on read.
+
+### H5, the first read at scale (once more, fresh principal, 250 dust credits)
+
+Old is the Phase 1.5 run ([REPORT-phase1.5.md](REPORT-phase1.5.md)), new is [demo-runs-1.6/h5-scale.txt](demo-runs-1.6/h5-scale.txt). HTTP calls count every attempt, a rate-limited one included.
+
+| | old (Phase 1.5) | new (Phase 1.6) |
+|---|---|---|
+| the gate's first request on a cold gate | the grant check ran 626.3 s inside the request (674 `getTransaction` calls, 678 RPC calls); the client's 300 s header wait would have failed it | **HTTP 503, `Retry-After: 5`, answered after 10.8 s** (budget 10 s); the payer's balance unchanged |
+| the gate's background scan | none (it was the request) | warm after **1003 s** from the first request (5 signature pages, 604 RPC HTTP calls), the kept payload re-sent every 15 s and answered 503 each of the 40 times; it then got 402, because a payload lives about 90 s (its blockhash). A **fresh payment then settled with HTTP 200**. So on the public node the SAME payload cannot survive a warm-up this long; the agent's bounded retries cover a warm-up of seconds, not minutes |
+| the agent's first read at start | 6 pages, 673 transactions, 680 RPC calls, 637.4 s | 6 pages, 594 RPC HTTP calls (batch POSTs), **1071.3 s** |
+| dispute 1 (first read of the whole history since the grant) | 6 pages, 695 `getTransaction` calls, 702 RPC calls, 630.1 s | 6 pages, 2 single `getTransaction` calls (the null retries), **657 RPC HTTP calls**, **1197.5 s**; verdict `invalid` / `in_scope` / principal, decided |
+| dispute 2 (a different payment, the checkpoint is used) | 2 pages, 0 transactions, 3 RPC calls, 1.3 s | 2 pages, 0 transactions, 3 RPC calls, 1.1 s; the same verdict |
+
+**What it shows, plainly.** The J1 fix works: a cold gate no longer hangs a request, it answers 503 within its budget and settles once the scan is warm. J2 reduced the HTTP calls by only about 6 to 13 percent on the public node (594 against 680, 604 against 678, 657 against 702), and the wall time got **longer** (about 1070 to 1200 s against about 630 s), not shorter. The public devnet node limits `getTransaction` per client; I measured it with direct probes (about 0 to 9 elements of a batch answered per window, the rest "Too many requests for a specific RPC call", and HTTP 429 for the whole request while the window is used up, with no clean relation to the length of the wait). Batching does not beat that limiter, and a rejected element still costs a window; the sequential single calls of Phase 1.5 averaged 0.4 transactions a second, the batches 0.2 to 0.25 today (the node's state on the day is part of this: one measurement of each). The J2 benefit is therefore **not shown on the public node**; it should show on a node that does not throttle batches, which I did not measure (a keyed RPC is still UNTESTED). The history reads of a first dispute stay minutes on the public node, and the checkpoint still makes the second one cost one second.
+
+**Two failed attempts, kept.** Attempt 1: the agent's first read stopped with `rpc http 429` after a fixed number of rounds without progress, so the first payment was refused with `history_incomplete` (fail closed, as designed, but too impatient for this node). The fix (`a9cda52`) measures patience in time without progress (`stallMs`, default 90 s, after at least 12 rounds), lets the workers of one call share a cooldown, and sends a smaller retry after a limited round; three tests drive it with a fake clock against a model of that limiter and fail before the change ([docs/phase16/j2-ratelimit-on-c6a9fdc.txt](docs/phase16/j2-ratelimit-on-c6a9fdc.txt)). Attempt 2: the first read and the 503 were as in the table, but my script then re-sent the kept payload during the warm-up and stopped on the facilitator's 402 for the expired payload; the script now treats the first non-503 answer as "warm" and makes a fresh payment. The label "agent payment 1 (settled through the re-sent payload)" in the final output is a leftover of the script: payment 1 there was the fresh payment, as the line above it says. The 250 dust credits of each attempt went to throw-away principals; only the last attempt's signatures are in `h5-dust-signatures.txt`.
+
+## Changes to tests and scripts that existed before
+
+- `test/phase15/h2-lock.test.js` was rewritten for the SQLite lock (it tested a PID file). `test/phase16/k-lock.test.js` adds the two-process, SIGTERM and SIGKILL cases.
+- `test/harness.mjs`: `fakeRpc` can simulate a history node that lags (`nodeSlot`) and records the `minContextSlot` of each call; `test/phase13/property.test.js` has the new generators listed above.
+- The review scripts in `review-20261020d` and `review-20261020e` (gitignored) are adapted in their calls only: `await agent.close()` before an in-process restart; `v5-lock-child.mjs` pauses at the lock attempt because the file system pause points of the old lock are gone (the scenarios are the same: two processes starting at once, and a crashed holder); `v4-t1.mjs` gives the lagging history node the property a real node has (it refuses a `minContextSlot` it has not reached, `nodeSlot = 198` against a proof at 200); `v4-r1.mjs` part B now shows the second process refused, which is the point of K.
+- One consequence of I4 that is not a defect: a payload a seller kept before a same-mandate re-grant is not counted by the agent on the new grant (its files belong to the old grant and are ignored).
+
+## Commits of this pass
+
+`1af5464` I and J tests first · `377f149` I3, I4, J1, J2 · `663d39e` property generators · `c6a9fdc` J2 element retry, H5 script · `18c6138` K tests first · `b03e20f` K1 to K3 · `532b601` batch patience, README limits · `6ff06f5` L2 · `c737068` L1 · `a410a20` mutation table · `d48c188` v4 scripts after · `b280e66` docs counts · `a9cda52` J2 time-based patience · `377d344` docs, mutation table rerun · `409bf86` devnet runs, H5, property records, then this report.
+
+## Still UNTESTED
+
+Moved out by this pass: a real second agent PROCESS on one data directory (K, two real processes, SIGTERM, SIGKILL), the lock race, the cold first read of a gate, the lagging history node after a proven expiry (simulated node, honouring `minContextSlot` the way agave does; a real lagging node was not reached), and the chain refusing a payment above the remaining allowance (scenario 16).
+
+- **A keyed or private RPC.** Every number above is the public devnet node, whose limiter dominates. J2's benefit and the real cost of a first read on a node that does not throttle batches were not measured.
+- **A warm-up longer than a payload's life.** On the public node the gate needed 1003 s; the same payload expires after about 90 s, so the agent's bounded retries do not carry a payment through such a warm-up. A seller facing a long history needs a keyed RPC or a pre-warm.
+- A real lagging history node on devnet (the I3 path is tested against a simulated node and the expiry path of scenario 14, not against a node that really lags).
+- A crash between the temp file and the rename of the reservations file: the state a crash leaves is tested, the crash itself is not. A crash of the process while it holds the lock is tested only by signals, not by a power loss.
+- A facilitator that really repeats a success: H1 is tested with a mock facilitator.
+- A wSOL account on chain (refused by `validateMandate`, nothing to run); a Token-2022 grant on chain (vector only).
+- The Seeker-signed grant through the iussum app (Phase 2), third-party sellers that adopt the middleware, anything on mainnet. The period budget is still not enforced on chain; only `total_cap` is (scenario 16 shows the chain enforcing the remaining allowance, which is the `total_cap` less what was spent).
+- `verdict_id` is a reference, not a signature: the resolver does not sign the record, and the id says nothing about who may rely on it.
+- **A mistake of mine, not rewritten:** a `git add -A` in Phase 1.5 swept the fourth review's three scripts into commit `533e49b`, which was pushed; they contain no sensitive pattern and removing them needs a history rewrite. This pass named every path it added.
+- Two leftovers disclosed earlier stay in the public history by decision: the treasury-address prefix in two commits of `REPORT-phase1.2.md`, and one line about a payout-documentation check in older versions of the Phase 0 and 1 reports.
+
+## Final HEAD, fresh clone, scan, links
+
+(filled in below after the push)
