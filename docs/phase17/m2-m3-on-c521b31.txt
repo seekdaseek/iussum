@@ -1,0 +1,17 @@
+ℹ fail 12
+ℹ pass 3
+✔ M3 (a) a payload kept in period 0 that lands at period 0 cannot take period 1 over budget (period-edge)
+✔ M3 (b) a restart against a caught-up node does not forget a payment that settled (restart-lag)
+✔ M3 (d) an expiry answer without an integer context slot is not proof: { context: { slot: "200" }, value: false } (i3-nocontext)
+✖ M2 a payment in flight at close() never signs a payload: B on the same directory cannot be exposed to 40000 against 30000 (v6-close)
+✖ M2 a start that fails after the lock was taken releases it (leak-enospc: the directory becomes unwritable during the start)
+✖ M2 a start the caller abandons through cfg.signal releases the lock at once and writes nothing afterwards (leak-abandoned)
+✖ M2 agent.client used after close() reads no chain, writes nothing, and cannot erase the next agent's held reservation (close-client)
+✖ M2 close() waits for the payments in flight, then releases the lock
+✖ M2 the naive agent cannot sign or pay through agent.client after close() (close-client-naive)
+✖ M3 (a) a payload kept in period 0 that lands at period 1 cannot take period 1 over budget (period-edge)
+✖ M3 (b) a restart against a lagging node does not forget a payment that settled (restart-lag)
+✖ M3 (c) a live legacy agent.lock (a 142276f process on the same directory) stops a new agent; a dead one and our own pid do not
+✖ M3 (c) the held entries of a 142276f reservations file are imported: a payload kept before the upgrade is not forgotten (upgrade-reservations)
+✖ M3 (d) an expiry answer without an integer context slot is not proof: false (no context) (i3-nocontext)
+✖ M3 (d) an expiry answer without an integer context slot is not proof: { value: false } (no context) (i3-nocontext)

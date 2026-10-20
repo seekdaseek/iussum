@@ -11,9 +11,12 @@
 // A success that arrives for a released reservation is still counted. With cfg.dataDir the held reservations are written to disk (temp file, fsync,
 // rename) before the signed payload leaves the agent and loaded at start, so a restart does not forget a payload a seller kept; the verified history
 // is kept there as a checkpoint, so a restart reads only what is new.
-// Phase 1.5 (Addendum H): ONE agent per data directory (an exclusive lock file with the PID, created with O_EXCL; a stale lock is cleared only when that
-// PID is not running); a partial or corrupt reservations file makes the agent refuse to pay, it is never read as empty; a temp file left by a crash
-// between write and rename is ignored (the last complete file is loaded) and removed.
+// Phase 1.5 (Addendum H): ONE agent per data directory; a partial or corrupt reservations file makes the agent refuse to pay, it is never read as empty; a temp
+// file left by a crash between write and rename is ignored (the last complete file is loaded) and removed. Phase 1.6 (Addendum K) replaced the PID lock file by an
+// OS-level lock: a node:sqlite connection on <dataDir>/<grant key>.lock.db that runs BEGIN EXCLUSIVE with busy_timeout 0 and keeps the transaction open until
+// close() or process exit (the kernel drops it when the process dies, SIGKILL included). Phase 1.7 (Addendum M): close() stops every new payload and every write,
+// a start that fails or is abandoned releases the lock, a settled payment stays in the reservations file until the chain history shows it, held reservations count
+// against the current period whatever period they were reserved in, and a 142276f data directory is refused (live agent.lock) or imported (reservations).
 import { x402Client } from '@x402/core/client';
 import { wrapFetchWithPayment } from '@x402/fetch';
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -26,7 +29,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 
-export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid', 'agent.release_needs_height', 'agent.min_context_slot', 'agent.consume_released', 'agent.persist_before_send', 'agent.restore_reservations', 'agent.checkpoint', 'agent.datadir_lock', 'agent.closed_refuses', 'agent.corrupt_reservations_refuse', 'agent.tmp_cleanup', 'agent.history_min_context', 'agent.keyed_by_grant', 'agent.retry_after'].map(registerCheck);
+export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid', 'agent.release_needs_height', 'agent.min_context_slot', 'agent.consume_released', 'agent.persist_before_send', 'agent.restore_reservations', 'agent.checkpoint', 'agent.datadir_lock', 'agent.closed_refuses', 'agent.corrupt_reservations_refuse', 'agent.tmp_cleanup', 'agent.history_min_context', 'agent.keyed_by_grant', 'agent.retry_after', 'agent.closed_hook', 'agent.closed_scheme', 'agent.write_needs_lock', 'agent.held_any_period', 'agent.keep_settled', 'agent.legacy_lock', 'agent.legacy_import', 'agent.expiry_context', 'agent.retry_after_header', 'agent.close_waits', 'agent.start_releases'].map(registerCheck);
 const MARK = 'IUSSUM_REFUSAL:';
 const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export class IussumRefusal extends Error {
@@ -35,7 +38,21 @@ export class IussumRefusal extends Error {
 const cb = (data) => ({ programAddress: COMPUTE_BUDGET, accounts: [], data: Uint8Array.from(data) });
 const u32 = (n) => [n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >>> 24) & 255];
 
-export async function createAgent(cfg) {
+// A start that fails or is abandoned (cfg.signal) releases the lock it took (Addendum M, M2). The caller has no handle during the start (the first read of a long
+// history can take many minutes), so cfg.signal is how it gives up: the lock is released at once and the start writes nothing afterwards.
+export function createAgent(cfg) {
+  const guard = { release: null, abort: null };
+  const started = build(cfg, guard).catch((e) => { if (fails('agent.start_releases', true)) guard.release?.(); throw e; });
+  if (!cfg.signal) return started;
+  started.catch(() => {});
+  return new Promise((resolve, reject) => {
+    const give = () => { guard.abort?.(); reject(cfg.signal.reason ?? new Error('createAgent aborted')); };
+    if (cfg.signal.aborted) return give();
+    cfg.signal.addEventListener('abort', give, { once: true });
+    started.then((a) => { cfg.signal.removeEventListener('abort', give); resolve(a); }, (e) => { cfg.signal.removeEventListener('abort', give); reject(e); });
+  });
+}
+async function build(cfg, guard) {
   const { mandate, grant_tx, signer, rpc, localChecks = true, attachMandate: wantAttach = true, now = () => Math.floor(Date.now() / 1000) } = cfg;
   if (mandate) assertMandate(mandate);
   // localChecks: true (full), 'caps' (payer-side caps only: per-payment and period amounts, no allow-lists, no grant check, no mandate attached), false (naive)
@@ -65,6 +82,8 @@ export async function createAgent(cfg) {
   const stem = dataDir && mandate ? createHash('sha256').update(keyOf()).digest('hex').slice(0, 32) : null;
   const fileOf = (kind) => path.join(dataDir, `${stem}.${kind}.json`);
   function writeAtomic(file, obj) {
+    // nothing is written to the data directory without the lock held: after close() (or an abandoned start) the next agent owns it (Addendum M, M2)
+    if (stem && fails('agent.write_needs_lock', closed || !lockDb)) throw new Error('iussum agent: the data directory is not locked by this agent (closed, or the start was abandoned)');
     fs.mkdirSync(path.dirname(file), { recursive: true });
     const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
     const fd = fs.openSync(tmp, 'w', 0o600);
@@ -74,7 +93,7 @@ export async function createAgent(cfg) {
   const readJson = (file) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; } };
   const persistReservations = () => {
     if (!dataDir) return;
-    writeAtomic(fileOf('reservations'), { v: 1, reservations: reservations.filter((r) => r.state === 'held' && r.created).map((r) => ({ amount: String(r.amount), t: r.t, blockhash: r.blockhash, lastValidBlockHeight: r.lastValid === null || r.lastValid === undefined ? null : String(r.lastValid), contextSlot: r.contextSlot ?? null, agentSig: r.agentSig })) });
+    writeAtomic(fileOf('reservations'), { v: 1, reservations: reservations.filter((r) => (r.state === 'held' && r.created) || (fails('agent.keep_settled', true) && r.state === 'consumed' && !r.seen)).map((r) => ({ amount: String(r.amount), t: r.t, blockhash: r.blockhash, lastValidBlockHeight: r.lastValid === null || r.lastValid === undefined ? null : String(r.lastValid), contextSlot: r.contextSlot ?? null, agentSig: r.agentSig, ...(r.state === 'consumed' ? { state: 'consumed', sig: r.sig ?? null, spentAt: r.spentAt ?? r.t } : {}) })) });
   };
   // ---- one agent per data directory (H2)
   // The lock is an OS-level lock held for the life of the agent (Addendum K, K1): a SQLite connection that runs BEGIN EXCLUSIVE with busy_timeout 0 and keeps the
@@ -105,6 +124,19 @@ export async function createAgent(cfg) {
   }
   const releaseLock = () => { if (lockDb) { try { lockDb.exec('ROLLBACK'); } catch { /* already ended */ } try { lockDb.close(); } catch { /* closed */ } lockDb = null; } };
   if (dataDir && mandate && fails('agent.datadir_lock', true)) acquireLock();
+  guard.release = releaseLock;
+  guard.abort = () => { closed = true; releaseLock(); };
+  // a 142276f process holding its agent.lock (a rolling deploy: the new process starts before the old one is stopped) is a holder this lock cannot see (Addendum M, M3 c)
+  if (dataDir && mandate && lockDb && fails('agent.legacy_lock', true)) {
+    const lf = path.join(dataDir, 'agent.lock');
+    const pid = fs.existsSync(lf) ? Number(fs.readFileSync(lf, 'utf8').trim()) : NaN;
+    if (Number.isInteger(pid) && pid > 0 && pid !== process.pid) {
+      let alive = false; try { process.kill(pid, 0); alive = true; } catch (e) { alive = e.code === 'EPERM'; }
+      if (alive) throw new Error(`another agent holds the data directory ${dataDir}: a legacy agent.lock names the live process ${pid} (stop the older agent first)`);
+    }
+  }
+  const abortCheck = () => { if (closed) throw new Error('iussum agent: the start was abandoned (cfg.signal)'); };
+  abortCheck();
   // temp files a crash left between write and rename are never read (the rename is atomic: the last complete file is the truth); remove them now that the lock is ours
   if (dataDir && mandate && lockDb && fails('agent.tmp_cleanup', true)) for (const f of fs.readdirSync(dataDir)) if (f.startsWith(stem) && f.endsWith('.tmp')) fs.rmSync(path.join(dataDir, f), { force: true });
   // the reservations file is read STRICTLY: a missing file is empty, a file that does not parse is not (H2)
@@ -117,10 +149,26 @@ export async function createAgent(cfg) {
       const j = JSON.parse(fs.readFileSync(file, 'utf8'));
       if (j?.v !== 1 || !Array.isArray(j.reservations)) throw new Error('unexpected shape');
       for (const x of j.reservations) if (typeof x.amount !== 'string' || !/^\d+$/.test(x.amount) || typeof x.t !== 'number' || typeof x.blockhash !== 'string' || typeof x.agentSig !== 'string') throw new Error('a reservation is incomplete');
+      for (const x of j.reservations) if (x.state !== undefined && x.state !== 'consumed') throw new Error('a reservation has an unknown state');
       return j.reservations;
     } catch (e) { reservationsCorrupt = `the reservations file ${file} is corrupt or partial (${e.message})`; return []; }
   };
-  const savedReservations = strictReservations();
+  let savedReservations = strictReservations();
+  // the held entries of a 142276f reservations file (named by the mandate id and agent, not by the grant) are imported, then the file is moved aside (never deleted,
+  // never read again): a payload a seller kept before the upgrade must still count (Addendum M, M3 c)
+  let legacyFile = null;
+  if (dataDir && mandate && lockDb && fails('agent.legacy_import', true)) {
+    const lf = path.join(dataDir, `${mandateId(mandate).slice(0, 16)}-${signer.address.slice(0, 8)}.reservations.json`);
+    if (fs.existsSync(lf)) {
+      try {
+        const j = JSON.parse(fs.readFileSync(lf, 'utf8'));
+        if (j?.v !== 1 || !Array.isArray(j.reservations)) throw new Error('unexpected shape');
+        for (const x of j.reservations) if (typeof x.amount !== 'string' || !/^\d+$/.test(x.amount) || typeof x.t !== 'number' || typeof x.blockhash !== 'string' || typeof x.agentSig !== 'string') throw new Error('a reservation is incomplete');
+        savedReservations = [...savedReservations, ...j.reservations.filter((x) => !savedReservations.some((y) => y.agentSig === x.agentSig))];
+        legacyFile = lf;
+      } catch (e) { reservationsCorrupt = `the legacy reservations file ${lf} is corrupt or partial (${e.message})`; }
+    }
+  }
   if (dataDir && mandate) scanFile = fileOf('scan');
   let cp = dataDir && !isMutated('agent.checkpoint') ? readJson(fileOf('checkpoint')) : null; // the verified history so far (core agentSpendHistory checkpoint)
   const saveCheckpoint = (c) => { cp = c; if (dataDir && c) writeAtomic(fileOf('checkpoint'), c); };
@@ -129,17 +177,35 @@ export async function createAgent(cfg) {
   // Addendum E, C1: while the grant is current the debits found must add up to total_cap minus the allowance that is left on the account.
   // Reservations that a previous run persisted: a payload may still be out there. They are held again; if the rebuilt history shows the agent's signature
   // from that payload, it landed and is already in the ledger (consumed). They are resolved later by the same proven-expiry rule as any other.
+  const showsIn = (entries, x) => entries?.some((e) => (x.sig && e.tx_sig === x.sig) || (x.agentSig && e.signatures.includes(x.agentSig)));
   function restoreReservations(entries) {
     const saved = dataDir && mandate && fails('agent.restore_reservations', true) ? savedReservations : [];
     for (const x of saved) {
+      if (x.state === 'consumed') {
+        // a payment that settled before the restart: counted as spent until the start-up history shows it (a node a little behind may show neither the payment nor
+        // the lower allowance, and the cross-check passes on that old but consistent view)
+        if (showsIn(entries, x)) continue;
+        if (x.sig && ledger.some((l) => l.sig === x.sig)) continue;
+        ledger.push({ amount: String(x.amount), t: x.spentAt ?? x.t, sig: x.sig ?? null });
+        reservations.push({ id: nextReservation++, amount: BigInt(x.amount), t: x.t, state: 'consumed', created: true, agentSig: x.agentSig, blockhash: x.blockhash, lastValid: null, contextSlot: x.contextSlot, sig: x.sig ?? null, spentAt: x.spentAt ?? x.t, seen: false, restored: true });
+        continue;
+      }
       const landed = entries?.find((e) => x.agentSig && e.signatures.includes(x.agentSig));
-      reservations.push({ id: nextReservation++, amount: BigInt(x.amount), t: x.t, state: landed ? 'consumed' : 'held', created: true, agentSig: x.agentSig, blockhash: x.blockhash, lastValid: x.lastValidBlockHeight == null ? null : BigInt(x.lastValidBlockHeight), contextSlot: x.contextSlot, sig: landed?.tx_sig ?? null, restored: true });
+      reservations.push({ id: nextReservation++, amount: BigInt(x.amount), t: x.t, state: landed ? 'consumed' : 'held', created: true, agentSig: x.agentSig, blockhash: x.blockhash, lastValid: x.lastValidBlockHeight == null ? null : BigInt(x.lastValidBlockHeight), contextSlot: x.contextSlot, sig: landed?.tx_sig ?? null, seen: Boolean(landed), restored: true });
     }
     if (saved.length) persistReservations();
+    if (legacyFile && !reservationsCorrupt) { try { fs.renameSync(legacyFile, `${legacyFile}.imported`); } catch { /* stays; imported again next start, which only holds more */ } }
+  }
+  // a settled payment the chain history now shows no longer needs its entry in the file
+  function markSeen(entries) {
+    let changed = false;
+    for (const r of reservations) if (r.state === 'consumed' && !r.seen && showsIn(entries, r)) { r.seen = true; changed = true; }
+    return changed;
   }
   if (mandate && !isMutated('agent.ledger_rebuild')) {
     let ctx = null, superseded = null, scanFailed = null;
     try { ctx = await rpc.getAccountContext(source); } catch (e) { scanFailed = `the source account could not be read: ${e.message}`; }
+    abortCheck();
     // is the grant current? That decides how far back the history must reach: while it is, the cross-check compares ALL debits since the grant, so no
     // cut at the start of the period (Addendum F, N1)
     try { superseded = await checker.supersededBy(source, grant_tx); } catch (e) { scanFailed = scanFailed ?? `could not verify the grant is current: ${e.message}`; }
@@ -149,6 +215,7 @@ export async function createAgent(cfg) {
     ledgerComplete = h.complete; ledgerReason = h.reason;
     for (const e of h.entries) ledger.push({ amount: e.amount, t: e.block_time ?? now(), sig: e.tx_sig });
     restoreReservations(ledgerComplete ? h.entries : null);
+    if (ledgerComplete && markSeen(h.entries)) persistReservations();
     if (reservationsCorrupt && fails('agent.corrupt_reservations_refuse', true)) { ledgerComplete = false; ledgerReason = reservationsCorrupt; }
     if (ledgerComplete && fails('agent.rebuild_allowance', true)) {
       if (scanFailed) { ledgerComplete = false; ledgerReason = scanFailed; }
@@ -158,13 +225,16 @@ export async function createAgent(cfg) {
       }
     }
   }
+  abortCheck();
   const periodAt = (t) => periodIndex(mandate, t);
-  const heldInPeriod = (t) => reservations.filter((r) => r.state === 'held' && periodAt(r.t) === periodAt(t)).reduce((a, r) => a + r.amount, 0n);
+  // a held payload lands in the period of its BLOCK time, which can be later than the period it was reserved in: every held reservation counts against the current period
+  const heldInPeriod = (t) => reservations.filter((r) => r.state === 'held' && (!fails('agent.held_any_period', true) ? periodAt(r.t) === periodAt(t) : true)).reduce((a, r) => a + r.amount, 0n);
   const spentThisPeriod = (t) => ledger.filter((x) => periodAt(x.t) === periodAt(t)).reduce((a, x) => a + BigInt(x.amount), 0n);
 
   const scheme = {
     scheme: 'exact',
     async createPaymentPayload(x402Version, req) {
+      if (fails('agent.closed_scheme', closed)) throw new Error('iussum agent is closed: no payload is created');
       // the blockhash is the agent's OWN, never one named in the 402: a seller that names one can claim an early expiry and keep the payload (Addendum F, N12)
       const bh = !fails('agent.own_blockhash', true) && req.extra?.recentBlockhash ? { blockhash: req.extra.recentBlockhash, lastValidBlockHeight: BigInt(req.extra.lastValidBlockHeight ?? 0) } : await getBlockhash();
       const decimals = fails('agent.decimals', true) ? await assetDecimals(req) : 6;
@@ -172,8 +242,10 @@ export async function createAgent(cfg) {
       const ix = getTransferCheckedInstruction({ source, mint: req.asset, destination, authority: signer, amount: BigInt(req.amount), decimals }, { programAddress: TOKEN_PROGRAM_ADDRESS });
       const memo = { programAddress: 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr', accounts: [], data: new TextEncoder().encode(Array.from(crypto.getRandomValues(new Uint8Array(16))).map((b) => b.toString(16).padStart(2, '0')).join('')) };
       const built = pipe(createTransactionMessage({ version: 0 }), (m) => setTransactionMessageFeePayer(req.extra.feePayer, m), (m) => appendTransactionMessageInstructions([cb([2, ...u32(20_000)]), cb([3, 1, 0, 0, 0, 0, 0, 0, 0]), ix, memo], m), (m) => setTransactionMessageLifetimeUsingBlockhash(bh, m));
+      if (fails('agent.closed_scheme', closed)) throw new Error('iussum agent is closed: no payload is created');
       const sent = Buffer.from(getTransactionEncoder().encode(compileTransaction(built))).toString('base64');
       const signed = getBase64EncodedWireTransaction(await sign(built));
+      if (fails('agent.closed_scheme', closed)) throw new Error('iussum agent is closed: no payload is created'); // closed while signing: the payload never leaves
       // whatever signs this transaction may add ComputeBudget instructions and nothing else (copied x402-wallet guard)
       if (fails('agent.tx_guard', true)) assertOnlyComputeBudgetChanged(sent, signed);
       // the reservation of this payment learns that a payload exists, which agent signature it carries and until which block it can land
@@ -219,7 +291,8 @@ export async function createAgent(cfg) {
       try {
         const opts = fails('agent.min_context_slot', true) ? { commitment: 'confirmed', minContextSlot: r.contextSlot } : { commitment: 'confirmed' };
         const v = await rpc.call('isBlockhashValid', [r.blockhash, opts]);
-        const invalid = (v?.value ?? v) === false;
+        // proof needs the answer's own slot: without an integer context.slot there is nothing to bind the "did it land?" read to (Addendum M, M3 d)
+        const invalid = v?.value === false && (fails('agent.expiry_context', true) ? Number.isInteger(v?.context?.slot) : true);
         const height = await rpc.call('getBlockHeight', [opts]);
         const past = BigInt(height) > r.lastValid;
         if (!fails('agent.blockhash_valid', !invalid) && !fails('agent.release_needs_height', !past)) { expired.push(r); proofSlot = Math.max(proofSlot, r.contextSlot ?? 0, v?.context?.slot ?? 0); } // otherwise the payload can still land
@@ -231,16 +304,19 @@ export async function createAgent(cfg) {
     const h = await agentSpendHistory(rpc, { source, agent: signer.address, mint: mandate.asset, until: grant_tx, checkpoint: cp, minContextSlot: fails('agent.history_min_context', true) ? proofSlot : null });
     if (h.checkpoint) saveCheckpoint(h.checkpoint);
     if (!h.complete) return;
+    markSeen(h.entries);
     for (const r of expired) {
       if (r.state !== 'held') continue; // another call resolved it while this one was reading the chain
       const landed = h.entries.find((e) => r.agentSig && e.signatures.includes(r.agentSig));
-      if (landed && fails('agent.landed_consumed', true)) { r.state = 'consumed'; r.sig = landed.tx_sig; if (!ledger.some((x) => x.sig === landed.tx_sig)) ledger.push({ amount: landed.amount, t: landed.block_time ?? r.t, sig: landed.tx_sig }); }
+      if (landed && fails('agent.landed_consumed', true)) { r.state = 'consumed'; r.seen = true; r.sig = landed.tx_sig; if (!ledger.some((x) => x.sig === landed.tx_sig)) ledger.push({ amount: landed.amount, t: landed.block_time ?? r.t, sig: landed.tx_sig }); }
       else if (!landed && fails('agent.release_on_expiry', true)) r.state = 'released';
     }
     persistReservations();
   }
   if (localChecks && mandate) {
     client.onBeforePaymentCreation(async (ctx) => {
+      // a closed agent reads no chain and writes nothing: refuse at the top (Addendum M, M2)
+      if (fails('agent.closed_hook', closed)) return { abort: true, reason: MARK + JSON.stringify({ reason: 'agent_closed', delta: [] }) };
       const r = ctx.selectedRequirements;
       const store = requested.getStore();
       const asked = store?.url ?? null; // fix 8: judge the URL actually requested
@@ -284,13 +360,23 @@ export async function createAgent(cfg) {
       const copy = input instanceof Request ? input.clone() : input;
       const res = await baseFetch(copy, init);
       if (res.status !== 503 || !paid(input, init) || attempt >= retryMax || !fails('agent.retry_after', true)) return res;
-      const wait = Number(res.headers.get('retry-after'));
-      if (!Number.isFinite(wait) || wait < 0) return res;
-      await new Promise((r) => setTimeout(r, Math.min(wait * 1000, retryCapMs)));
+      // retry only when the server said when: Retry-After as whole seconds, or a future HTTP-date (Addendum M, M8); a 503 without it is not hammered three times at once
+      const ra = (res.headers.get('retry-after') ?? '').trim();
+      let waitMs = null;
+      if (/^\d+$/.test(ra)) waitMs = Number(ra) * 1000;
+      else if (ra && Number.isFinite(Date.parse(ra)) && Date.parse(ra) > Date.now()) waitMs = Date.parse(ra) - Date.now();
+      if (waitMs === null && fails('agent.retry_after_header', true)) return res;
+      await new Promise((r) => setTimeout(r, Math.min(waitMs ?? 0, retryCapMs)));
     }
   };
   const wrapped = wrapFetchWithPayment(retryingFetch, client);
-  async function pay(url, init) {
+  const inflight = new Set();
+  function pay(url, init) {
+    const p = payInner(url, init);
+    inflight.add(p); p.then(() => inflight.delete(p), () => inflight.delete(p));
+    return p;
+  }
+  async function payInner(url, init) {
     if (closed && fails('agent.closed_refuses', true)) throw new Error('iussum agent is closed (its data directory lock was released): create a new agent');
     const st = { url: normalizeResource(String(url)), ids: [] };
     let res;
@@ -310,11 +396,11 @@ export async function createAgent(cfg) {
       const settle = JSON.parse(Buffer.from(pr, 'base64').toString('utf8'));
       // a success is counted even if the reservation was released meanwhile (a release must be proven, but the money moved): consume it, dedupe by signature
       const mine = st.ids.map((id) => reservations[id]).findLast((r) => r.created && (r.state === 'held' || (r.state === 'released' && fails('agent.consume_released', true))));
-      if (settle.success && mine) { mine.state = 'consumed'; mine.sig = settle.transaction ?? null; if (!mine.sig || !ledger.some((x) => x.sig === mine.sig)) ledger.push({ amount: String(mine.amount), t: now(), sig: mine.sig }); persistReservations(); }
+      if (settle.success && mine) { mine.state = 'consumed'; mine.seen = false; mine.spentAt = now(); mine.sig = settle.transaction ?? null; if (!mine.sig || !ledger.some((x) => x.sig === mine.sig)) ledger.push({ amount: String(mine.amount), t: now(), sig: mine.sig }); persistReservations(); }
     }
     const rh = res.headers.get('x-iussum-receipt');
     res.receipt = rh ? decodeReceipt(rh) : null;
     return res;
   }
-  return { fetch: pay, client, ledger, reservations, async close() { closed = true; releaseLock(); }, source, mandateId: mandate ? mandateId(mandate) : null, address: signer.address };
+  return { fetch: pay, client, ledger, reservations, async close() { closed = true; if (fails('agent.close_waits', true)) await Promise.allSettled([...inflight]); releaseLock(); }, source, mandateId: mandate ? mandateId(mandate) : null, address: signer.address };
 }
