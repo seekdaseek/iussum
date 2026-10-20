@@ -65,6 +65,13 @@ export async function usdc(ctx, owner) {
   return BigInt(r?.value?.amount ?? 0);
 }
 
+// What the token program still lets the delegate move: the principal's account delegate and delegated amount, read from the chain (Addendum L, scenario 16).
+export async function delegation(ctx, owner) {
+  const ata = await principalAta(owner, MINT);
+  const info = (await ctx.rpc.call('getAccountInfo', [ata, { encoding: 'jsonParsed', commitment: 'confirmed' }]))?.value?.data?.parsed?.info;
+  return { delegate: info?.delegate ?? null, amount: BigInt(info?.delegatedAmount?.amount ?? 0) };
+}
+
 // A demo seller on the real x402 stack with the iussum gate mounted ahead of paymentMiddleware.
 export async function startDemoSeller(ctx, { name, signer, mode }) {
   const srv = http.createServer();

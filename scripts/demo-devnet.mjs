@@ -1,4 +1,4 @@
-// npm run demo:devnet : fifteen scenarios on devnet, real facilitator, real USDC, throw-away principal (no phone). Exit code 1 if any expectation fails.
+// npm run demo:devnet : sixteen scenarios on devnet, real facilitator, real USDC, throw-away principal (no phone). Exit code 1 if any expectation fails.
 import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -7,7 +7,7 @@ import { randomBytes } from 'node:crypto';
 import { createAgent, IussumRefusal } from '@iussum/agent';
 import { createResolver, createResolverApp, openStore, makeRefundSender } from '@iussum/resolver';
 import { createGrantChecker, mandateId, summaryLine, verifyReceipt, principalAta } from '@iussum/core';
-import { loadKeys, makeCtx, sendGrant, sendRevoke, sendPlainTransfer, usdc, sleep, startDemoSeller, NETWORK, MINT, FACILITATOR, RPC_URL } from './demo-lib.mjs';
+import { loadKeys, makeCtx, sendGrant, sendRevoke, sendPlainTransfer, usdc, delegation, sleep, startDemoSeller, NETWORK, MINT, FACILITATOR, RPC_URL } from './demo-lib.mjs';
 
 const ctx = makeCtx(), keys = await loadKeys();
 const results = []; let current = '';
@@ -355,8 +355,40 @@ async function s15() {
   } finally { await agent.close(); fs.rmSync(dataDir, { recursive: true, force: true }); }
 }
 
-const scenarios = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15];
-for (const f of scenarios) { try { await f(); } catch (e) { results.push({ scenario: current, label: 'scenario threw', ok: false, actual: String(e.stack ?? e) }); say(`    FAIL scenario threw: ${e.stack ?? e}`); } }
+// ---- scenario 16 (Addendum L, L1): above the REMAINING allowance, within per_payment_max. Every off-chain check is off (a naive agent, an observe-mode seller),
+// so only the token program can stop it. The facilitator's verify simulates the payment and must fail; nothing settles, nothing moves.
+async function s16() {
+  head(16, 'above the remaining allowance (within per_payment_max): with every off-chain check off, the chain itself refuses and nothing moves');
+  const g = await newMandate({ total_cap: '60000', per_payment_max: '60000', period_budget: '200000' }, ['C']);
+  const real = globalThis.fetch, seen = [];
+  globalThis.fetch = async (req, init) => { const h = req?.headers?.get?.('payment-signature'); if (h) seen.push(h); return real(req, init); }; // records the payload, forwards it unchanged
+  let naive; try { naive = await agentFor(g, { localChecks: false }); } finally { globalThis.fetch = real; }
+  const ok = await naive.fetch(sellers.C.url('mid'));
+  expect('the first, in-scope payment of 0.02 USDC settles at seller C (observe)', ok.status, 200);
+  step(`payment tx ${ok.receipt?.tx_sig}`);
+  const left = await delegation(ctx, keys.principal.address);
+  step(`delegated amount left on chain: ${left.amount} of ${g.m.total_cap}`);
+  expect('0.04 USDC of the allowance is left on chain', String(left.amount), '40000');
+  const before = [await usdc(ctx, keys.principal.address), await usdc(ctx, keys.sellerC.address)];
+  const res = await naive.fetch(sellers.C.url('big'));
+  const why = errOf(res) || (await res.text()).slice(0, 200);
+  step(`the 0.06 USDC payment (above the 0.04 left, within per_payment_max ${g.m.per_payment_max}): HTTP ${res.status}, facilitator says: ${why}`);
+  expect('the facilitator\'s verify fails (HTTP 402, a simulation error) and the seller does not serve', [res.status, /simulation|insufficient/i.test(why)], [402, true]);
+  const txB64 = JSON.parse(Buffer.from(seen.at(-1), 'base64').toString()).payload.transaction;
+  const sim = await ctx.rpc.call('simulateTransaction', [txB64, { encoding: 'base64', sigVerify: false, commitment: 'confirmed' }]);
+  const logs = (sim.value.logs ?? []).filter((l) => /rror|insufficient|failed/i.test(l));
+  step(`the node simulating that payment: err ${JSON.stringify(sim.value.err)}; log: ${logs.join(' | ')}`);
+  expect('the token program refuses it: insufficient funds for the delegate', [JSON.stringify(sim.value.err).includes('"Custom":1'), logs.some((l) => /insufficient funds/i.test(l))], [true, true]);
+  const after = [await usdc(ctx, keys.principal.address), await usdc(ctx, keys.sellerC.address)];
+  const leftAfter = await delegation(ctx, keys.principal.address);
+  step(`principal ${before[0]} -> ${after[0]}, seller C ${before[1]} -> ${after[1]}, delegated amount left ${left.amount} -> ${leftAfter.amount}`);
+  expect('principal and seller C balances unchanged on chain', after.map(String), before.map(String));
+  expect('the delegated amount left is unchanged', String(leftAfter.amount), String(left.amount));
+}
+
+const scenarios = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16];
+const only = process.env.ONLY?.split(',').map((n) => `s${n}`); // ONLY=16 runs one scenario (debugging); the five clean runs never set it
+for (const f of scenarios.filter((f) => !only || only.includes(f.name))) { try { await f(); } catch (e) { results.push({ scenario: current, label: 'scenario threw', ok: false, actual: String(e.stack ?? e) }); say(`    FAIL scenario threw: ${e.stack ?? e}`); } }
 say('\n=== Summary');
 for (const sc of [...new Set(results.map((r) => r.scenario))]) { const rs = results.filter((r) => r.scenario === sc); say(`${rs.every((r) => r.ok) ? 'PASS' : 'FAIL'}  ${sc}  (${rs.filter((r) => r.ok).length}/${rs.length} checks)`); }
 const failed = results.filter((r) => !r.ok).length;
