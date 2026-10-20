@@ -14,7 +14,7 @@ import { fillBlockIndices, comparePositions, readTransactions } from './chain.js
 
 export const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export const MEMO_V2 = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
-export const GRANT_CHECKS = ['grant.tx_err', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.superseded_inner', 'grant.scan_failed', 'grant.scan_unreadable', 'grant.superseded_position', 'grant.coalesce_scans', 'grant.scan_store'].map(registerCheck);
+export const GRANT_CHECKS = ['grant.tx_err', 'grant.scan_resume_top', 'grant.scan_wellformed', 'grant.scan_state_tolerant', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.superseded_inner', 'grant.scan_failed', 'grant.scan_unreadable', 'grant.superseded_position', 'grant.coalesce_scans', 'grant.scan_store'].map(registerCheck);
 
 export async function principalAta(principal, asset) {
   const [ata] = await findAssociatedTokenPda({ mint: asset, owner: principal, tokenProgram: TOKEN_PROGRAM_ADDRESS });
@@ -93,6 +93,8 @@ export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPag
     const txs = await readTransactions(rpc, listed.map((e) => e.signature));
     listed.forEach((e, k) => {
       if (fails('grant.scan_unreadable', !txs[k])) throw new Error(`transaction ${e.signature} could not be read`);
+      // the bar parsePayment uses: a jsonParsed transaction (an instruction array) with meta; anything else (an empty object, a base64 transaction) is unreadable
+      if (fails('grant.scan_wellformed', !Array.isArray(txs[k].transaction?.message?.instructions) || !txs[k].meta)) throw new Error(`transaction ${e.signature} is not a jsonParsed transaction`);
       if (supersedes(txs[k], source)) found.push({ sig: e.signature, tx_sig: e.signature, slot: txs[k].slot });
     });
     if (page.length) before = page[page.length - 1].signature;
@@ -114,15 +116,28 @@ export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPag
 export function createGrantChecker(rpc, { scanStore = null } = {}) {
   const cache = new Map();
   const scans = new Map(); // `${source}:${grantTx}` -> { since, superseded }: later calls only scan what is newer than the last scan
+  // A stored marker that does not parse or has the wrong shape is treated as absent: the scan restarts from the grant (it reads more, never less) (Addendum M, M1 b)
+  const stored = (k) => {
+    if (!fails('grant.scan_state_tolerant', true)) return scanStore?.get(k);
+    try {
+      const v = scanStore?.get(k);
+      const okPartial = (p) => p === undefined || p === null || (typeof p.cursor === 'string' && (p.newest === null || typeof p.newest === 'string') && Array.isArray(p.found));
+      return v && typeof v === 'object' && typeof v.since === 'string' && (v.superseded === null || (v.superseded && typeof v.superseded.sig === 'string')) && okPartial(v.partial) ? v : undefined;
+    } catch { return undefined; }
+  };
   async function supersededBy(source, grantTx) {
     const k = `${source}:${grantTx}`;
     // scanStore (optional, { get(key), put(key, state) }) keeps the marker across restarts: each signature of the account is read once (Addendum G, T2)
-    const st = scans.get(k) ?? (fails('grant.scan_store', true) ? scanStore?.get(k) : null) ?? { since: grantTx, superseded: null };
-    if (st.superseded) return st.superseded;
-    const r = await scanSupersede(rpc, source, st.since, { resume: st.partial ?? null, onProgress: (partial) => { const cur = { since: st.since, superseded: null, partial }; scans.set(k, cur); scanStore?.put(k, cur); } });
-    const next = { since: r.newest ?? st.since, superseded: r.superseded };
-    scans.set(k, next); scanStore?.put(k, next);
-    return r.superseded;
+    let st = scans.get(k) ?? (fails('grant.scan_store', true) ? stored(k) : null) ?? { since: grantTx, superseded: null };
+    for (;;) {
+      if (st.superseded) return st.superseded;
+      const resumed = Boolean(st.partial), since = st.since;
+      const r = await scanSupersede(rpc, source, since, { resume: st.partial ?? null, onProgress: (partial) => { const cur = { since, superseded: null, partial }; scans.set(k, cur); scanStore?.put(k, cur); } });
+      st = { since: r.newest ?? since, superseded: r.superseded };
+      scans.set(k, st); scanStore?.put(k, st);
+      // a resumed scan read the history only down from the top of the scan it resumed, never above it: read what landed after that top before answering (Addendum M, M1)
+      if (!fails('grant.scan_resume_top', resumed) || st.superseded) return st.superseded;
+    }
   }
   // Concurrent payments ask the same question at the same moment (is this grant still current?). One scan answers all of them; a call that
   // arrives after it finished starts a new one, so nothing is cached beyond the incremental `since` marker.

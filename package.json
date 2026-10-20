@@ -12,7 +12,7 @@
     "apps/resolver"
   ],
   "scripts": {
-    "test": "node --test --test-reporter=spec packages/*/test/*.test.js apps/*/test/*.test.js test/regression/*.test.js test/phase11/*.test.js test/phase12/*.test.js test/phase13/*.test.js test/phase14/*.test.js test/phase15/*.test.js test/phase16/*.test.js",
+    "test": "node --test --test-reporter=spec packages/*/test/*.test.js apps/*/test/*.test.js test/regression/*.test.js test/phase11/*.test.js test/phase12/*.test.js test/phase13/*.test.js test/phase14/*.test.js test/phase15/*.test.js test/phase16/*.test.js test/phase17/*.test.js",
     "mutation": "node scripts/mutation.mjs",
     "demo:devnet": "node scripts/demo-devnet.mjs"
   },

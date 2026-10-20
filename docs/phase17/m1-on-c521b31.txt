@@ -1,0 +1,11 @@
+ℹ fail 8
+ℹ pass 1
+✔ M1 core: when nothing new landed, a resumed scan answers current and reads the new part only once
+✖ M1 (a): a non-null element that is not a jsonParsed transaction is unreadable, not "does not supersede"
+✖ M1 (b): a scan_state row that does not parse is treated as absent: the scan restarts from the grant and the gate recovers
+✖ M1 core: a resume after a restart (state from the store, new checker) sees it too
+✖ M1 core: a resumed scan sees the re-grant that landed after the cut-short scan began (r1)
+✖ M1 gate (5 requests at once): nothing settles under M1 after G2 superseded it (r2)
+✖ M1 gate (after a gate restart): nothing settles under M1 after G2 superseded it (r2)
+✖ M1 gate (default): nothing settles under M1 after G2 superseded it (r2)
+✖ M1 resolver: a final verdict is not stored for a payment made after M1 was superseded (r3)

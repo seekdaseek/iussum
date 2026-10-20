@@ -1,0 +1,171 @@
+### r1-resume-stale
+check 1, scan cut short at page 2 : false grant_inactive could not verify the grant is current: rpc exploded
+  persisted state                 : {"since":"G1xx","partial":{"cursor":"D51x","newest":"D150","found":0}}
+check 2, resumes, G2 already landed: true   | pages read: before=D51x
+control, a fresh checker           : false grant_inactive superseded by G2xxxx... (G2)
+check 3, same checker, next call   : false grant_inactive superseded by G2
+RESULT: WRONG, check 2 says M1 is current although G2 superseded it before the check
+[exit 0]
+### r2-gate-resume-superseded
+payment 1 under M1, scan cut short   : 403 {"error":"iussum_out_of_scope","reason":"grant_inactive","delta":[{"code":"grant_inactive","field":"grant","au
+payment 2 under M1, after G2 landed  : 200 {"ok":true} | settled: 1
+payment 3 under M1 (next scan)       : 403 {"error":"iussum_out_of_scope","reason":"grant_inactive","delta":[{"code":"grant | settled: 1
+RESULT: WRONG, the gate settled payment 2 under M1 although G2 had superseded it
+[exit 0]
+### r3-resolver-resume-verdict
+dispute 1 (P1), scan cut short     : invalid history_incomplete | stored rows: 0
+dispute 2 (P2, paid after G2)      : invalid in_scope liable: principal | stored rows: 1 verdict_id 041c62c120da
+dispute 2 again                    : invalid duplicate_dispute original: in_scope liable: principal
+control, fresh resolver            : invalid mandate_superseded liable: null
+RESULT: WRONG, a final verdict (in_scope, liable principal) was stored for a payment made after M1 was superseded by G2
+[exit 0]
+### r7-scan-state-corrupt
+payment 0 (row written by the gate)  : 200
+scan_state row                       : <source>:<grant> {"since":"GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+gate restarted with the cut-off row  : started
+payment 1                            : 403 grant_inactive could not verify the grant is current: Unterminated string in JSON at position 20 (line 1 column 21)
+payment 2                            : 403 grant_inactive could not verify the grant is current: Unterminated string in JSON at position 20 (line 1 column 21)
+payment 3                            : 403 grant_inactive could not verify the grant is current: Unterminated string in JSON at position 20 (line 1 column 21)
+row afterwards                       : {"since":"GGGGGGGGGG
+[exit 0]
+### r9-j2-malformed
+control (no damage)                      history complete=true                                                    | grant ok=false superseded by D7xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+null element in the array                history complete=false getTransaction: rate limited, no progress          | grant ok=false could not verify the grant is current: getTransaction: rate 
+element missing from the array           history complete=false getTransaction D7xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | grant ok=false could not verify the grant is current: getTransaction D7xxxx
+ids as strings                           history complete=false getTransaction D30xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | grant ok=false could not verify the grant is current: getTransaction D30xxx
+duplicate id, result then error          history complete=false getTransaction: boom                               | grant ok=false could not verify the grant is current: getTransaction: boom
+element result null                      history complete=false transaction D7xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | grant ok=false could not verify the grant is current: transaction D7xxxxxxx
+element with neither result nor error    history complete=false transaction D7xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | grant ok=false could not verify the grant is current: transaction D7xxxxxxx
+element error (not a rate limit)         history complete=false getTransaction: Slot 5 was skipped, or missing in  | grant ok=false could not verify the grant is current: getTransaction: Slot 
+element result {} (no transaction)       history complete=false transaction D7xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | grant ok=true 
+element result in base64 encoding        history complete=false Cannot read properties of undefined (reading 'acco | grant ok=true 
+batch refused (object, not array)        history complete=true                                                    | grant ok=false superseded by D7xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+[exit 0]
+### v6-close
+control: close() after A returned: A 502 (payloads A signed and the seller kept: 1, of them after close(): 0), B period_over_budget | settled 0 + kept 20000 = 20000 that can land vs budget 30000
+close() while A is in flight: A 502 (payloads A signed and the seller kept: 1, of them after close(): 1), B 200 | settled 20000 + kept 20000 = 40000 that can land vs budget 30000
+[exit 0]
+### close-client
+control (no A.client call): A 502, B 502 | A.client after close: -
+   data dir before: held on disk [B] files checkpoint@149587611 reservations@149587613 scan@149587610
+   data dir after : held on disk [B] files checkpoint@149587611 reservations@149587613 scan@149587610
+   B restarted: restored 1, pays period_over_budget | settled 0 + B's kept payload 20000 = 20000 that can land vs budget 30000
+A.client used after close(): A 502, B 502 | A.client after close: error: Payment creation aborted: IUSSUM_REFUSAL:{"reason":"r
+   data dir before: held on disk [B] files checkpoint@149587631 reservations@149587633 scan@149587630
+   data dir after : held on disk [none] files checkpoint@149587635 reservations@149587636 scan@149587634
+   B restarted: restored 0, pays 200 | settled 20000 + B's kept payload 20000 = 40000 that can land vs budget 30000
+[exit 0]
+### close-client-naive
+before close: agent.fetch 200, settled 1
+after close : agent.fetch error: iussum agent is closed (its data directory lock was released | agent.client through @x402/fetch 200, settled 2
+[exit 0]
+### period-edge
+payment 1 kept, lands in period 0: payment 2 200, payment 3 period_over_budget | period 1 by block time: 20000 vs budget 30000
+payment 1 kept, lands in period 1: payment 2 200, payment 3 period_over_budget | period 1 by block time: 40000 vs budget 30000
+[exit 0]
+### restart-lag
+caught-up node: payment 1 200 (held reservations on disk after it: 0) | restart: payments known at start 1, payment 2 period_over_budget | settled 20000 vs budget 30000
+lagging node  : payment 1 200 (held reservations on disk after it: 0) | restart: payments known at start 0, payment 2 200 | settled 40000 vs budget 30000
+[exit 0]
+### i3-nocontext
+isBlockhashValid -> { context: { slot: 200 }, value: false }: reservation 1 held, payment 2 period_over_budget (history asked with minContextSlot ,200) | settled 20000 vs budget 30000
+isBlockhashValid -> false (no context)                      : reservation 1 released, payment 2 200 (history asked with minContextSlot ,10) | settled 40000 vs budget 30000
+isBlockhashValid -> { value: false } (no context)           : reservation 1 released, payment 2 200 (history asked with minContextSlot ,10) | settled 40000 vs budget 30000
+[exit 0]
+### i3-nocontext-r
+isBlockhashValid answers {"context":{"slot":200},"value":false}: reservation held, second payment -> period_over_budget, settled 20000 against period_budget 30000; landed read minContextSlot [200]
+isBlockhashValid answers false: reservation released, second payment -> 200, settled 40000 against period_budget 30000; landed read minContextSlot [10]
+[exit 0]
+### l2-eq-http
+grant_tx "not-a-signature": first 200 in_scope (stored grant_tx Gxxxxx…); equivocation filing -> HTTP 200 receipt_equivocation; stored grant_tx now "not-a-signature"
+grant_tx 12345678901234567000: first 200 in_scope (stored grant_tx Gxxxxx…); equivocation filing -> HTTP 200 receipt_equivocation; stored grant_tx now "1.2345678901234567e+19"
+grant_tx {"a":1}: first 200 in_scope (stored grant_tx Gxxxxx…); equivocation filing -> HTTP 502 resolver_failed (Provided value cannot be bound to SQLite parameter 7.); stored grant_tx now "Gxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+grant_tx null: first 200 in_scope (stored grant_tx Gxxxxx…); equivocation filing -> HTTP 200 receipt_equivocation; stored grant_tx now null
+[exit 0]
+### l2-audit
+(a) first response: verdict_id=dd44609f8032c9cb… recomputed=dd44609f8032c9cb… match=true
+    response carries grant_tx? false  receipt_sha256/receipt_sha? false
+(b) duplicate (no receipt): reason=duplicate_dispute verdict_id=dd44609f8032c9cb…  recomputed from this response+bundle (original_reason)=c3ab243e75d2bcee… match=false
+(b) duplicate (grant_tx null): reason=duplicate_dispute verdict_id=dd44609f8032c9cb…  recomputed from this response+bundle (original_reason)=064ec74b2a3d75ba… match=false
+(c) replaced[0] keys: verdict,mandate_sha,receipt_sha,decided_at,verdict_id
+    replaced[0].verdict_id=a95b62400a041c14…  recomputed with grant_tx null: false  with grant_tx G (not in the entry): true
+(d) equivocation filed with mandate null, grant_tx 12345678901234567890 (a JSON number): reason=receipt_equivocation stored grant_tx="1.2345678901234567e+19" (string) mandate_sha=null
+    stored verdict_id=7fc6215d020c68d2…  recomputed from the stored row=69a3055c05531e6c…  match=false
+[exit 0]
+### l2-two-instances
+X in_scope c6cafde8 | B receipt_equivocation 424911f3 | A receipt_equivocation 50f01f5a
+stored 50f01f5a; replaced: [in_scope id c6cafde8] [receipt_equivocation id c6cafde8]
+B's id kept in the record: false
+[exit 0]
+### r4-scan-fanout
+20 requests sent one at a time in 2213 ms, answers {"503":20}; scans in flight right after the last answer: 6
+supersession scans running at the same time (overlapping first..last page): 12 of 20; signature pages read 120, transactions read 10020 (500 dust credits, 20 grants), all done 3338 ms after the first request
+same grant, 5 other mandate ids: 0 new pages read; answers {"other-mandate-403":5}
+[exit 0]
+### r4b-scan-fanout-http
+K=1 grants, D=2000 dust: 1 requests one at a time in 131 ms, answers {"503":1}; the gate then sent 103 HTTP requests (21 signature pages, 2001 getTransaction elements), at most 2 in flight at once; quiet 4636 ms after the first request
+K=20 grants, D=2000 dust: 20 requests one at a time in 2223 ms, answers {"503":20}; the gate then sent 1276 HTTP requests (420 signature pages, 20420 getTransaction elements), at most 39 in flight at once; quiet 3725 ms after the first request
+[exit 0]
+### r5-timer-leak
+50 requests whose grant read errors: answers {"500":50}; Timeout handles before 0, after 50 (budget 10000 ms)
+process exited 9798 ms after the servers closed
+[exit 0]
+### r6-observe-pending
+warm check: HTTP 200, settled 1, req.iussum {"mode":"observe","mandate_id":"977ce2971d620684496a1c16e8fff5d6a459346b66989b92784c5bdf206d78d8","grant_tx":"GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG","violations":["resource_not_allowed"],"receipt_tx":"MOCK
+cold check: HTTP 200, settled 1, req.iussum {"mode":"observe","mandate_id":"a9c6f1ac8e2571e4e360982cc213a04b2522b5e2d56b20504e87d27e9c3b55cf","grant_tx":"GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG","violations":[],"receipt_tx":"MOCKSETTLE1xxxxxxxxxxxxxxx
+[exit 0]
+### r11-unknown-grant
+5 requests with a grant_tx that is not on chain: {"403 grant_not_found":5}; the gate sent 35 getTransaction calls (7.0 per request), 21279 ms
+the first unknown grant_tx again: 7 more getTransaction calls
+[exit 0]
+### r12-budget-overflow
+grantCheckBudgetMs 10000: statuses 200,200,200, settled 3
+grantCheckBudgetMs 2147483647: statuses 200,200,200, settled 3
+  node warning: TimeoutOverflowWarning: 2147483648 does not fit into a 32-bit signed integer.
+  node warning: TimeoutOverflowWarning: 2147483648 does not fit into a 32-bit signed integer.
+  node warning: TimeoutOverflowWarning: 2147483648 does not fit into a 32-bit signed integer.
+grantCheckBudgetMs 2147483648: statuses 503,503,503, settled 0
+  node warning: TimeoutOverflowWarning: Infinity does not fit into a 32-bit signed integer.
+  node warning: TimeoutOverflowWarning: Infinity does not fit into a 32-bit signed integer.
+  node warning: TimeoutOverflowWarning: Infinity does not fit into a 32-bit signed integer.
+grantCheckBudgetMs Infinity: statuses 503,503,503, settled 0
+[exit 0]
+### r13-empty-before
+check 1 (page 2 empty once): true  
+check 2 (node fine again)  : true  
+control, fresh checker     : false grant_inactive superseded by G2xxxx
+[exit 0]
+### s16-usdc
+usdc() with a failing RPC: before 0,0 after 0,0; scenario 16 expectation 'balances unchanged' would be PASS
+delegation() with a failing RPC throws: rpc http 429
+[exit 0]
+### retry-after
+no Retry-After header              -> 503 | paid sends 4 (distinct payloads 1) | gaps ms 2,1,1 | reservations held
+Retry-After: "" (empty)            -> 503 | paid sends 4 (distinct payloads 1) | gaps ms 1,2,1 | reservations held
+Retry-After: HTTP-date 2 s ahead   -> 503 | paid sends 1 (distinct payloads 1) | gaps ms - | reservations held
+Retry-After: -1                    -> 503 | paid sends 1 (distinct payloads 1) | gaps ms - | reservations held
+Retry-After: 1e9 (capped)          -> 503 | paid sends 4 (distinct payloads 1) | gaps ms 302,302,303 | reservations held
+Retry-After: 0.2                   -> 503 | paid sends 4 (distinct payloads 1) | gaps ms 201,202,202 | reservations held
+POST string body: 200, bodies per paid attempt: full,full,full | POST stream body: 200, bodies: full,full,full | reservations consumed,consumed
+[exit 0]
+### r10-batch-mcs
+ok      elements 30, without minContextSlot 777: 0
+refuse  elements 30, without minContextSlot 777: 0
+null    elements 8, without minContextSlot 777: 0
+[exit 0]
+### r2 --restart
+payment 1 under M1, scan cut short   : 403 {"error":"iussum_out_of_scope","reason":"grant_inactive","delta":[{"code":"grant_inactive","field":"grant","au
+gate restarted; scan_state rows     : {"since":"GGGG","partial":{"cursor":"DUST50","newest":"DUST149"}}
+payment 2 under M1, after G2 landed  : 200 {"ok":true} | settled: 1
+payment 3 under M1 (next scan)       : 403 {"error":"iussum_out_of_scope","reason":"grant_inactive","delta":[{"code":"grant | settled: 1
+RESULT: WRONG, the gate settled payment 2 under M1 although G2 had superseded it
+### r8 (gc)
+0 checks: heap 14.5 MB
+50000 checks with distinct mandate ids (last: grant_mismatch), getTransaction RPC calls 50000: heap 34.8 MB
+100000 checks with distinct mandate ids (last: grant_mismatch), getTransaction RPC calls 100000: heap 54.6 MB
+200000 checks with distinct mandate ids (last: grant_mismatch), getTransaction RPC calls 200000: heap 92.8 MB
+### leak-abandoned (gc)
+start 1 (slow first read): start-up timeout after 300 ms
+retry right after the timeout: another agent holds the data directory /var/folders/pn/5hg5nd093rq5ysmw67b4kztw0
+retry after start 1 has finished (its agent is unreferenced): another agent holds the data directory /var/folders/pn/5hg5nd093rq5ysmw67b4kztw0
+retry after gc(): STARTED
