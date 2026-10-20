@@ -15,9 +15,9 @@ The review's headline finding was right: **M1 was a HIGH defect that J1 introduc
 | every repro of the review | wrong at `c521b31`, right after the fix; see the tables below |
 | five clean devnet runs of scenarios 1 to 16 plus 16b | [demo-runs-1.7/run-1.txt](demo-runs-1.7/run-1.txt) to `run-5.txt`, each ends `exit code 0`: 97, 98, 97, 97, 97 checks passed (run 2 has one more because two of its scenario 12 payments shared a slot). 205 signatures, every one checked with `getSignatureStatuses`: [demo-runs-1.7/signatures.md](demo-runs-1.7/signatures.md); all finalized; the 5 scenario 16b transactions are the only ones with an error, and each is `InstructionError [0, Custom 1]` as required |
 | M6 measurements | [docs/phase17/limiter-probe.txt](docs/phase17/limiter-probe.txt), [reader-compare-v1.txt](docs/phase17/reader-compare-v1.txt), [reader-compare-v2.txt](docs/phase17/reader-compare-v2.txt), keyed: [reader-compare-helius.txt](docs/phase17/reader-compare-helius.txt) |
-| fresh clone of the final pushed HEAD | see the last section |
-| sensitive scan over the new commits | see the last section |
-| relative links in tracked `.md` | see the last section |
+| fresh clone of the final pushed HEAD | `npm ci && npm test` on a clone of `59890b1`: **440 tests, 440 pass, 0 fail, 0 skipped**, 68 s; and again on the closing commit |
+| sensitive scan over the new commits | clean, positive controls first (see the last section) |
+| relative links in tracked `.md` | 71 links, all relative ones resolve to tracked files |
 
 ## Before and after
 
@@ -125,4 +125,6 @@ Moved out by this pass: the lagging-node restart (M3 b) and a payload kept acros
 
 ## Final HEAD, fresh clone, scan, links
 
-(filled in after the push)
+- **Pushed HEAD that carries everything else in this report: `59890b1`.** A fresh clone of it, `npm ci && npm test`: **440 tests, 440 pass, 0 fail, 0 skipped**, 68 s; no BRIEF, review or secret file in its tree. All 15 commits since `c521b31` (16 with the closing one, which changes only this report) are authored and committed by `seekdaseek <ochinimus@gmail.com>`, with no trailer and no AI attribution line.
+- **Sensitive scan over the new commits** (`c521b31..59890b1`, 3936 added lines and every added path): the Addendum D patterns plus the device serial plus two patterns for a keyed RPC URL (`api-key=` followed by a character, and `helius-rpc.com/?`), a positive control per pattern first (each matched its own known positive; the 64-number-array pattern ran in Python because the system `grep` fails it). One hit, and it is code, not a key: `scripts/reader-compare.mjs` builds the keyed URL from the environment variable in memory. The key that was used (36 characters, read from a local env file, never printed) occurs in no file of `HEAD` and in no commit since `c521b31` (checked with `git grep -F` and `git log -S`, counts only). No `.env`, `.secrets`, `.pem` or review-folder path was added. The pattern list is not in any tracked file; the keyed host is the only thing any output prints.
+- **Relative links in tracked `.md`:** 71 links, all the relative ones resolve to tracked files (the checker was shown to report a missing target first).
