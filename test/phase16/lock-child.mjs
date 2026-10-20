@@ -22,9 +22,15 @@ if (pause === 'lock') {
   DatabaseSync.prototype.exec = function (sql, ...a) { if (!paused && /BEGIN EXCLUSIVE/i.test(sql)) { paused = true; mark('at-lock'); waitFor(path.join(ctl, `${role}-go`)); } return origExec.call(this, sql, ...a); };
 }
 const { createAgent } = await import(`${W}/packages/agent/src/index.js`);
-const { fakeRpc, newScenario } = await import(`${W}/test/harness.mjs`);
-const seller = { origin: 'https://seller.test', rpc: fakeRpc() };
-const s = await newScenario(seller, {});
+const { fakeRpc, liveAccount, GRANT_SIG } = await import(`${W}/test/harness.mjs`);
+const { A, mandate, grantTx } = await import(`${W}/test/fixtures.mjs`);
+const { createKeyPairSignerFromPrivateKeyBytes } = await import('@solana/kit');
+// the SAME agent key and the same grant in every child: two processes of one agent
+const signer = await createKeyPairSignerFromPrivateKeyBytes(new Uint8Array(32).fill(7));
+const m = mandate({ agent: signer.address, allow: { pay_to: [A.sellerA], resource_prefix: ['https://seller.test/v1/'] }, nonce: 'aa'.repeat(16) });
+const rpc = fakeRpc(); rpc.grants.set(GRANT_SIG, grantTx(m)); rpc.account = liveAccount(m);
+const s = { mandate: m, signer, grant_tx: GRANT_SIG };
+const seller = { rpc };
 try {
   await createAgent({ mandate: s.mandate, grant_tx: s.grant_tx, signer: s.signer, rpc: seller.rpc, getBlockhash: async () => ({ blockhash: '11111111111111111111111111111111', lastValidBlockHeight: 100n, contextSlot: 10 }), dataDir });
   console.log('STARTED');

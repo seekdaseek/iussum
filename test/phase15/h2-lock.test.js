@@ -22,23 +22,18 @@ async function setup(tc) {
   const make = (extra = {}) => createAgent({ mandate: s.mandate, grant_tx: s.grant_tx, signer: s.signer, rpc: seller.rpc, getBlockhash: bh, now: () => NOW, dataDir, ...extra });
   return { seller, s, dataDir, make };
 }
-const lockFile = (dir) => path.join(dir, fs.readdirSync(dir).find((f) => f.endsWith('.lock')) ?? 'none.lock'); // one lock file per grant (Phase 1.6)
 const reservationsFile = (dir) => path.join(dir, fs.readdirSync(dir).find((f) => f.includes('.reservations.json') && !f.endsWith('.tmp')));
 test('H2 a second agent on the same dataDir refuses to start while the first one runs', async (tc) => {
   const t = await setup(tc);
   const a1 = await t.make(); tc.after(() => a1.close?.());
   await assert.rejects(() => t.make(), /data directory|lock/i);
-  assert.ok(fs.existsSync(lockFile(t.dataDir)), 'the lock file holds the PID');
-  assert.equal(fs.readFileSync(lockFile(t.dataDir), 'utf8').trim(), String(process.pid));
+  assert.ok(fs.readdirSync(t.dataDir).some((f) => f.endsWith('.lock.db')), 'the OS-level lock lives in a .lock.db file');
 });
-test('H2 after close() the next agent can start; a stale lock of a dead PID is cleared, a live one is not', async (tc) => {
+test('H2 after close() the next agent can start (the lock is the connection, released with it)', async (tc) => {
   const t = await setup(tc);
-  const a1 = await t.make(); const lock = lockFile(t.dataDir); await a1.close();
+  const a1 = await t.make(); await a1.close();
   const a2 = await t.make(); await a2.close();
-  fs.writeFileSync(lock, '99999999\n'); // no such process
   const a3 = await t.make(); await a3.close();
-  fs.writeFileSync(lock, `${process.ppid}\n`); // the parent process is running
-  await assert.rejects(() => t.make(), /data directory|lock/i);
 });
 test('H2 a truncated reservations file makes the agent refuse to pay (it is never read as empty)', async (tc) => {
   const t = await setup(tc);
