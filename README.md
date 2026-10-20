@@ -32,9 +32,9 @@ Requires **Node 24 or newer** (`engines` says `>=24`; `node:sqlite` and a depend
 
 ```bash
 npm ci
-npm test                 # 348 tests (600 random histories among them), no network
+npm test                 # 356 tests (600 random histories among them), no network
 npm run mutation         # breaks each of the checks one at a time and requires a test to fail
-npm run demo:devnet      # thirteen scenarios on devnet with real USDC and a real facilitator (needs funded throw-away keys, see JUDGE_GUIDE.md)
+npm run demo:devnet      # fifteen scenarios on devnet with real USDC and a real facilitator (needs funded throw-away keys, see JUDGE_GUIDE.md)
 ```
 
 `JUDGE_GUIDE.md` has the five-minute path, the devnet transaction links and the expected output. `REPORT-phase1.md` has the numbers.
@@ -72,8 +72,9 @@ Devnet and localnet only. No mainnet transaction, deploy or publish has been mad
 - The period budget is enforced by the agent and attributed by the resolver. It is not enforced on chain: the allowance (`total_cap`) is.
 - SPL Token, non-native mints only. A Token-2022 `ApproveChecked` fails the grant check, and a mandate whose asset is the native mint (wrapped SOL) is refused, because an ordinary unwrap closes the account with a balance and SyncNative changes it without a token instruction.
 - While a grant is current, the allowance cross-check needs every debit since the grant, so the **first** dispute (or agent start) on a grant reads the account's whole history since the grant: one `getSignaturesForAddress` page per 100 signatures and one `getTransaction` per signature. Anyone can add history to the account with dust credits. Each signature is read once: the verified debits are kept as a checkpoint per grant (the resolver's SQLite store, the agent's data directory) and the next read starts after it. A read that reaches `maxPages` (1000 pages of 100 signatures by default) answers `history_incomplete` ("more than N pages") and keeps its progress, so the next dispute continues instead of starting over. The RPC client's transaction cache is bounded (5,000 entries).
-- An agent without a data directory keeps its reservations in memory only: a restart forgets a payload that a seller kept and lands later within its blockhash lifetime. With one, they are restored at start.
-- A seller gate remembers the receipts it signed in memory (10,000 most recent): a facilitator that repeats a success after a gate restart can still get a second receipt signed.
+- An agent without a data directory keeps its reservations in memory only: a restart forgets a payload that a seller kept and lands later within its blockhash lifetime. With one, they are restored at start. One agent per data directory: the agent takes an exclusive lock file (its PID, created with `O_EXCL`; a stale lock is cleared only when that PID is not running), and a partial or corrupt reservations file makes it refuse to pay instead of reading it as empty.
+- A seller gate keeps the receipts it signs in its own SQLite file when it has a `dataDir` (written before the response that carries the receipt; a failed write sends the response without a receipt header; a corrupt store stops the gate from starting), so a facilitator that repeats a success after a restart gets the same bytes back. Without a `dataDir` the memory is the 10,000 most recent receipts of the process.
+- The first grant check of a seller gate (and the first read of an agent or a resolver) reads every signature since the grant. On the public devnet RPC, which rate-limits, 250 dust credits made that take minutes (numbers in `REPORT-phase1.5.md`), longer than an HTTP client waits for response headers: pre-warm it, or use a keyed RPC.
 - `/dispute` is open to anyone, because principal-signed disputes are Phase 2. A verdict without a receipt is therefore provisional.
 
 ## Sources

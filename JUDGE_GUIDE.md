@@ -6,7 +6,7 @@ Everything runs on **devnet** (no mainnet transaction was made). Node 24 or newe
 
 ```bash
 npm ci
-npm test            # expect: ℹ tests 348  ℹ pass 348  ℹ fail 0  ℹ skipped 0
+npm test            # expect: ℹ tests 356  ℹ pass 356  ℹ fail 0  ℹ skipped 0
 ```
 
 `skipped 0` matters: a suite that skips its real tests also prints no failures.
@@ -14,7 +14,7 @@ npm test            # expect: ℹ tests 348  ℹ pass 348  ℹ fail 0  ℹ skipp
 ## 2. Every check is load-bearing (1 minute)
 
 ```bash
-npm run mutation    # expect: baseline: 348 tests, 348 pass, 0 fail ... checks mutated: 115, survived: 0   (exit code 0)
+npm run mutation    # expect: baseline: 356 tests, 356 pass, 0 fail ... checks mutated: 121, survived: 0   (exit code 0)
 ```
 
 It skips one check at a time and requires some test to fail. A line starting `SURVIVED` would be a vacuous check. The table is in `TESTS.md`.
@@ -44,7 +44,7 @@ Scenarios 2 (seller 403, balances unchanged), 4 (no mandate), 5 (tampered receip
 node scripts/demo-setup.mjs          # creates throw-away keys in .secrets/, prints the principal address
 # fund the principal on devnet: SOL at https://faucet.solana.com (>= 0.1), USDC at https://faucet.circle.com (>= 3, mint 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU)
 node scripts/demo-setup.mjs --fund   # token accounts + the refund float (UNTESTED: the author's keys were funded by earlier scripts)
-npm run demo:devnet                  # about 150 seconds (thirteen scenarios)
+npm run demo:devnet                  # about 5 minutes (fifteen scenarios)
 ```
 
 `demo:devnet` uses the real payai facilitator (`FACILITATOR=https://x402.org/facilitator` settled the same SPL-delegate payment in Phase 0; the full demo has not been run against it) and the public devnet RPC; set `DEVNET_RPC` if it rate-limits.

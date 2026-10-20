@@ -1,5 +1,5 @@
-baseline: 348 tests, 348 pass, 0 fail
-checks mutated: 115, survived (vacuous): 0
+baseline: 356 tests, 356 pass, 0 fail
+checks mutated: 121, survived (vacuous): 0
 
 | check skipped | tests that fail | first failing test |
 |---|---|---|
@@ -7,20 +7,22 @@ checks mutated: 115, survived (vacuous): 0
 | `agent.blockhash_valid` | 1 | T1 both answers are needed: a node that says the blockhash is still valid keeps the reservation held even when the height is past lastValidBlockHeight |
 | `agent.checkpoint` | 1 | T2 a restarted agent reads only what is new since its checkpoint |
 | `agent.consume_released` | 1 | T1 a success that arrives AFTER a proven release is still counted (the reservation is consumed, the ledger has it) |
+| `agent.corrupt_reservations_refuse` | 1 | H2 a truncated reservations file makes the agent refuse to pay (it is never read as empty) |
+| `agent.datadir_lock` | 3 | H2 a second agent on the same dataDir refuses to start while the first one runs |
 | `agent.decimals` | 1 | F11: the agent builds TransferChecked with the mint's decimals (9), not a constant 6 |
 | `agent.destination_ata` | 1 | S6 even without local checks the agent signs the associated token account of payTo, not the destination the 402 names |
 | `agent.destination_mismatch` | 1 | S6 a requirement whose destination is not the associated token account of payTo is refused locally (destination_mismatch) and never signed |
 | `agent.grant` | 2 | refuses locally: grant revoked (grant_inactive) |
-| `agent.history_complete` | 2 | F7: if the ledger cannot be rebuilt completely the agent refuses to pay (history_incomplete) |
+| `agent.history_complete` | 3 | F7: if the ledger cannot be rebuilt completely the agent refuses to pay (history_incomplete) |
 | `agent.history_to_grant` | 2 | N1 an honest agent restarted in period 1 after 150 in-scope payments in period 0 still pays |
 | `agent.hold_until_proven` | 4 | B5 a payment that settled but whose response was lost still counts: the next one is refused locally |
 | `agent.landed_consumed` | 1 | B5 held becomes consumed (still counted) when the chain shows the lost payment landed |
 | `agent.ledger` | 5 | refuses locally: its own running period spend would cross period_budget (second payment) |
-| `agent.ledger_rebuild` | 5 | F7: a restarted agent rebuilds its ledger from chain and refuses the payment that would cross the period budget |
+| `agent.ledger_rebuild` | 7 | F7: a restarted agent rebuilds its ledger from chain and refuses the payment that would cross the period budget |
 | `agent.min_context_slot` | 1 | T1 isBlockhashValid and getBlockHeight are both asked with minContextSlot = the slot getLatestBlockhash returned |
 | `agent.own_blockhash` | 1 | N12 a seller that says lastValidBlockHeight=1 cannot make the agent release the reservation: the second payment is refused and the total stays at the budget |
-| `agent.period` | 15 | refuses locally: its own running period spend would cross period_budget (second payment) |
-| `agent.persist_before_send` | 3 | property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds) |
+| `agent.period` | 16 | refuses locally: its own running period spend would cross period_budget (second payment) |
+| `agent.persist_before_send` | 5 | property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds) |
 | `agent.rebuild_allowance` | 1 | C1 the agent's ledger rebuild uses the same check: a restarted agent whose history misses a debit refuses to pay (history_incomplete) |
 | `agent.release_needs_height` | 2 | property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds) |
 | `agent.release_on_expiry` | 2 | B5 held is released when the blockhash has expired and no transaction with the agent's signature is on chain |
@@ -28,10 +30,12 @@ checks mutated: 115, survived (vacuous): 0
 | `agent.requested_url` | 1 | review 1: a seller that OMITS resource.url does not stop an in-scope payment: the agent judges the URL it requested |
 | `agent.requested_url_present` | 1 | review 1: a payment that was not created through agent.fetch has no requested URL and is refused (resource_mismatch) |
 | `agent.reserve_atomic` | 2 | B5 five concurrent payments against a budget that fits three: exactly three settle, two are refused locally with period_over_budget |
-| `agent.reserve_held` | 11 | B5 five concurrent payments against a budget that fits three: exactly three settle, two are refused locally with period_over_budget |
+| `agent.reserve_held` | 12 | B5 five concurrent payments against a budget that fits three: exactly three settle, two are refused locally with period_over_budget |
 | `agent.resource_mismatch` | 1 | F8: a seller that DECLARES an allowed resource.url while the agent asked for another URL is refused as resource_mismatch |
-| `agent.restore_reservations` | 2 | property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds) |
+| `agent.restore_reservations` | 3 | property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds) |
 | `agent.scope` | 7 | refuses locally: amount over per_payment_max |
+| `agent.stale_lock_pid` | 2 | H2 a second agent on the same dataDir refuses to start while the first one runs |
+| `agent.tmp_cleanup` | 1 | H2 a temp file left behind by a crash between write and rename: the last complete file is loaded |
 | `agent.tx_guard` | 1 | payer path guard: a signer that changes the amount is rejected, ComputeBudget-only changes are not required |
 | `agent_mismatch` | 2 | scope: payer is not the agent |
 | `allowance.crosscheck` | 4 | allowanceCheck: debits since the grant add up to total_cap minus what is still delegated; counts only entries up to the read slot |
@@ -108,6 +112,7 @@ checks mutated: 115, survived (vacuous): 0
 | `rpc.cache_bound` | 1 | T2 makeRpc keeps at most 5000 transactions in its cache (least recently used goes first) |
 | `seller.enforce` | 15 | enforce: amount over per_payment_max answers 403 and nothing settles |
 | `seller.mandate_invalid` | 1 | enforce: an invalid mandate document is refused |
+| `seller.no_receipt_on_failed_write` | 1 | H1 a failed write sends the response WITHOUT a receipt header and logs it; the payment still settled |
 | `seller.observe_passes` | 3 | observe: an out-of-scope payment settles, and the receipt still records what was presented |
 | `seller.off_skips` | 5 | a naive agent (localChecks off) sends the payment anyway |
 | `seller.one_receipt_per_tx` | 2 | property I5: a facilitator that reports success twice for one transaction does not make an honest seller sign two receipts (20 seeds) |
@@ -115,6 +120,7 @@ checks mutated: 115, survived (vacuous): 0
 | `seller.payment_source` | 1 | F6: a payment from another token account than the grant's source is grant_mismatch in enforce |
 | `seller.payment_unreadable` | 1 | enforce: an unreadable payment transaction is refused before x402 sees it |
 | `seller.receipt_binds_mandate` | 2 | enforce: an in-scope payment settles and returns a receipt bound to the mandate and the grant |
-| `seller.receipt_issued` | 5 | enforce: an in-scope payment settles and returns a receipt bound to the mandate and the grant |
+| `seller.receipt_issued` | 8 | enforce: an in-scope payment settles and returns a receipt bound to the mandate and the grant |
 | `seller.require_mandate` | 1 | enforce with requireMandate refuses an unmandated payment |
 | `seller.resource_from_origin` | 1 | F5: an agent that forges Host: <allowed origin> does not get an in-scope receipt |
+| `seller.store_receipts` | 4 | H1 restart the gate between two success responses for the same tx_sig: both receipts are byte-identical |
