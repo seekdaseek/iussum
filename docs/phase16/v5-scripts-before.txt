@@ -1,0 +1,25 @@
+### v5-lock.mjs
+L0 control: simultaneous start, no interleaving
+  A: started (holds the lock); pid 42525
+  B: refused: another agent (pid 42525) holds the data directory /private/tmp/w-142/review-202; pid 42526
+  agent.lock now holds pid 42525
+L1 stale lock, both read the dead pid, A then B
+  A: started (holds the lock); pid 42537
+  B: started (holds the lock); pid 42538
+  agent.lock now holds pid 42538
+L2 no prior lock, B starts while A is between create and pid write
+  A: started (holds the lock); pid 42539
+  B: started (holds the lock); pid 42540
+  agent.lock now holds pid 42540
+### v5-lock-l2.mjs
+  A: started (holds the lock); pid 42546
+  B: started (holds the lock); pid 42549
+  agent.lock now holds pid 42549
+### v5-agent.mjs
+P1 lock file holds our own pid 42554: refused: another agent (pid 42554) holds the data directory /private/
+P2 agent pid 42555 stopped with SIGTERM: agent.lock still there, pid 42555
+R file intact (control): restart without close(): refused (lock); with close(): next payment period_over_budget; file left as it was: true
+R file missing: restart without close(): refused (lock); with close(): next payment 200; file left as it was: false
+R file empty (0 bytes): restart without close(): refused (lock); with close(): next payment history_incomplete; file left as it was: true
+R file truncated to half: restart without close(): refused (lock); with close(): next payment history_incomplete; file left as it was: true
+R file replaced by {}: restart without close(): refused (lock); with close(): next payment history_incomplete; file left as it was: true
