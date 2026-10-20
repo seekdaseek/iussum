@@ -12,7 +12,7 @@ Baseline for the new regression tests: **`b5dfa77`**, the public HEAD at the end
 | the new regression tests | `test/phase15`: 8 tests, **all 8 fail on `b5dfa77`**: [docs/phase15/regression-on-b5dfa77.txt](docs/phase15/regression-on-b5dfa77.txt) |
 | five clean devnet runs of scenarios 1 to 15 | `demo-runs-1.5/run-1.txt` to `run-5.txt`, each ends `exit code 0` (79, 79, 78, 79, 79 checks passed; run 3 has one check fewer because no two of its scenario 12 payments shared a slot); 180 signatures, every one checked with `getSignatureStatuses` (180 finalized): [demo-runs-1.5/signatures.md](demo-runs-1.5/signatures.md). An earlier set of five clean runs (78 checks each) is kept in `demo-runs-1.5-first/`; I reran because its scenario 14 diagnostic printed a poll that lagged the agent's own check, which looked inconsistent |
 | H5 | run once: [demo-runs-1.5/h5-scale.txt](demo-runs-1.5/h5-scale.txt); the 250 credit signatures: [demo-runs-1.5/h5-dust-signatures.txt](demo-runs-1.5/h5-dust-signatures.txt) |
-| fresh clone of the final pushed HEAD | see the last section |
+| fresh clone of the final pushed HEAD | `npm ci && npm test` on a clone of `e0cee1e` (the pushed HEAD that carries everything else in this report): **356 tests, 356 pass, 0 fail, 0 skipped**; no private file in its tree (the clone before it, of `e1061c8`, had found the review folder described below, which is why `e0cee1e` exists); all 49 commits authored and committed by `seekdaseek <ochinimus@gmail.com>`; no Co-Authored-By or Claude-Session line. The one commit after it only fills in this line; a second clone of that final HEAD was tested the same way (result in the closing message and the local log) |
 | sensitive scan over the new commits | the Addendum D patterns plus the device serial, positive controls first: nothing new except one chance match: a three-character pattern that occurs by accident inside a devnet transaction signature (base58) in `demo-runs-1.5-first`; the other hits are the environment-file ignore line in `.gitignore` and the provider name in `vendor/nuntius-mandate`. The pattern list is not written into any tracked file |
 | relative links in tracked `.md` | all resolve to tracked files |
 
@@ -119,7 +119,3 @@ Moved out by H1 to H5: the gate's receipt memory across a restart, the agent's d
 - The Seeker-signed grant through the iussum app (Phase 2), third-party sellers that adopt the middleware, anything on mainnet. The period budget is still not enforced on chain; only `total_cap` is.
 - **A mistake of mine, not rewritten:** a `git add -A` swept the fourth review\'s three scripts (`review-20261020d/`, internal review material that the earlier review folders kept out of git) into commit `533e49b`, which was pushed. They contain no sensitive pattern and are untracked and gitignored from the next commit on, but they remain in the public history; removing them needs a history rewrite, which this pass does not do.
 - Two leftovers disclosed earlier stay in the public history by decision: the treasury-address prefix in two commits of `REPORT-phase1.2.md`, and one line about a payout-documentation check in older versions of the Phase 0 and 1 reports.
-
-## Fresh clone
-
-(Filled in by the closing commit.)
