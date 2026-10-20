@@ -4,7 +4,7 @@ import { fails, registerCheck } from './guard.js';
 
 export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain.self_transfer', 'chain.missing_balance_zero', 'rpc.cache_bound', 'rpc.batch', 'history.min_context'].map(registerCheck);
 
-export function makeRpc(url, { retries = 8, fetchImpl = fetch } = {}) {
+export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000, sleep = (ms) => new Promise((res) => setTimeout(res, ms)), now = () => Date.now() } = {}) {
   let id = 0;
   async function call(method, params) {
     for (let attempt = 0; ; attempt++) {
@@ -44,16 +44,20 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch } = {}) {
       const chunks = []; for (let i = 0; i < todo.length; i += batchSize) chunks.push(todo.slice(i, i + batchSize));
       // A rate-limited ELEMENT ("Too many requests for a specific RPC call", as the public devnet node answers inside a batch) is retried on its own with backoff while
       // the elements that succeeded are kept; a whole batch that gets HTTP 429 / 5xx is retried; any other errored element throws (fail closed).
-      // Patience is measured in rounds WITHOUT PROGRESS: a round in which at least one element was answered resets the count, so a long read through a
-      // rate-limited node keeps going as long as the node keeps answering some elements, and gives up after `maxStall` rounds of nothing (fail closed).
+      // A read through a rate-limited node can take minutes (the public devnet node answers about 9 elements per 10 s), so patience is measured in TIME without progress,
+      // not in rounds: the read gives up (fail closed) only after `maxStall` rounds AND `stallMs` in which no element was answered. All workers of one call share one
+      // cooldown, and after a limited round the next request carries only about twice what the last one got answered, so the node is not hammered with what it refuses.
       const maxStall = Math.max(retries, 12), RATE = /rate|limit|too many|429/i;
+      let coolUntil = 0;
       async function batch(idx) {
         const results = new Array(idx.length).fill(undefined);
-        let pending = idx.map((_, k) => k), stall = 0;
-        for (;;) {
-          const before = pending.length;
+        let pending = idx.map((_, k) => k), stall = 0, limit = pending.length, lastProgress = now();
+        while (pending.length) {
+          if (coolUntil > now()) await sleep(coolUntil - now());
+          const slice = pending.slice(0, limit);
+          let answered = 0, retryable = false;
           try {
-            const body = pending.map((k) => ({ jsonrpc: '2.0', id: ++id, method: 'getTransaction', params: [sigs[idx[k]], cfg] }));
+            const body = slice.map((k) => ({ jsonrpc: '2.0', id: ++id, method: 'getTransaction', params: [sigs[idx[k]], cfg] }));
             const r = await fetchImpl(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
             if (r.status === 429 || r.status >= 500) throw Object.assign(new Error(`rpc http ${r.status}`), { retry: true });
             const j = await r.json();
@@ -61,23 +65,24 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch } = {}) {
             const byId = new Map(j.map((e) => [e.id, e]));
             const still = [];
             body.forEach((bq, n) => {
-              const k = pending[n], e = byId.get(bq.id);
+              const k = slice[n], e = byId.get(bq.id);
               if (!e) throw new Error(`getTransaction ${sigs[idx[k]]}: no answer in the batch`);
               if (e.error) { if (RATE.test(e.error.message)) still.push(k); else throw new Error(`getTransaction: ${e.error.message}`); }
-              else results[k] = e.result ?? null;
+              else { results[k] = e.result ?? null; answered++; }
             });
-            if (!still.length) return results;
-            pending = still;
-            stall = still.length < before ? 0 : stall + 1;
-            if (stall > maxStall) throw new Error('getTransaction: rate limited, no progress');
-            await new Promise((res) => setTimeout(res, Math.min(5000, 400 * 2 ** Math.min(stall, 4)) * (0.75 + Math.random() / 2)));
+            pending = [...still, ...pending.slice(limit)];
+            retryable = still.length > 0;
           } catch (e) {
-            if (e.whole && !e.retry) { const one = []; for (const i of idx) one.push(await rpcObj.getTransaction(sigs[i], { minContextSlot })); return one; } // a node that refuses batches: one by one
-            stall++;
-            if (stall > maxStall || !(e.retry || e.name === 'TypeError')) throw e;
-            await new Promise((res) => setTimeout(res, Math.min(5000, 400 * 2 ** Math.min(stall, 4)) * (0.75 + Math.random() / 2)));
+            if (e.whole && !e.retry) { for (const k of pending) results[k] = await rpcObj.getTransaction(sigs[idx[k]], { minContextSlot }); return results; } // a node that refuses batches: one by one
+            if (!(e.retry || e.name === 'TypeError')) throw e;
+            retryable = true;
           }
+          if (!pending.length) break;
+          if (answered) { stall = 0; lastProgress = now(); limit = Math.min(pending.length, Math.max(4, answered * 2)); }
+          else { stall++; limit = Math.min(limit, 4); if (stall > maxStall && now() - lastProgress >= stallMs) throw new Error('getTransaction: rate limited, no progress'); }
+          if (retryable || answered) coolUntil = Math.max(coolUntil, now() + Math.min(5000, 400 * 2 ** Math.min(stall, 4)) * (0.75 + Math.random() / 2));
         }
+        return results;
       }
       let next = 0;
       const worker = async () => { while (next < chunks.length) { const ch = chunks[next++]; const res = await batch(ch); ch.forEach((i, k) => { out[i] = res[k]; keep(sigs[i], res[k]); }); } };

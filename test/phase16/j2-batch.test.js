@@ -76,3 +76,35 @@ test('J2 in the history a null element makes the read incomplete and an errored 
     assert.equal(h.complete, false, bad); assert.match(h.reason, /D7|boom/);
   }
 });
+
+// ---- the public devnet node (measured Oct 2026): about 9 getTransaction elements per window, the rest of that batch "Too many requests for a specific RPC call", and
+// HTTP 429 for the whole request while the window is used up. A cold read through it must wait the limiter out (minutes), not give up after a fixed number of rounds.
+// Time is a fake clock handed to makeRpc (`sleep`, `now`), so the tests do not wait.
+function limited({ window = 10_000, quota = 9, alwaysFor = 0 } = {}) {
+  const clock = { t: 0 }, st = { sent: 0, posts: 0, wStart: 0, used: 0 };
+  const fetchImpl = async (_u, o) => {
+    const body = JSON.parse(o.body); st.posts++; st.sent += Array.isArray(body) ? body.length : 1;
+    if (clock.t - st.wStart >= window) { st.wStart = clock.t; st.used = 0; }
+    if (clock.t < alwaysFor || st.used >= quota) return new Response('{}', { status: 429 });
+    return new Response(JSON.stringify(body.map((b) => (st.used++ < quota ? { jsonrpc: '2.0', id: b.id, result: tx(b.params[0]) } : { jsonrpc: '2.0', id: b.id, error: { code: -32005, message: 'Too many requests for a specific RPC call' } }))), { status: 200 });
+  };
+  const rpc = makeRpc('http://x', { fetchImpl, retries: 3, stallMs: 90_000, sleep: async (ms) => { clock.t += ms; }, now: () => clock.t });
+  return { rpc, clock, st };
+}
+test('J2 a long rate-limited stretch is waited out: 60 signatures through a node that answers 9 elements per 10 s window', async () => {
+  const { rpc, clock, st } = limited();
+  const r = await rpc.getTransactions(sigs(60), { nullRetries: 0 });
+  assert.equal(r.length, 60); assert.ok(r.every(Boolean));
+  assert.ok(clock.t >= 50_000, `the limiter was respected (${clock.t} ms of waiting)`);
+  assert.ok(st.sent < 400, `a limited read does not hammer the node: ${st.sent} elements sent for 60`);
+});
+test('J2 a node that answers HTTP 429 for 40 s and then recovers is waited out', async () => {
+  const { rpc } = limited({ alwaysFor: 40_000 });
+  const r = await rpc.getTransactions(sigs(30), { nullRetries: 0 });
+  assert.ok(r.every(Boolean));
+});
+test('J2 a node that answers nothing for stallMs gives up (fail closed), after that long and not before', async () => {
+  const { rpc, clock } = limited({ alwaysFor: Infinity });
+  await assert.rejects(() => rpc.getTransactions(sigs(5), { nullRetries: 0 }), /rate limited|429/);
+  assert.ok(clock.t >= 90_000 && clock.t < 200_000, `${clock.t} ms`);
+});

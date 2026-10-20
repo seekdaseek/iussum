@@ -1,0 +1,13 @@
+ℹ fail 3
+ℹ pass 7
+✔ J2 60 signatures go out as 3 batches (25, 25, 10), results aligned with the request
+✔ J2 a rate-limited ELEMENT is retried on its own and the elements that succeeded are kept (no refetch of them)
+✔ J2 a rate-limited batch (HTTP 429) is retried with backoff
+✔ J2 an errored element makes the call throw (fail closed); a null element stays null for the caller to treat as unreadable
+✔ J2 in the history a null element makes the read incomplete and an errored element too (the same as today)
+✔ J2 the batch size and the concurrency are limits
+✔ J2 the spend history and the supersession scan use the batch call when the RPC has it
+✖ J2 a long rate-limited stretch is waited out: 60 signatures through a node that answers 9 elements per 10 s window
+✖ J2 a node that answers HTTP 429 for 40 s and then recovers is waited out
+✖ J2 a node that answers nothing for stallMs gives up (fail closed), after that long and not before
+✖ failing tests:
