@@ -7,7 +7,7 @@
 import { createGrantChecker, scopeViolations, validateMandate, mandateId, signReceipt, receiptKey, offerHash, encodeReceipt, R, fails, registerCheck, isMutated } from '@iussum/core';
 import { decodePayment, readPaymentHeader } from './decode.js';
 
-export const SELLER_CHECKS = ['seller.enforce', 'seller.observe_passes', 'seller.off_skips', 'seller.require_mandate', 'seller.receipt_issued', 'seller.receipt_binds_mandate', 'seller.mandate_invalid', 'seller.payment_unreadable', 'seller.payment_source', 'seller.origin_required', 'seller.resource_from_origin'].map(registerCheck);
+export const SELLER_CHECKS = ['seller.enforce', 'seller.observe_passes', 'seller.off_skips', 'seller.require_mandate', 'seller.receipt_issued', 'seller.receipt_binds_mandate', 'seller.mandate_invalid', 'seller.payment_unreadable', 'seller.payment_source', 'seller.origin_required', 'seller.resource_from_origin', 'seller.one_receipt_per_tx'].map(registerCheck);
 export const MODES = ['off', 'observe', 'enforce'];
 
 export function createSellerGate(cfg) {
@@ -18,6 +18,10 @@ export function createSellerGate(cfg) {
   let mode = cfg.mode ?? 'enforce';
   if (!MODES.includes(mode)) throw new Error(`mode must be one of ${MODES.join(', ')}`);
   const checker = createGrantChecker(rpc);
+  // ONE receipt per settled transaction (Addendum G, S1): a facilitator that reports success twice for one tx_sig must not make this seller sign a second
+  // receipt (that is receipt_equivocation). The first receipt's bytes are returned again. Bounded: least recently used out at 10,000.
+  const signed = new Map();
+  const remember = (tx, bytes) => { signed.delete(tx); signed.set(tx, bytes); if (signed.size > 10_000) signed.delete(signed.keys().next().value); };
   const resourceUrl = (req) => `${fails('seller.resource_from_origin', true) ? origin : `${req.protocol}://${req.get('host')}`}${req.originalUrl.split('?')[0]}`;
 
   async function evaluate(req, payload) {
@@ -60,7 +64,10 @@ export function createSellerGate(cfg) {
             if (settle.success && settle.transaction) {
               const bind = fails('seller.receipt_binds_mandate', true) && ev.mandate && ev.grant_tx;
               const body = { v: 'iussum/0.2', mandate_id: bind ? mandateId(ev.mandate) : null, grant_tx: bind ? ev.grant_tx : null, offer_hash: offerHash(payload.accepted ?? {}), resource: resourceUrl(req), pay_to: payTo, asset, network, amount: ev.payment.amount, payer: ev.payment.authority, tx_sig: settle.transaction, settled_at: now(), seller: key.publicKey };
-              res.setHeader('X-IUSSUM-RECEIPT', encodeReceipt(signReceipt(body, key)));
+              const again = fails('seller.one_receipt_per_tx', true) ? signed.get(settle.transaction) : undefined;
+              const bytes = again ?? encodeReceipt(signReceipt(body, key));
+              remember(settle.transaction, bytes);
+              res.setHeader('X-IUSSUM-RECEIPT', bytes);
               req.iussum.receipt_tx = settle.transaction;
             }
           }

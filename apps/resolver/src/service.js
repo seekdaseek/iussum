@@ -2,15 +2,15 @@
 // from a refund-float wallet when the seller is liable. In production the seller would refund itself on a signed ruling; here the float
 // stands in for the seller's own refund key so the demo shows money actually moving back.
 import { resolve, verifyReceipt, parsePayment, agentSpendHistory, createGrantChecker, fillBlockIndices, validateMandate, mandateId, canonicalize, sha256Hex, periodStart, R, fails, registerCheck } from '@iussum/core';
-export const RESOLVER_SERVICE_CHECKS = ['resolver.duplicate', 'resolver.refund_seller_only', 'resolver.refund_retry', 'resolver.refund_pending_guard', 'resolver.refund_decimals', 'resolver.provisional', 'resolver.provisional_needs_receipt', 'resolver.replace_binds_mandate', 'resolver.history_to_grant', 'resolver.equivocation'].map(registerCheck);
+export const RESOLVER_SERVICE_CHECKS = ['resolver.duplicate', 'resolver.refund_seller_only', 'resolver.refund_retry', 'resolver.refund_pending_guard', 'resolver.refund_decimals', 'resolver.provisional', 'resolver.provisional_needs_receipt', 'resolver.replace_binds_mandate', 'resolver.history_to_grant', 'resolver.equivocation', 'resolver.checkpoint'].map(registerCheck);
 const sha = (x) => (x ? sha256Hex(canonicalize(x)) : null);
 // A rejected dispute (artifacts do not verify, evidence missing or incomplete, mandate mismatch or superseded) is not a decision about the
 // payment and may be resubmitted; a decided one is stored.
 const decided = (v) => v.liable !== null;
 const PENDING_GRACE_S = 150; // a signed refund transaction may still land for about this long
 
-export function createResolver({ rpc, network, sellerKey, store, sendRefund = null, now = () => Math.floor(Date.now() / 1000) }) {
-  const checker = createGrantChecker(rpc);
+export function createResolver({ rpc, network, sellerKey, store, sendRefund = null, now = () => Math.floor(Date.now() / 1000), historyPageSize = 100, historyMaxPages = 1000 }) {
+  const checker = createGrantChecker(rpc, { scanStore: { get: (k) => store.getCheckpoint(`scan|${k}`), put: (k, v) => store.putCheckpoint(`scan|${k}`, v, now()) } });
   const inflight = new Map();
   const dup = (s, extra = {}) => ({ ...s.verdict, reason: R.duplicate_dispute, original_reason: s.verdict.reason, refund_tx: s.refund_tx, duplicate: true, provisional: s.provisional, ...extra });
 
@@ -47,8 +47,13 @@ export function createResolver({ rpc, network, sellerKey, store, sendRefund = nu
       catch (e) { return { early: { verdict: 'invalid', tier: 1, reason: R.history_incomplete, delta: [{ field: 'supersession scan', authorized: 'complete', actual: e.message }], liable: null, time_source: null } }; }
       // While the grant is current the allowance cross-check (C1) compares ALL debits since the grant with the allowance that is left, so the
       // history must reach the grant: no cut at the start of the period (Addendum F, N1). A superseded grant skips C1, and the period is enough.
+      // A superseded grant skips C1 and only needs the period (no checkpoint). A current one reads back to the grant, ONCE: the verified history is kept as a
+      // checkpoint per grant, so a later dispute reads only what is new, and a read that stops at maxPages keeps its progress (Addendum G, T2).
       const startsAt = superseded && payment.block_time != null ? periodStart(mandate, payment.block_time) : null;
-      history = await agentSpendHistory(rpc, { source: grant.source, agent: mandate.agent, mint: mandate.asset, until: grant_tx, stopAtTime: fails('resolver.history_to_grant', true) ? startsAt : (payment.block_time != null ? periodStart(mandate, payment.block_time) : null) });
+      const cpKey = `${grant_tx}|${grant.source}|${mandate.agent}|${mandate.asset}`;
+      const useCp = !superseded && fails('resolver.checkpoint', true);
+      history = await agentSpendHistory(rpc, { source: grant.source, agent: mandate.agent, mint: mandate.asset, until: grant_tx, stopAtTime: fails('resolver.history_to_grant', true) ? startsAt : (payment.block_time != null ? periodStart(mandate, payment.block_time) : null), pageSize: historyPageSize, maxPages: historyMaxPages, checkpoint: useCp ? store.getCheckpoint(cpKey) : null });
+      if (useCp && history.checkpoint) store.putCheckpoint(cpKey, history.checkpoint, now());
       Object.assign(blockIdx, history.blockIdx);
       // order the transactions that are compared (S7): the block is read only where two relevant transactions share a slot
       try { await fillBlockIndices(rpc, [{ slot: grant.grant_slot, tx_sig: grant_tx }, { slot: payment.slot, tx_sig }, ...(superseded ? [{ slot: superseded.slot, tx_sig: superseded.sig }] : []), ...history.entries], blockIdx); }

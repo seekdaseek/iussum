@@ -16,6 +16,9 @@ const isDec = (x) => typeof x === 'string' && DEC.test(x);
 const isPos = (x) => isDec(x) && BigInt(x) > 0n;
 const isUnix = (x) => Number.isSafeInteger(x) && x >= 0;
 
+export const NATIVE_MINT = 'So11111111111111111111111111111111111111112';
+export const MANDATE_CHECKS = ['mandate.native_mint'].map(registerCheck);
+
 export function validateMandate(m) {
   const e = [];
   if (!isObj(m)) return ['mandate: not an object'];
@@ -24,6 +27,9 @@ export function validateMandate(m) {
   if (e.length) return e;
   if (m.v !== MANDATE_VERSION) e.push(`v must be ${MANDATE_VERSION}`);
   for (const k of ['principal', 'agent', 'asset']) if (typeof m[k] !== 'string' || !isAddress(m[k])) e.push(`${k} is not a base58 address`);
+  // wrapped SOL: an ordinary unwrap closes the account with a balance and SyncNative changes the balance without a token instruction, so no history of
+  // such an account can be reconciled (Addendum G, S2). SPL Token, non-native mints only.
+  if (fails('mandate.native_mint', m.asset === NATIVE_MINT)) e.push('asset is the native mint (wrapped SOL): SPL Token, non-native mints only');
   if (typeof m.network !== 'string' || !/^solana:[A-Za-z0-9]{8,44}$/.test(m.network)) e.push('network must be solana:<genesis hash>');
   for (const k of ['total_cap', 'per_payment_max', 'period_budget']) if (!isPos(m[k])) e.push(`${k} must be a positive decimal string`);
   if (!Number.isSafeInteger(m.period_seconds) || m.period_seconds <= 0) e.push('period_seconds must be a positive integer');

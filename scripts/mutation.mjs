@@ -7,7 +7,7 @@ import '@iussum/seller';
 import '@iussum/agent';
 import '@iussum/resolver';
 
-const files = [...fs.globSync('{packages,apps}/*/test/*.test.js'), ...fs.globSync('test/{regression,phase11,phase12,phase13}/*.test.js')];
+const files = [...fs.globSync('{packages,apps}/*/test/*.test.js'), ...fs.globSync('test/{regression,phase11,phase12,phase13,phase14}/*.test.js')];
 const run = (env) => {
   const r = spawnSync(process.execPath, ['--test', '--test-force-exit', '--test-timeout=60000', '--test-reporter=tap', ...files], { env: { PROPERTY_SEEDS: '120', ...process.env, ...env }, encoding: 'utf8' });
   const n = (k) => Number(new RegExp(`^# ${k} (\\d+)`, 'm').exec(r.stdout)?.[1] ?? NaN);

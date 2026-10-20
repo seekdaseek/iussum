@@ -2,7 +2,7 @@
 import { TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
 import { fails, registerCheck } from './guard.js';
 
-export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain.self_transfer', 'chain.missing_balance_zero'].map(registerCheck);
+export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain.self_transfer', 'chain.missing_balance_zero', 'rpc.cache_bound'].map(registerCheck);
 
 export function makeRpc(url, { retries = 8, fetchImpl = fetch } = {}) {
   let id = 0;
@@ -20,14 +20,15 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch } = {}) {
       }
     }
   }
-  const txCache = new Map();
+  const txCache = new Map(); // LRU, bounded: an outsider must not be able to grow it without limit (Addendum G, T2)
+  const CACHE_MAX = 5000;
   return {
     url, call,
     async getTransaction(sig) {
-      if (txCache.has(sig)) return txCache.get(sig);
+      if (txCache.has(sig)) { const v = txCache.get(sig); txCache.delete(sig); txCache.set(sig, v); return v; }
       let t = await call('getTransaction', [sig, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0, commitment: 'confirmed' }]);
       for (let i = 0; i < 6 && !t; i++) { await new Promise((res) => setTimeout(res, 700)); t = await call('getTransaction', [sig, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0, commitment: 'confirmed' }]); }
-      if (t) txCache.set(sig, t);
+      if (t) { txCache.set(sig, t); if (fails('rpc.cache_bound', txCache.size > CACHE_MAX)) txCache.delete(txCache.keys().next().value); }
       return t;
     },
     async getAccountInfoParsed(addr) { return (await call('getAccountInfo', [addr, { encoding: 'jsonParsed', commitment: 'confirmed' }])).value; },
@@ -134,7 +135,7 @@ export async function fillBlockIndices(rpc, items, idxOf = {}) {
   const bySlot = new Map();
   for (const it of items) { if (!bySlot.has(it.slot)) bySlot.set(it.slot, new Set()); bySlot.get(it.slot).add(it.tx_sig); }
   for (const [slot, sigs] of bySlot) {
-    if (sigs.size < 2) continue;
+    if (sigs.size < 2 || [...sigs].every((x) => x in idxOf)) continue;
     if (!rpc.getBlockSignatures) throw new PositionUnknown(`block ${slot} holds ${sigs.size} relevant transactions and this rpc cannot read blocks`);
     let cache = blockCache.get(rpc); if (!cache) blockCache.set(rpc, (cache = new Map()));
     if (!cache.has(slot)) cache.set(slot, rpc.getBlockSignatures(slot));
@@ -165,34 +166,65 @@ export const isAfter = (a, b, idxOf) => comparePositions(a, b, idxOf) > 0;
 // whether that was shown. NOTHING is skipped silently (Addendum E, B1): a listed signature whose transaction cannot be read, a transaction
 // whose parsed movements do not add up to the balance change of `source`, a page that cannot be read, too many pages, or a block that
 // cannot be read all give complete:false with the reason. Never treat an incomplete history as complete.
-export async function agentSpendHistory(rpc, { source, agent, mint, until = null, stopAtTime = null, pageSize = 100, maxPages = 1000 }) {
-  const out = [], idxOf = {};
-  let before, complete = false, reason = null;
-  try {
-    for (let pages = 0; ; pages++) {
-      if (pages >= maxPages) { reason = `more than ${maxPages} pages`; break; }
-      const page = await rpc.getSignaturesForAddress(source, { limit: pageSize, ...(until ? { until } : {}), ...(before ? { before } : {}) });
-      for (const s of page) {
-        if (s.err) continue;
-        const tx = await rpc.getTransaction(s.signature);
-        const p = parsePayment(tx);
-        if (!p.found) throw new Error(`transaction ${s.signature} could not be read`);
-        if (p.err) continue;
-        const rec = fails('history.reconcile', true) ? reconcileAccount(p, source) : { ok: true };
-        if (!rec.ok) throw new Error(`transaction ${s.signature}: the parsed instructions move ${rec.moved} out of the account but its balance changed by ${rec.dropped}`);
-        for (const d of p.debits) if (d.source === source && d.authority === agent && d.mint === mint) out.push({ tx_sig: s.signature, slot: p.slot, block_time: p.block_time, amount: d.amount, kind: d.kind, top: d.top, pos: d.pos, dest_owner: d.dest_owner, signatures: p.signatures });
+//
+// CHECKPOINT (Addendum G, T2). Reading every signature since the grant costs what an outsider wants (dust credits are cheap), so a read is resumable
+// and each signature is read once. `checkpoint` is plain JSON the caller keeps per grant:
+//   base   = { newest, entries, blockIdx } every signature from the grant up to and including `newest` has been read and reconciled
+//   resume = { top, cursor, entries }      a read that stopped early (maxPages, an error): signatures newer than `cursor` down to `top` are done
+// The next read continues from `resume.cursor` (older part), promotes it into `base`, then reads only what is newer than `base.newest`. A page counts
+// only after it has been read and reconciled completely, the way the supersession scan's `since` advances. Not used with `stopAtTime`.
+export async function agentSpendHistory(rpc, { source, agent, mint, until = null, stopAtTime = null, pageSize = 100, maxPages = 1000, checkpoint = null }) {
+  const idxOf = { ...(checkpoint?.base?.blockIdx ?? {}) };
+  let base = checkpoint?.base ? { newest: checkpoint.base.newest, entries: [...checkpoint.base.entries] } : null;
+  let resume = checkpoint?.resume ? { ...checkpoint.resume, entries: [...checkpoint.resume.entries] } : null;
+  let pagesLeft = maxPages, reason = null, complete = false;
+  const floor = () => base?.newest ?? until;
+  async function walk({ before, floorSig, cut }) {
+    const got = []; let first, cursor = before, done = false, err = null;
+    try {
+      for (;;) {
+        if (pagesLeft <= 0) { err = `more than ${maxPages} pages`; break; }
+        pagesLeft--;
+        const page = await rpc.getSignaturesForAddress(source, { limit: pageSize, ...(floorSig ? { until: floorSig } : {}), ...(cursor ? { before: cursor } : {}) });
+        const batch = [];
+        for (const sg of page) {
+          if (sg.err) continue;
+          const p = parsePayment(await rpc.getTransaction(sg.signature));
+          if (!p.found) throw new Error(`transaction ${sg.signature} could not be read`);
+          if (p.err) continue;
+          const rec = fails('history.reconcile', true) ? reconcileAccount(p, source) : { ok: true };
+          if (!rec.ok) throw new Error(`transaction ${sg.signature}: the parsed instructions move ${rec.moved} out of the account but its balance changed by ${rec.dropped}`);
+          for (const d of p.debits) if (d.source === source && d.authority === agent && d.mint === mint) batch.push({ tx_sig: sg.signature, slot: p.slot, block_time: p.block_time, amount: d.amount, kind: d.kind, top: d.top, pos: d.pos, dest_owner: d.dest_owner, signatures: p.signatures });
+        }
+        got.push(...batch); // the page is done: only now does the cursor move
+        if (first === undefined && before === undefined && page.length) first = page[0].signature;
+        if (page.length) cursor = page[page.length - 1].signature;
+        if (page.length < pageSize) { done = true; break; }
+        const oldest = page[page.length - 1];
+        if (cut != null && oldest.blockTime != null && oldest.blockTime < cut) { done = true; break; }
       }
-      if (page.length < pageSize) { complete = true; break; }
-      const oldest = page[page.length - 1];
-      if (stopAtTime !== null && oldest.blockTime != null && oldest.blockTime < stopAtTime) { complete = true; break; }
-      before = oldest.signature;
-    }
-    if (complete) {
-      await fillBlockIndices(rpc, out, idxOf);
-      out.sort((a, b) => comparePositions(a, b, idxOf));
-    }
-  } catch (e) { reason = e.message; complete = false; }
-  return { entries: complete ? out : out.sort((a, b) => a.slot - b.slot || a.pos - b.pos), complete, reason, blockIdx: idxOf };
+    } catch (e) { err = e.message; }
+    return { got, first, cursor, done, err };
+  }
+  if (resume) { // 1. finish the older part a previous read left behind
+    const w = await walk({ before: resume.cursor, floorSig: floor() });
+    resume = { ...resume, cursor: w.cursor, entries: [...resume.entries, ...w.got] };
+    if (w.done) { base = { newest: resume.top, entries: [...(base?.entries ?? []), ...resume.entries] }; resume = null; }
+    else reason = w.err;
+  }
+  let all = base ? [...base.entries] : [];
+  if (!resume) { // 2. read what is newer than the base (or everything, when there is none)
+    const w = await walk({ before: undefined, floorSig: floor(), cut: checkpoint ? null : stopAtTime });
+    if (w.done) { all = [...all, ...w.got]; base = { newest: w.first ?? base?.newest ?? null, entries: all }; complete = true; }
+    else { reason = w.err; if (w.cursor !== undefined && w.first !== undefined) resume = { top: w.first, cursor: w.cursor, entries: w.got }; }
+  }
+  let entries = all;
+  if (complete) {
+    try { await fillBlockIndices(rpc, all, idxOf); all.sort((a, b) => comparePositions(a, b, idxOf)); entries = all; }
+    catch (e) { reason = e.message; complete = false; entries = [...all].sort((a, b) => a.slot - b.slot || a.pos - b.pos); }
+  }
+  const outBase = base ? { newest: base.newest, entries: base.entries, blockIdx: idxOf } : null;
+  return { entries, complete, reason, blockIdx: idxOf, checkpoint: { base: outBase, resume } };
 }
 
 // The allowance cross-check (Addendum E, C1). The token program lowers the delegated amount in the same instruction that moves the funds, so

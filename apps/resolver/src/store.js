@@ -6,6 +6,10 @@ export function openStore(path = ':memory:') {
   const db = new DatabaseSync(path);
   db.exec('CREATE TABLE IF NOT EXISTS verdicts (tx_sig TEXT PRIMARY KEY, mandate_sha TEXT, receipt_sha TEXT, verdict TEXT NOT NULL, refund_tx TEXT, created_at INTEGER NOT NULL)');
   for (const col of ['refund_pending TEXT', 'refund_pending_at INTEGER', 'provisional INTEGER DEFAULT 0', 'replaced TEXT', 'receipt_json TEXT']) { try { db.exec(`ALTER TABLE verdicts ADD COLUMN ${col}`); } catch { /* already there */ } }
+  // verified-history checkpoints, one per grant (Addendum G, T2): the newest signature read plus the verified debits up to it
+  db.exec('CREATE TABLE IF NOT EXISTS checkpoints (key TEXT PRIMARY KEY, json TEXT NOT NULL, updated_at INTEGER NOT NULL)');
+  const getCp = db.prepare('SELECT json FROM checkpoints WHERE key = ?');
+  const putCp = db.prepare('INSERT INTO checkpoints (key, json, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET json = excluded.json, updated_at = excluded.updated_at');
   const get = db.prepare('SELECT * FROM verdicts WHERE tx_sig = ?');
   const put = db.prepare('INSERT OR IGNORE INTO verdicts (tx_sig, mandate_sha, receipt_sha, verdict, refund_tx, created_at, provisional, replaced, receipt_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
   const replace = db.prepare('UPDATE verdicts SET mandate_sha = ?, receipt_sha = ?, verdict = ?, created_at = ?, provisional = 0, replaced = ?, receipt_json = ? WHERE tx_sig = ? AND provisional = 1');
@@ -31,6 +35,8 @@ export function openStore(path = ':memory:') {
     },
     setRefund(tx, sig) { return setRefund.run(sig, tx).changes === 1; },
     setPending(tx, sig, at) { setPending.run(sig, at, tx); },
+    getCheckpoint(key) { const r = getCp.get(key); return r ? JSON.parse(r.json) : null; },
+    putCheckpoint(key, cp, now) { putCp.run(key, JSON.stringify(cp), now); },
     count() { return db.prepare('SELECT COUNT(*) AS n FROM verdicts').get().n; },
     close() { db.close(); },
   };

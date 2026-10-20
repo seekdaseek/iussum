@@ -28,13 +28,14 @@ test('R1 the reservation is on disk, complete, BEFORE the signed payload leaves 
   const t = await setup(tc);
   let seenAtSend = null, withheld = null;
   globalThis.fetch = async (req) => {
-    if (req.headers.get('payment-signature')) { seenAtSend = files(t.dataDir).map((f) => JSON.parse(fs.readFileSync(path.join(t.dataDir, f), 'utf8'))); withheld = req.headers.get('payment-signature'); return new Response('{}', { status: 502 }); }
+    if (req.headers.get('payment-signature')) { seenAtSend = files(t.dataDir).filter((f) => f.includes('.reservations.')).map((f) => JSON.parse(fs.readFileSync(path.join(t.dataDir, f), 'utf8'))); withheld = req.headers.get('payment-signature'); return new Response('{}', { status: 502 }); }
     return realFetch(req);
   };
   const a = await t.make(); globalThis.fetch = realFetch;
   await a.fetch(t.seller.url).catch(() => {}); // the seller keeps the payload and answers 502
   assert.ok(seenAtSend, 'a data file existed when the payment request was sent');
-  const rec = (Array.isArray(seenAtSend[0]) ? seenAtSend[0] : seenAtSend[0].reservations)[0];
+  assert.equal(seenAtSend.length, 1, 'the reservations file existed');
+  const rec = seenAtSend[0].reservations[0];
   for (const k of ['amount', 't', 'blockhash', 'lastValidBlockHeight', 'contextSlot', 'agentSig']) assert.ok(rec[k] !== undefined && rec[k] !== null, `${k} persisted`);
   assert.deepEqual(files(t.dataDir).filter((f) => f.includes('.tmp')), []);
   assert.ok(withheld);
@@ -61,6 +62,6 @@ test('R1 a restarted agent releases the persisted reservation once its expiry is
   const a2 = await t.make();
   const r = await a2.fetch(t.seller.url).catch((e) => e.reason ?? e.message);
   assert.equal(r.status ?? r, 200, 'after the proof the budget is free again');
-  const left = files(t.dataDir).flatMap((f) => { const j = JSON.parse(fs.readFileSync(path.join(t.dataDir, f), 'utf8')); return (Array.isArray(j) ? j : j.reservations ?? []).filter((x) => x.state === undefined || x.state === 'held'); });
-  assert.ok(left.every((x) => x.t !== undefined));
+  const rf = files(t.dataDir).find((f) => f.includes('.reservations.'));
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(t.dataDir, rf), 'utf8')).reservations.filter((x) => x.agentSig === a2.reservations[0].agentSig), [], 'the released reservation is gone from the file');
 });

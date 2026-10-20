@@ -6,6 +6,11 @@
 // all take the last unit. A reservation is held, then consumed (the payment-response reported success, or the chain shows it landed) or released
 // (the payment was never created, or its blockhash expired and no transaction carrying the agent's signature is on chain). Until then a held
 // reservation counts as spent. The agent pays the associated token account of the payTo it checked, never a destination the 402 names.
+// Phase 1.4 (Addendum G): a reservation is released only on a PROVEN expiry: isBlockhashValid false AND the chain height above the payload's own
+// lastValidBlockHeight, both asked with minContextSlot = the slot getLatestBlockhash returned (a node that lags answers false for a fresh blockhash).
+// A success that arrives for a released reservation is still counted. With cfg.dataDir the held reservations are written to disk (temp file, fsync,
+// rename) before the signed payload leaves the agent and loaded at start, so a restart does not forget a payload a seller kept; the verified history
+// is kept there as a checkpoint, so a restart reads only what is new.
 import { x402Client } from '@x402/core/client';
 import { wrapFetchWithPayment } from '@x402/fetch';
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -13,8 +18,10 @@ import { createGrantChecker, scopeViolations, mandateId, periodIndex, periodStar
 import { getTransactionDecoder, getBase58Decoder, pipe, createTransactionMessage, setTransactionMessageFeePayer, appendTransactionMessageInstructions, setTransactionMessageLifetimeUsingBlockhash, partiallySignTransactionMessageWithSigners, compileTransaction, getBase64EncodedWireTransaction, getTransactionEncoder } from '@solana/kit';
 import { getTransferCheckedInstruction, TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
 import { assertOnlyComputeBudgetChanged } from './txguard.js';
+import fs from 'node:fs';
+import path from 'node:path';
 
-export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid'].map(registerCheck);
+export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid', 'agent.release_needs_height', 'agent.min_context_slot', 'agent.consume_released', 'agent.persist_before_send', 'agent.restore_reservations', 'agent.checkpoint'].map(registerCheck);
 const MARK = 'IUSSUM_REFUSAL:';
 const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export class IussumRefusal extends Error {
@@ -29,7 +36,11 @@ export async function createAgent(cfg) {
   // localChecks: true (full), 'caps' (payer-side caps only: per-payment and period amounts, no allow-lists, no grant check, no mandate attached), false (naive)
   const capsOnly = localChecks === 'caps';
   const attachMandate = wantAttach && !capsOnly;
-  const checker = createGrantChecker(rpc);
+  // the supersession scan's marker lives in the data directory too, so a restart does not read the account's whole history again (Addendum G, T2)
+  let scanFile = null;
+  const scanStore = { get: (k) => (scanFile ? readScan()?.[k] : undefined), put: (k, v) => { if (scanFile) { const all = readScan() ?? {}; all[k] = v; writeAtomic(scanFile, all); } } };
+  const readScan = () => { try { return JSON.parse(fs.readFileSync(scanFile, 'utf8')); } catch { return null; } };
+  const checker = createGrantChecker(rpc, { scanStore });
   const source = mandate ? await principalAta(mandate.principal, mandate.asset) : cfg.source;
   const ledger = []; // [{amount, t, sig}] payments of this agent that are SPENT: rebuilt from chain at start, then consumed reservations
   const reservations = []; // {id, amount, t, state: held|consumed|released, created, agentSig, blockhash, sig}: each moves exactly once, out of held
@@ -37,11 +48,42 @@ export async function createAgent(cfg) {
   let ledgerComplete = true, ledgerReason = null;
   const requested = new AsyncLocalStorage(); // { url, ids }: the URL this fetch actually asked for (never what the seller says it is) and its reservations
   const decimalsCache = new Map();
-  const getBlockhash = cfg.getBlockhash ?? (async () => { const v = (await rpc.call('getLatestBlockhash', [{ commitment: 'confirmed' }])).value; return { blockhash: v.blockhash, lastValidBlockHeight: BigInt(v.lastValidBlockHeight) }; });
+  const getBlockhash = cfg.getBlockhash ?? (async () => { const r = await rpc.call('getLatestBlockhash', [{ commitment: 'confirmed' }]); return { blockhash: r.value.blockhash, lastValidBlockHeight: BigInt(r.value.lastValidBlockHeight), contextSlot: r.context?.slot }; });
   const sign = cfg.sign ?? partiallySignTransactionMessageWithSigners;
+
+  // ---- persistence (R1, T2): one reservations file and one checkpoint file per mandate and agent under cfg.dataDir. Every write is temp file, fsync,
+  // rename, so a crash leaves the old file or the new one, never half of one.
+  const dataDir = cfg.dataDir ?? null;
+  const stem = dataDir && mandate ? `${mandateId(mandate).slice(0, 16)}-${signer.address.slice(0, 8)}` : null;
+  const fileOf = (kind) => path.join(dataDir, `${stem}.${kind}.json`);
+  function writeAtomic(file, obj) {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+    const fd = fs.openSync(tmp, 'w', 0o600);
+    try { fs.writeSync(fd, JSON.stringify(obj)); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
+    fs.renameSync(tmp, file);
+  }
+  const readJson = (file) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; } };
+  const persistReservations = () => {
+    if (!dataDir) return;
+    writeAtomic(fileOf('reservations'), { v: 1, reservations: reservations.filter((r) => r.state === 'held' && r.created).map((r) => ({ amount: String(r.amount), t: r.t, blockhash: r.blockhash, lastValidBlockHeight: r.lastValid === null || r.lastValid === undefined ? null : String(r.lastValid), contextSlot: r.contextSlot ?? null, agentSig: r.agentSig })) });
+  };
+  if (dataDir && mandate) scanFile = fileOf('scan');
+  let cp = dataDir && !isMutated('agent.checkpoint') ? readJson(fileOf('checkpoint')) : null; // the verified history so far (core agentSpendHistory checkpoint)
+  const saveCheckpoint = (c) => { cp = c; if (dataDir && c) writeAtomic(fileOf('checkpoint'), c); };
 
   // fix 7: the period ledger survives a restart. Rebuild it from chain history (paginated); if completeness cannot be shown, refuse to pay.
   // Addendum E, C1: while the grant is current the debits found must add up to total_cap minus the allowance that is left on the account.
+  // Reservations that a previous run persisted: a payload may still be out there. They are held again; if the rebuilt history shows the agent's signature
+  // from that payload, it landed and is already in the ledger (consumed). They are resolved later by the same proven-expiry rule as any other.
+  function restoreReservations(entries) {
+    const saved = dataDir && mandate && fails('agent.restore_reservations', true) ? readJson(fileOf('reservations'))?.reservations ?? [] : [];
+    for (const x of saved) {
+      const landed = entries?.find((e) => x.agentSig && e.signatures.includes(x.agentSig));
+      reservations.push({ id: nextReservation++, amount: BigInt(x.amount), t: x.t, state: landed ? 'consumed' : 'held', created: true, agentSig: x.agentSig, blockhash: x.blockhash, lastValid: x.lastValidBlockHeight == null ? null : BigInt(x.lastValidBlockHeight), contextSlot: x.contextSlot, sig: landed?.tx_sig ?? null, restored: true });
+    }
+    if (saved.length) persistReservations();
+  }
   if (mandate && !isMutated('agent.ledger_rebuild')) {
     let ctx = null, superseded = null, scanFailed = null;
     try { ctx = await rpc.getAccountContext(source); } catch (e) { scanFailed = `the source account could not be read: ${e.message}`; }
@@ -49,9 +91,11 @@ export async function createAgent(cfg) {
     // cut at the start of the period (Addendum F, N1)
     try { superseded = await checker.supersededBy(source, grant_tx); } catch (e) { scanFailed = scanFailed ?? `could not verify the grant is current: ${e.message}`; }
     const cut = superseded || !fails('agent.history_to_grant', true) ? periodStart(mandate, now()) : null;
-    const h = await agentSpendHistory(rpc, { source, agent: signer.address, mint: mandate.asset, until: grant_tx, stopAtTime: cut });
+    const h = await agentSpendHistory(rpc, { source, agent: signer.address, mint: mandate.asset, until: grant_tx, stopAtTime: cut, checkpoint: cut === null ? cp : null });
+    if (cut === null && h.checkpoint) saveCheckpoint(h.checkpoint);
     ledgerComplete = h.complete; ledgerReason = h.reason;
     for (const e of h.entries) ledger.push({ amount: e.amount, t: e.block_time ?? now(), sig: e.tx_sig });
+    restoreReservations(ledgerComplete ? h.entries : null);
     if (ledgerComplete && fails('agent.rebuild_allowance', true)) {
       if (scanFailed) { ledgerComplete = false; ledgerReason = scanFailed; }
       else if (!superseded) {
@@ -80,7 +124,7 @@ export async function createAgent(cfg) {
       if (fails('agent.tx_guard', true)) assertOnlyComputeBudgetChanged(sent, signed);
       // the reservation of this payment learns that a payload exists, which agent signature it carries and until which block it can land
       const mine = requested.getStore()?.ids.map((id) => reservations[id]).findLast((r) => r.state === 'held' && !r.created);
-      if (mine) { mine.created = true; mine.blockhash = bh.blockhash; mine.agentSig = agentSignature(signed); }
+      if (mine) { mine.created = true; mine.blockhash = bh.blockhash; mine.lastValid = bh.lastValidBlockHeight === undefined ? null : BigInt(bh.lastValidBlockHeight); mine.contextSlot = bh.contextSlot ?? null; mine.agentSig = agentSignature(signed); if (fails('agent.persist_before_send', true)) persistReservations(); } // on disk before the payload leaves
       return { x402Version, payload: { transaction: signed } };
     },
   };
@@ -108,22 +152,27 @@ export async function createAgent(cfg) {
     const bytes = sigs[signer.address];
     return bytes ? getBase58Decoder().decode(bytes) : null;
   }
-  // Resolve held reservations from the chain. A held payment may still land until its blockhash expires, so it counts as spent until the chain
-  // PROVES otherwise: the chain says that payload's blockhash is no longer valid (isBlockhashValid false) AND no transaction carrying the agent's
-  // signature from that payload is on chain. Anything that cannot be read leaves it held (fail closed).
+  // Resolve held reservations from the chain. A held payment may still land until its blockhash expires, so it counts as spent until the chain PROVES
+  // otherwise: (1) isBlockhashValid is false for that payload's blockhash AND (2) the chain height is above the payload's own lastValidBlockHeight, both
+  // asked with minContextSlot = the slot getLatestBlockhash returned for it (a node behind the one that served the blockhash answers false for a fresh
+  // one), AND (3) no transaction carrying the agent's signature from that payload is on chain. Anything that cannot be read leaves it held.
   async function settleHeld() {
-    const open = reservations.filter((r) => r.state === 'held' && r.created && r.blockhash);
+    const open = reservations.filter((r) => r.state === 'held' && r.created && r.blockhash && r.contextSlot !== null && r.contextSlot !== undefined && r.lastValid !== null && r.lastValid !== undefined);
     if (!open.length) return;
     const expired = [];
     for (const r of open) {
       try {
-        const v = await rpc.call('isBlockhashValid', [r.blockhash, { commitment: 'confirmed' }]);
+        const opts = fails('agent.min_context_slot', true) ? { commitment: 'confirmed', minContextSlot: r.contextSlot } : { commitment: 'confirmed' };
+        const v = await rpc.call('isBlockhashValid', [r.blockhash, opts]);
         const invalid = (v?.value ?? v) === false;
-        if (!fails('agent.blockhash_valid', !invalid)) expired.push(r); // still valid (or unknown): the payload can still land
+        const height = await rpc.call('getBlockHeight', [opts]);
+        const past = BigInt(height) > r.lastValid;
+        if (!fails('agent.blockhash_valid', !invalid) && !fails('agent.release_needs_height', !past)) expired.push(r); // otherwise the payload can still land
       } catch { /* cannot tell: stays held */ }
     }
     if (!expired.length) return;
-    const h = await agentSpendHistory(rpc, { source, agent: signer.address, mint: mandate.asset, until: grant_tx, stopAtTime: periodStart(mandate, now()) });
+    const h = await agentSpendHistory(rpc, { source, agent: signer.address, mint: mandate.asset, until: grant_tx, checkpoint: cp });
+    if (h.checkpoint) saveCheckpoint(h.checkpoint);
     if (!h.complete) return;
     for (const r of expired) {
       if (r.state !== 'held') continue; // another call resolved it while this one was reading the chain
@@ -131,6 +180,7 @@ export async function createAgent(cfg) {
       if (landed && fails('agent.landed_consumed', true)) { r.state = 'consumed'; r.sig = landed.tx_sig; if (!ledger.some((x) => x.sig === landed.tx_sig)) ledger.push({ amount: landed.amount, t: landed.block_time ?? r.t, sig: landed.tx_sig }); }
       else if (!landed && fails('agent.release_on_expiry', true)) r.state = 'released';
     }
+    persistReservations();
   }
   if (localChecks && mandate) {
     client.onBeforePaymentCreation(async (ctx) => {
@@ -185,8 +235,9 @@ export async function createAgent(cfg) {
     const pr = res.headers.get('payment-response');
     if (pr && res.status < 400) {
       const settle = JSON.parse(Buffer.from(pr, 'base64').toString('utf8'));
-      const mine = st.ids.map((id) => reservations[id]).findLast((r) => r.state === 'held' && r.created);
-      if (settle.success && mine) { mine.state = 'consumed'; mine.sig = settle.transaction ?? null; ledger.push({ amount: String(mine.amount), t: now(), sig: mine.sig }); }
+      // a success is counted even if the reservation was released meanwhile (a release must be proven, but the money moved): consume it, dedupe by signature
+      const mine = st.ids.map((id) => reservations[id]).findLast((r) => r.created && (r.state === 'held' || (r.state === 'released' && fails('agent.consume_released', true))));
+      if (settle.success && mine) { mine.state = 'consumed'; mine.sig = settle.transaction ?? null; if (!mine.sig || !ledger.some((x) => x.sig === mine.sig)) ledger.push({ amount: String(mine.amount), t: now(), sig: mine.sig }); persistReservations(); }
     }
     const rh = res.headers.get('x-iussum-receipt');
     res.receipt = rh ? decodeReceipt(rh) : null;

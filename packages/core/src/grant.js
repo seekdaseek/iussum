@@ -14,7 +14,7 @@ import { fillBlockIndices, comparePositions } from './chain.js';
 
 export const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export const MEMO_V2 = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
-export const GRANT_CHECKS = ['grant.tx_err', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.superseded_inner', 'grant.scan_failed', 'grant.scan_unreadable', 'grant.superseded_position', 'grant.coalesce_scans'].map(registerCheck);
+export const GRANT_CHECKS = ['grant.tx_err', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.superseded_inner', 'grant.scan_failed', 'grant.scan_unreadable', 'grant.superseded_position', 'grant.coalesce_scans', 'grant.scan_store'].map(registerCheck);
 
 export async function principalAta(principal, asset) {
   const [ata] = await findAssociatedTokenPda({ mint: asset, owner: principal, tokenProgram: TOKEN_PROGRAM_ADDRESS });
@@ -108,15 +108,17 @@ export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPag
 }
 
 // rpc = { getTransaction(sig), getAccountInfoParsed(addr) }. The immutable part is cached by (grant_tx, mandate id).
-export function createGrantChecker(rpc) {
+export function createGrantChecker(rpc, { scanStore = null } = {}) {
   const cache = new Map();
   const scans = new Map(); // `${source}:${grantTx}` -> { since, superseded }: later calls only scan what is newer than the last scan
   async function supersededBy(source, grantTx) {
     const k = `${source}:${grantTx}`;
-    const st = scans.get(k) ?? { since: grantTx, superseded: null };
+    // scanStore (optional, { get(key), put(key, state) }) keeps the marker across restarts: each signature of the account is read once (Addendum G, T2)
+    const st = scans.get(k) ?? (fails('grant.scan_store', true) ? scanStore?.get(k) : null) ?? { since: grantTx, superseded: null };
     if (st.superseded) return st.superseded;
     const r = await scanSupersede(rpc, source, st.since);
-    scans.set(k, { since: r.newest ?? st.since, superseded: r.superseded });
+    const next = { since: r.newest ?? st.since, superseded: r.superseded };
+    scans.set(k, next); scanStore?.put(k, next);
     return r.superseded;
   }
   // Concurrent payments ask the same question at the same moment (is this grant still current?). One scan answers all of them; a call that

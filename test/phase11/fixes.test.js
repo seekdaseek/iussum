@@ -104,7 +104,7 @@ test('F8: a seller that DECLARES an allowed resource.url while the agent asked f
 });
 
 // ---------------------------------------------------------------- fix 11: decimals come from the mint
-const MINT9 = 'So11111111111111111111111111111111111111112';
+const MINT9 = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'; // any non-native mint: the test only needs a mint whose decimals are 9 on this fake chain
 test('F11: the agent builds TransferChecked with the mint\'s decimals (9), not a constant 6', async () => {
   const facilitator = await startMockFacilitator();
   const seller = await startSeller({ facilitator, mode: 'off', now: () => NOW, asset: MINT9 });
