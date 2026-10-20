@@ -13,6 +13,7 @@
 ✖ M2 the naive agent cannot sign or pay through agent.client after close() (close-client-naive)
 ✖ M2 a start that fails after the lock was taken releases it (leak-enospc: the directory becomes unwritable during the start)
 ✖ M2 a start the caller abandons through cfg.signal releases the lock at once and writes nothing afterwards (leak-abandoned)
+✔ M2 a closed agent sends no request at all, not even the unpaid first one (the top-level refusal in fetch)
 ✔ M3 (a) a payload kept in period 0 that lands at period 0 cannot take period 1 over budget (period-edge)
 ✖ M3 (a) a payload kept in period 0 that lands at period 1 cannot take period 1 over budget (period-edge)
 ✔ M3 (b) a restart against a caught-up node does not forget a payment that settled (restart-lag)
@@ -44,8 +45,8 @@
 ✔ M7 usdc(): a missing account is 0, a rate limit or any other error throws, a malformed answer throws (s16-usdc)
 ✖ M8 a 503 is retried only when Retry-After is whole seconds or a future HTTP-date; otherwise the paid request is sent once (retry-after)
 ✖ M8 the reservations file is fsynced, then its directory after the rename (fsync-trace)
-ℹ tests 46
-ℹ pass 7
+ℹ tests 47
+ℹ pass 8
 ℹ fail 39
 ℹ cancelled 0
 ℹ skipped 0

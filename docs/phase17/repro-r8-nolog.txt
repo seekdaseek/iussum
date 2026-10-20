@@ -1,0 +1,5 @@
+r8 with the fake RPC's own call log (rpc.calls.minContext) cleared every 1000 checks; the grant checker is unchanged (node --expose-gc, 200,000 distinct mandate ids):
+0 checks: heap 14.5 MB
+50000 checks with distinct mandate ids (last: grant_mismatch), getTransaction RPC calls 50000: heap 15.2 MB
+100000 checks with distinct mandate ids (last: grant_mismatch), getTransaction RPC calls 100000: heap 15.2 MB
+200000 checks with distinct mandate ids (last: grant_mismatch), getTransaction RPC calls 200000: heap 15.2 MB

@@ -1,0 +1,40 @@
+# property test, final code (600 histories)
+property I1: 600 histories (seeds 1..600), 3059 disputes, 2074 with a decided model verdict, 755 with a 3-signature page and maxPages 2 (the page limit was hit 391 times and the verdict still arrived)
+✔ property I1: 600 random histories, every dispute gets the model's verdict on a readable chain (seeds 1..600)
+property I2: 2376 disputes with no verdict, 683 with the model's verdict, 0 different (faults: batchError 420, account 471, batchNull 412, page 443, block 447, unreadable 419, heal 447)
+✔ property I2: RPC faults give the model's verdict or no verdict, never a different decided verdict (600 histories)
+property I3: 559 refunds over 200 histories, never two for one payment
+✔ property I3: at most one refund per payment, and only on a seller-liable verdict (200 histories)
+property I4: 60 seeds, 3 landings behind a lagging history node followed by an expiry, 233 payments settled, 1149 local refusals (all period_over_budget), 35 restarts (3 while a seller held a payload), 30 expiries, 27 lagging-node phases, 31 lagging-history-node phases, 13 same-mandate re-grants with the data directory reused, never above the budget
+✔ property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds)
+property I5: 39 repeated successes over 20 seeds, always the identical receipt
+✔ property I5: a facilitator that reports success twice for one transaction does not make an honest seller sign two receipts (20 seeds)
+property I6: 12 seeds, 5 final 503s with Retry-After (retries exhausted), 7 first payments that needed a retry, every settled payment matched a 200, no second reservation
+✔ property I6: a seller gate whose grant check is cold answers 503 with Retry-After, the agent retries with the SAME payload, nothing is lost or doubled (12 seeds)
+ℹ tests 6
+ℹ pass 6
+ℹ fail 0
+
+# the same with IUSSUM_MUTATE=agent.history_min_context (the property test must go red)
+✔ property I1: 600 random histories, every dispute gets the model's verdict on a readable chain (seeds 1..600)
+✔ property I2: RPC faults give the model's verdict or no verdict, never a different decided verdict (600 histories)
+✔ property I3: at most one refund per payment, and only on a seller-liable verdict (200 histories)
+✖ property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds)
+✔ property I5: a facilitator that reports success twice for one transaction does not make an honest seller sign two receipts (20 seeds)
+✔ property I6: a seller gate whose grant check is cold answers 503 with Retry-After, the agent retries with the SAME payload, nothing is lost or doubled (12 seeds)
+
+# the same with IUSSUM_MUTATE=history.min_context (the property test must go red)
+✔ property I1: 600 random histories, every dispute gets the model's verdict on a readable chain (seeds 1..600)
+✔ property I2: RPC faults give the model's verdict or no verdict, never a different decided verdict (600 histories)
+✔ property I3: at most one refund per payment, and only on a seller-liable verdict (200 histories)
+✖ property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds)
+✔ property I5: a facilitator that reports success twice for one transaction does not make an honest seller sign two receipts (20 seeds)
+✔ property I6: a seller gate whose grant check is cold answers 503 with Retry-After, the agent retries with the SAME payload, nothing is lost or doubled (12 seeds)
+
+# the same with IUSSUM_MUTATE=agent.history_min_context,history.min_context (the property test must go red)
+✔ property I1: 600 random histories, every dispute gets the model's verdict on a readable chain (seeds 1..600)
+✔ property I2: RPC faults give the model's verdict or no verdict, never a different decided verdict (600 histories)
+✔ property I3: at most one refund per payment, and only on a seller-liable verdict (200 histories)
+✖ property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds)
+✔ property I5: a facilitator that reports success twice for one transaction does not make an honest seller sign two receipts (20 seeds)
+✔ property I6: a seller gate whose grant check is cold answers 503 with Retry-After, the agent retries with the SAME payload, nothing is lost or doubled (12 seeds)
