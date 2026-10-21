@@ -14,7 +14,7 @@ import { fillBlockIndices, comparePositions, readTransactions } from './chain.js
 
 export const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export const MEMO_V2 = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
-export const GRANT_CHECKS = ['grant.tx_err', 'grant.scan_resume_top', 'grant.scan_wellformed', 'grant.scan_state_tolerant', 'grant.scan_cap', 'grant.scan_first', 'grant.cache_bound', 'grant.mismatch_uncached', 'grant.not_found_cached', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.superseded_inner', 'grant.scan_failed', 'grant.scan_unreadable', 'grant.superseded_position', 'grant.coalesce_scans', 'grant.scan_store'].map(registerCheck);
+export const GRANT_CHECKS = ['grant.tx_err', 'grant.scan_resume_top', 'grant.scan_wellformed', 'grant.scan_slot', 'grant.scan_found_slot', 'grant.scan_state_tolerant', 'grant.scan_cap', 'grant.scan_first', 'grant.cache_bound', 'grant.mismatch_uncached', 'grant.not_found_cached', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.superseded_inner', 'grant.scan_failed', 'grant.scan_unreadable', 'grant.superseded_position', 'grant.coalesce_scans', 'grant.scan_store'].map(registerCheck);
 
 export async function principalAta(principal, asset) {
   const [ata] = await findAssociatedTokenPda({ mint: asset, owner: principal, tokenProgram: TOKEN_PROGRAM_ADDRESS });
@@ -95,7 +95,12 @@ export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPag
       if (fails('grant.scan_unreadable', !txs[k])) throw new Error(`transaction ${e.signature} could not be read`);
       // the bar parsePayment uses: a jsonParsed transaction (an instruction array) with meta; anything else (an empty object, a base64 transaction) is unreadable
       if (fails('grant.scan_wellformed', !Array.isArray(txs[k].transaction?.message?.instructions) || !txs[k].meta)) throw new Error(`transaction ${e.signature} is not a jsonParsed transaction`);
-      if (supersedes(txs[k], source)) found.push({ sig: e.signature, tx_sig: e.signature, slot: txs[k].slot });
+      // a superseding transaction is ordered by its slot: an answer without a safe-integer slot, or one that disagrees with the listing's slot, is not a transaction this
+      // scan can place, and a scan that cannot place it must not answer "not superseded" (Addendum N, N2)
+      if (supersedes(txs[k], source)) {
+        if (fails('grant.scan_slot', !Number.isSafeInteger(txs[k].slot) || (e.slot !== undefined && e.slot !== null && e.slot !== txs[k].slot))) throw new Error(`transaction ${e.signature} has no usable slot (transaction ${txs[k].slot}, listing ${e.slot})`);
+        found.push({ sig: e.signature, tx_sig: e.signature, slot: txs[k].slot });
+      }
     });
     if (page.length) before = page[page.length - 1].signature;
     if (page.length < pageSize) break;
@@ -105,6 +110,8 @@ export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPag
   }
   let earliest = null;
   if (found.length) {
+    // a stored or resumed `found` can carry anything: every slot must be a safe integer before they are compared
+    if (fails('grant.scan_found_slot', found.some((f) => !Number.isSafeInteger(f?.slot)))) throw new Error('a superseding transaction in the scan state has no usable slot');
     const minSlot = Math.min(...found.map((f) => f.slot));
     const atMin = found.filter((f) => f.slot === minSlot);
     const idxOf = {};
