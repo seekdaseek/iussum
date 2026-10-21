@@ -1,0 +1,58 @@
+### a1-negative-amount  (node review-20261021i/a1-negative-amount.mjs)
+budget 30000, price 10000; three sequential payments: 200, 200, 200 | settled so far 3
+a fourth one now: period_over_budget
+negative-amount request (-100000000): amount_over_cap
+three payments started while it was being built: period_over_budget, period_over_budget, period_over_budget
+settled 3 x 10000 = 30000 against period_budget 30000; ledger total 30000
+### a1-negative-amount-control  (node review-20261021i/a1-negative-amount.mjs -0)
+budget 30000, price 10000; three sequential payments: 200, 200, 200 | settled so far 3
+a fourth one now: period_over_budget
+negative-amount request (-0): amount_over_cap
+three payments started while it was being built: period_over_budget, period_over_budget, period_over_budget
+settled 3 x 10000 = 30000 against period_budget 30000; ledger total 30000
+### a2-redirect-resource  (node review-20261021i/a2-redirect-resource.mjs)
+mandate allow.resource_prefix: [ 'http://127.0.0.1:53503/v1/' ] | pay_to: sellerA only
+direct http://127.0.0.1:53504/premium: resource_mismatch
+via http://127.0.0.1:53503/v1/go?to=http://127.0.0.1:53504/premium: 302 
+payloads M received: []
+agent ledger: [] | reservations: 
+### a2-redirect-resource-omit  (node review-20261021i/a2-redirect-resource.mjs omit)
+mandate allow.resource_prefix: [ 'http://127.0.0.1:53511/v1/' ] | pay_to: sellerA only
+direct http://127.0.0.1:53512/premium: resource_not_allowed
+via http://127.0.0.1:53511/v1/go?to=http://127.0.0.1:53512/premium: 302 
+payloads M received: []
+agent ledger: [] | reservations: 
+### a3-signer-lifetime  (node review-20261021i/a3-signer-lifetime.mjs)
+signer swaps the blockhash
+payment 1 (seller keeps the payload): Failed to create payment payload: wallet changed the transaction lifetime (the recent blockhash)
+payment 2: Failed to create payment payload: wallet changed the transaction lifetime (the recent blockhash)
+### a3-signer-lifetime-control  (node review-20261021i/a3-signer-lifetime.mjs control)
+control: signer keeps the blockhash
+payment 1 (seller keeps the payload): 502
+payment 2: 200
+reservation 1 recorded blockhash: agent own | payload 1 carries: agent own | expiry asked about: agent own
+reservation states: released,consumed
+payload 1 can still land (its own blockhash valid): false
+settled 1 x 20000 = 20000 against period_budget 30000
+### g1-bom-header-bypass  (node review-20261021i/g1-bom-header-bypass.mjs)
+BOM no  | GET /other/quote -> 403 {"error":"iussum_out_of_scope","reason":"resource_not_allowed","delta":[{"code":"resource_ | settled 0 | handler 0 | receipt none
+BOM yes | GET /other/quote -> 403 {"error":"iussum_out_of_scope","reason":"resource_not_allowed","delta":[{"code":"resource_ | settled 0 | handler 0 | receipt none
+### g2-dot-segment-resource  (node review-20261021i/g2-dot-segment-resource.mjs)
+control  GET /premium/report           -> 403 {"error":"iussum_out_of_scope","reason":"resource_not_allowed","delta":[{"code":"resource_not_allowed","field":"resource","authorized":"http://127.0.0.1:53540/v1/","actual":"http://127.0.0.1:53540/premium/report"}]} | settled 0
+attack   GET /premium/../v1/quote      -> 403 {"error":"iussum_out_of_scope","reason":"resource_not_allowed","delta":[{"code":"resource_not_allowed","field":"resource","authorized":"http://127.0.0.1:53540/v1/","actual":"http://127.0.0.1:53540/premium/../v1/quote"}]} | settled 0 | handler hits {"v1":
+receipt  resource undefined amount undefined mandate_id bound false
+### g3-two-services-double-refund  (node review-20261021i/g3-two-services-double-refund.mjs)
+A: pay_to_not_allowed seller refund_tx b49HDppPpHnQ 
+B: duplicate_dispute pay_to_not_allowed seller refund_tx undefined 
+refund transactions broadcast: 1 ["A:AR1d9iAenx5BWcBK"] | stored refund_tx b49HDppPpHnQ
+### g4-expiry-after-handler  (node review-20261021i/g4-expiry-after-handler.mjs)
+### g5-null-blocktime-period  (node review-20261021i/g5-null-blocktime-period.mjs)
+mandate period_budget 100000 period_seconds 86400 ; three payments of 50000 on day 0, the third is disputed
+blockTime 1100 (T0+..) -> verdict valid | reason period_over_budget | liable agent_operator | provisional false | time_source block | delta [{"code":"period_over_budget","field":"period_budget","authorized":"100000","actual":"150000 spent in period 0"}]
+blockTime null       -> verdict invalid | reason history_incomplete | liable null | provisional undefined | time_source null | delta [{"field":"block time","authorized":"a block time for every payment from the grant up to the disputed one","actual":"at least one payment has none, so the period of th
+
+### g4 with the default settleMarginSeconds (120)
+expires_at = now0+2 | gate checked at now0+0 | facilitator settled at now0+-1792596678 | HTTP 403 | receipt none | body {"error":"iussum_out_of_scope","reason":"mandate_expired","delta":[{"code":"mandate_expired","field"
+### g4 with settleMarginSeconds 0 (the c3c2e79 behaviour)
+expires_at = now0+2 | gate checked at now0+0 | facilitator settled at now0+3 | HTTP 200 | receipt settled_at now0+3 | body {"ok":true}
+verdict valid | reason mandate_expired | liable seller | provisional false | refunds paid 1 {"to":"BSC8EyZJr19cqzYw3e7UnoDjsNJS4RGiE8rdoo4pJgiU","mint":"4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU","amount":"10000","decimals":6,"reason":"dispute PAYF3xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

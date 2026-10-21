@@ -1,0 +1,45 @@
+# test/phase110 run against c3c2e79 (a git worktree of the Phase 1.9 HEAD, the final test files copied in): 40 tests, 28 fail, 12 pass by design (controls and guards: a signer that keeps the blockhash, header spellings x402 itself rejects, the two-services race that the old timing happens to survive, the unchanged P7/P8 controls)
+✖ P1 scopeViolations judges an amount that is not a plain decimal integer string as over the cap, for every malformed spelling
+✖ P1 a 402 with a negative amount is refused before anything is reserved: it cannot cancel the period budget for payments checked meanwhile (a1)
+✖ P2 an open redirect under the allowed prefix does not take the agent, or its payment header, to a server outside the mandate (a2)
+✖ P2 an open redirect under the allowed prefix does not take the agent, or its payment header, to a server outside the mandate (a2 omit)
+✖ P2 a 3xx answer to a PAID request is non-delivery: it is returned unfollowed and the reservation stays held until it is proven landed or expired
+✖ P3 a signer that replaces the recent blockhash is refused by the guard, so the expiry proof is always about the blockhash the payload carries (a3)
+✔ P3 a signer that keeps the blockhash still works (control)
+✖ P3 a durable-nonce lifetime is refused outright, and the guard says so
+✖ P4 readPaymentHeader reads only payment-signature, decodes it the way x402 does, and throws on a header that is present but cannot be decoded
+✔ P4 enforce: an out-of-scope payment whose header is sent with none is refused or not settled, never settled unseen (g1)
+✖ P4 enforce: an out-of-scope payment whose header is sent with leading BOM is refused or not settled, never settled unseen (g1)
+✖ P4 enforce: an out-of-scope payment whose header is sent with BOM and padding stripped is refused or not settled, never settled unseen (g1)
+✔ P4 enforce: an out-of-scope payment whose header is sent with invalid UTF-8 after the JSON is refused or not settled, never settled unseen (g1)
+✔ P4 enforce: an out-of-scope payment whose header is sent with base64url is refused or not settled, never settled unseen (g1)
+✔ P4 enforce: an out-of-scope payment whose header is sent with padding stripped is refused or not settled, never settled unseen (g1)
+✔ P4 enforce: an out-of-scope payment whose header is sent with inner whitespace is refused or not settled, never settled unseen (g1)
+✔ P4 enforce: an out-of-scope payment whose header is sent with inner newline is refused or not settled, never settled unseen (g1)
+✖ P4 enforce: the BOM header is judged like the plain one: 403 resource_not_allowed (g1)
+✖ P4 observe: a BOM header is decoded, the payment goes on and the receipt records it; an undecodable header is refused, not passed
+✖ P5 resourceAllowed refuses any resource whose normalised form differs from its raw origin and path: .. %2e%2e %2E. backslash /./
+✖ P5 the gate refuses a raw dot-segment path (DOTDOT) before x402 prices and serves it: 403, nothing settled, the premium handler never runs (g2)
+✖ P5 the gate refuses a raw dot-segment path (PCT) before x402 prices and serves it: 403, nothing settled, the premium handler never runs (g2)
+✖ P5 an in-scope path is still served (control), and the resolver judges a receipt whose resource is a raw dot-segment path as resource_not_allowed, seller liable
+✖ P6 a duplicate dispute on the other service, while the first service is still fetching its blockhash, does not pay a second refund (g3)
+✔ P6 two services disputing at the same instant broadcast exactly one refund
+✖ P6 the claim winner crashes before it signs: the other service waits out the grace period, then reclaims and pays once
+✔ P6 a refund that fails before it is signed releases its claim, so a retry is not held for the grace period
+✖ P6 a claim that lost its place does not send: a service whose claim was reclaimed meanwhile gets an error from onSigned and broadcasts nothing
+✖ P6 the claim is what keeps the second service from sending: a service that read the row BEFORE the first one claimed it still sends nothing (the race between read and claim, across processes)
+✖ P6 the store claim is atomic and compare-and-swap: one winner, takeover only of the value read, signing only with the own claim
+✖ P7 an honest agent and an honest ENFORCE gate no longer accept a payment inside settleMarginSeconds of expires_at: 403 mandate_expired, the margin in the delta (g4)
+✔ P7 with settleMarginSeconds 0 the same payment is accepted, as before
+✖ P7 the window is shrunk at the other end too: now - margin before not_before is mandate_not_yet_valid
+✖ P7 settleMarginSeconds is an integer of at least 0, checked at start
+✔ P8 a payment with a block time is period_over_budget as before (control)
+✖ P8 a payment without a block time is not placed in a period of its own: history_incomplete, liable null, nothing stored as final (g5)
+✖ P8 a null time among the earlier payments of the period gives history_incomplete too
+✔ P8 rules that need no time are still judged first: an over-cap payment without a block time is amount_over_cap
+✖ P8 periodIndex throws on a time that is not a finite number, so null cannot reach the arithmetic again
+✖ property P1: malformed amounts in a 402 never lift the period budget and are always refused as amount_over_cap (40 seeds)
+ℹ tests 40
+ℹ pass 12
+ℹ fail 28
+ℹ cancelled 0
