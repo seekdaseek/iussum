@@ -2,7 +2,7 @@
 import { TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
 import { fails, registerCheck } from './guard.js';
 
-export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain.self_transfer', 'chain.missing_balance_zero', 'rpc.cache_bound', 'rpc.batch', 'history.min_context', 'rpc.pace', 'rpc.pace_halve', 'rpc.batch_burst'].map(registerCheck);
+export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain.self_transfer', 'chain.missing_balance_zero', 'rpc.cache_bound', 'rpc.batch', 'history.min_context', 'rpc.pace', 'rpc.pace_halve', 'rpc.batch_burst', 'rpc.option_bounds', 'rpc.clock_clamp', 'rpc.batch_json_limit', 'rpc.floor_cap'].map(registerCheck);
 
 // What the public endpoints allow, measured from a Mac in Node on 2026-10-20 (docs/phase17/limiter-probe.txt): about 10 getTransaction calls per 10 s window (a burst of
 // 10 is answered, the 11th is rejected; 1.0/s is answered, 1.25/s is not), a batch element counts like a call, and a block lasts about 18 s after the first rejection.
@@ -10,14 +10,18 @@ export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain
 const PUBLIC_HOSTS = new Set(['api.devnet.solana.com', 'api.mainnet-beta.solana.com', 'api.testnet.solana.com']);
 export const PUBLIC_PACE = { rate: 0.6, burst: 2 }; // 0.8/s with a burst of 2 is exactly the 10-a-window quota and was rejected in two of two cold reads (docs/phase17/reader-compare.txt); 0.6/s keeps 8 in any window
 const OPEN_PACE = { rate: 200, burst: 50 }; // any other endpoint starts fast (a keyed provider answers far more than the public node); the first rate-limited answer halves the rate (and so on) until it stops
-export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000, sleep = (ms) => new Promise((res) => setTimeout(res, ms)), now = () => Date.now(), rate, burst } = {}) {
+export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000, sleep = (ms) => new Promise((res) => setTimeout(res, ms)), now = () => performance.now(), rate, burst } = {}) {
   let id = 0;
+  // a monotonic default clock (a wall clock that steps back, an NTP correction or a VM resume, would make the next call wait that long), and options that cannot make the bucket
+  // wait for ever or turn the pacing off: rate finite and > 0, burst finite and >= 1 (Addendum N, N7)
+  if (fails('rpc.option_bounds', rate !== undefined && !(Number.isFinite(rate) && rate > 0))) throw new Error('makeRpc: rate must be a finite number > 0 (calls per second)');
+  if (fails('rpc.option_bounds', burst !== undefined && !(Number.isFinite(burst) && burst >= 1))) throw new Error('makeRpc: burst must be a finite number >= 1');
   // ONE token bucket per client, shared by single calls and batch elements (Addendum M, M6). A rate-limited answer empties it and halves the rate; every answered
   // element raises the rate again by 10% up to the configured rate. A rejected call is therefore never repeated at once: it waits for a token at the lower rate.
   const dflt = PUBLIC_HOSTS.has(new URL(url).host) ? PUBLIC_PACE : OPEN_PACE;
   const maxRate = rate ?? dflt.rate, capacity = burst ?? dflt.burst, MIN_RATE = 0.05;
   const bucket = { tokens: capacity, rate: maxRate, t: now() };
-  const refill = () => { const t = now(); bucket.tokens = Math.min(capacity, bucket.tokens + ((t - bucket.t) / 1000) * bucket.rate); bucket.t = t; };
+  const refill = () => { const t = now(); bucket.tokens = Math.min(capacity, bucket.tokens + (Math.max(fails('rpc.clock_clamp', true) ? 0 : -Infinity, t - bucket.t) / 1000) * bucket.rate); bucket.t = t; };
   async function take(n = 1) {
     if (!fails('rpc.pace', true)) { await sleep(1); return; } // a skipped check still yields a millisecond, so a fake clock advances and a mutated run cannot spin
     const need = Math.min(n, capacity);
@@ -31,7 +35,7 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000,
   // the block (measured: hammering prolongs it by about a second) are rejected too, which must not halve the rate again and again (rate 0.05/s took minutes to climb back).
   // The episode is eight token intervals at the current rate, between 1 s and 20 s: a slow client (0.4/s) treats 20 s as one block, a fast one (200/s) may halve every second.
   let lastHalved = -Infinity;
-  const limited = () => { if (!fails('rpc.pace_halve', true)) return; refill(); bucket.tokens = 0; const t = now(); if (t - lastHalved >= Math.min(20_000, Math.max(1000, 8000 / bucket.rate))) { bucket.rate = Math.max(MIN_RATE, bucket.rate / 2); lastHalved = t; } };
+  const limited = () => { if (!fails('rpc.pace_halve', true)) return; refill(); bucket.tokens = 0; const t = now(); if (t - lastHalved >= Math.min(20_000, Math.max(1000, 8000 / bucket.rate))) { bucket.rate = Math.max(fails('rpc.floor_cap', true) ? Math.min(MIN_RATE, maxRate) : MIN_RATE, bucket.rate / 2); lastHalved = t; } };
   const answeredEls = (k = 1) => { if (bucket.rate < maxRate) bucket.rate = Math.min(maxRate, bucket.rate * 1.1 ** k); };
   const RATE_LIMITED = /rate|limit|too many|429/i;
   async function call(method, params) {
@@ -96,7 +100,7 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000,
             const r = await fetchImpl(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
             if (r.status === 429 || r.status >= 500) throw Object.assign(new Error(`rpc http ${r.status}`), { retry: true, limited: r.status === 429 });
             const j = await r.json();
-            if (!Array.isArray(j)) { const m = j?.error?.message ?? 'not an array'; throw Object.assign(new Error(`batch rejected: ${m}`), { retry: RATE.test(m), whole: true }); }
+            if (!Array.isArray(j)) { const m = j?.error?.message ?? 'not an array'; throw Object.assign(new Error(`batch rejected: ${m}`), { retry: RATE.test(m), whole: true, limited: fails('rpc.batch_json_limit', RATE.test(m)) }); }
             const byId = new Map(j.map((e) => [e.id, e]));
             const still = [];
             body.forEach((bq, n) => {

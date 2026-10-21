@@ -100,7 +100,7 @@ const m7 = mandate({ agent: signer7.address, allow: { pay_to: [ADDR.sellerA], re
 const rpc7 = (over = {}) => { const rpc = fakeRpc(); rpc.grants.set(GRANT_SIG, grantTx(m7)); rpc.account = liveAccount(m7); return Object.assign(rpc, over); };
 const start7 = (dataDir, rpc, extra = {}) => createAgent({ mandate: m7, grant_tx: GRANT_SIG, signer: signer7, rpc, getBlockhash: bh, dataDir, ...extra });
 
-test('M2 a start that fails after the lock was taken releases it (leak-enospc: the directory becomes unwritable during the start)', async () => {
+test('M2 a start that fails after the lock was taken releases it (leak-enospc: a write of the start fails with ENOSPC)', async () => {
   // the failed start runs in a child that stays alive and idle, so a leaked lock cannot be freed by a garbage collection while the parent tries
   const dataDir = tmp('enospc');
   const k = spawn(process.execPath, ['--no-warnings', path.join(path.dirname(new URL(import.meta.url).pathname), 'm2-child-failstart.mjs'), dataDir], { stdio: ['ignore', 'pipe', 'inherit'] });
@@ -109,7 +109,7 @@ test('M2 a start that fails after the lock was taken releases it (leak-enospc: t
     assert.match(line, /^FAILED/);
     const again = await start7(dataDir, rpc7()); // with the lock leaked by the failed start this is refused
     await again.close();
-  } finally { k.kill('SIGKILL'); fs.chmodSync(dataDir, 0o700); fs.rmSync(dataDir, { recursive: true, force: true }); }
+  } finally { k.kill('SIGKILL'); fs.rmSync(dataDir, { recursive: true, force: true }); }
 });
 
 test('M2 a start the caller abandons through cfg.signal releases the lock at once and writes nothing afterwards (leak-abandoned)', async () => {
