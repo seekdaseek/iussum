@@ -1,0 +1,222 @@
+# review-20261020f repros, run on the final tree (Phase 1.9). Same as docs/phase17/repro-after-fix.txt apart from the Phase 1.8/1.9 contract changes: one more 'top' page read (the warm probe), lock@N in the data dir listing.
+### r1-resume-stale
+check 1, scan cut short at page 2 : false grant_inactive could not verify the grant is current: rpc exploded
+  persisted state                 : {"since":"G1xx","partial":{"cursor":"D51x","newest":"D150","found":0}}
+check 2, resumes, G2 already landed: false grant_inactive superseded by G2xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | pages read: before=D51x,top,top
+control, a fresh checker           : false grant_inactive superseded by G2xxxx... (G2)
+check 3, same checker, next call   : false grant_inactive superseded by G2
+RESULT: right, check 2 sees G2
+[exit 0]
+### r2-gate-resume-superseded
+payment 1 under M1, scan cut short   : 403 {"error":"iussum_out_of_scope","reason":"grant_inactive","delta":[{"code":"grant_inactive","field":"grant","au
+payment 2 under M1, after G2 landed  : 403 {"error":"iussum_out_of_scope","reason":"grant_inactive","delta":[{"code":"grant_inactive","field":"grant","authorized": | settled: 0
+payment 3 under M1 (next scan)       : 403 {"error":"iussum_out_of_scope","reason":"grant_inactive","delta":[{"code":"grant | settled: 0
+RESULT: right, payment 2 refused
+[exit 0]
+### r3-resolver-resume-verdict
+dispute 1 (P1), scan cut short     : invalid history_incomplete | stored rows: 0
+dispute 2 (P2, paid after G2)      : invalid mandate_superseded liable: null | stored rows: 0 
+dispute 2 again                    : invalid mandate_superseded original: - liable: null
+control, fresh resolver            : invalid mandate_superseded liable: null
+RESULT: right
+[exit 0]
+### r7-scan-state-corrupt
+payment 0 (row written by the gate)  : 200
+scan_state row                       : 6yhmERramYBiynohezgqDbGMHAf9peDDSDoykiu1wzLe:GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG:first {"since":"GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+gate restarted with the cut-off row  : started
+payment 1                            : 200  
+payment 2                            : 200  
+payment 3                            : 200  
+row afterwards                       : {"since":"GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG","superseded":null,"completed":true}
+[exit 0]
+### r9-j2-malformed
+control (no damage)                      history complete=true                                                    | grant ok=false could not verify the grant is current: transaction D7xxxxxxx
+null element in the array                history complete=false getTransaction: rate limited, no progress          | grant ok=false could not verify the grant is current: getTransaction: rate 
+element missing from the array           history complete=false getTransaction D7xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | grant ok=false could not verify the grant is current: getTransaction D7xxxx
+ids as strings                           history complete=false getTransaction D5xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | grant ok=false could not verify the grant is current: getTransaction D30xxx
+duplicate id, result then error          history complete=false getTransaction: boom                               | grant ok=false could not verify the grant is current: getTransaction: boom
+element result null                      history complete=false transaction D7xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | grant ok=false could not verify the grant is current: transaction D7xxxxxxx
+element with neither result nor error    history complete=false transaction D7xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | grant ok=false could not verify the grant is current: transaction D7xxxxxxx
+element error (not a rate limit)         history complete=false getTransaction: Slot 5 was skipped, or missing in  | grant ok=false could not verify the grant is current: getTransaction: Slot 
+element result {} (no transaction)       history complete=false transaction D7xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | grant ok=false could not verify the grant is current: transaction D7xxxxxxx
+element result in base64 encoding        history complete=false Cannot read properties of undefined (reading 'acco | grant ok=false could not verify the grant is current: transaction D7xxxxxxx
+batch refused (object, not array)        history complete=true                                                    | grant ok=false could not verify the grant is current: transaction D7xxxxxxx
+[exit 0]
+### v6-close
+control: close() after A returned: A 502 (payloads A signed and the seller kept: 1, of them after close(): 0), B period_over_budget | settled 0 + kept 20000 = 20000 that can land vs budget 30000
+close() while A is in flight: A agent_closed (payloads A signed and the seller kept: 0, of them after close(): 0), B 200 | settled 20000 + kept 0 = 20000 that can land vs budget 30000
+[exit 0]
+### close-client
+control (no A.client call): A 502, B 502 | A.client after close: -
+   data dir before: held on disk [B] files checkpoint@151721156 reservations@151721158 scan@151721149 lock@151721153
+   data dir after : held on disk [B] files checkpoint@151721156 reservations@151721158 scan@151721149 lock@151721153
+   B restarted: restored 1, pays period_over_budget | settled 0 + B's kept payload 20000 = 20000 that can land vs budget 30000
+A.client used after close(): A 502, B 502 | A.client after close: error: Payment creation aborted: IUSSUM_REFUSAL:{"reason":"a
+   data dir before: held on disk [B] files lock@151721171 checkpoint@151721174 reservations@151721176 scan@151721167
+   data dir after : held on disk [B] files lock@151721171 checkpoint@151721174 reservations@151721176 scan@151721167
+   B restarted: restored 1, pays period_over_budget | settled 0 + B's kept payload 20000 = 20000 that can land vs budget 30000
+[exit 0]
+### close-client-naive
+before close: agent.fetch 200, settled 1
+after close : agent.fetch error: iussum agent is closed (its data directory lock was released | agent.client through @x402/fetch error: Failed to create payment payload: iussum agent is closed: no, settled 1
+[exit 0]
+### period-edge
+payment 1 kept, lands in period 0: payment 2 period_over_budget, payment 3 period_over_budget | period 1 by block time: 0 vs budget 30000
+payment 1 kept, lands in period 1: payment 2 period_over_budget, payment 3 period_over_budget | period 1 by block time: 20000 vs budget 30000
+[exit 0]
+### restart-lag
+caught-up node: payment 1 200 (held reservations on disk after it: 1) | restart: payments known at start 1, payment 2 period_over_budget | settled 20000 vs budget 30000
+lagging node  : payment 1 200 (held reservations on disk after it: 1) | restart: payments known at start 2, payment 2 period_over_budget | settled 20000 vs budget 30000
+[exit 0]
+### i3-nocontext
+isBlockhashValid -> { context: { slot: 200 }, value: false }: reservation 1 held, payment 2 period_over_budget (history asked with minContextSlot ,200) | settled 20000 vs budget 30000
+isBlockhashValid -> false (no context)                      : reservation 1 held, payment 2 period_over_budget (history asked with minContextSlot ) | settled 20000 vs budget 30000
+isBlockhashValid -> { value: false } (no context)           : reservation 1 held, payment 2 period_over_budget (history asked with minContextSlot ) | settled 20000 vs budget 30000
+[exit 0]
+### i3-nocontext-r
+isBlockhashValid answers {"context":{"slot":200},"value":false}: reservation held, second payment -> period_over_budget, settled 20000 against period_budget 30000; landed read minContextSlot [200]
+isBlockhashValid answers false: reservation held, second payment -> period_over_budget, settled 20000 against period_budget 30000; landed read minContextSlot [null]
+[exit 0]
+### l2-eq-http
+grant_tx "not-a-signature": first 200 in_scope (stored grant_tx Gxxxxx…); equivocation filing -> HTTP 200 receipt_equivocation; stored grant_tx now "Gxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+grant_tx 12345678901234567000: first 200 in_scope (stored grant_tx Gxxxxx…); equivocation filing -> HTTP 400 grant_tx must be a string or null; stored grant_tx now "Gxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+grant_tx {"a":1}: first 200 in_scope (stored grant_tx Gxxxxx…); equivocation filing -> HTTP 400 grant_tx must be a string or null; stored grant_tx now "Gxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+grant_tx null: first 200 in_scope (stored grant_tx Gxxxxx…); equivocation filing -> HTTP 200 receipt_equivocation; stored grant_tx now "Gxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+[exit 0]
+### l2-audit
+(a) first response: verdict_id=dd44609f8032c9cb… recomputed=dd44609f8032c9cb… match=true
+    response carries grant_tx? false  receipt_sha256/receipt_sha? false
+(b) duplicate (no receipt): reason=duplicate_dispute verdict_id=dd44609f8032c9cb…  recomputed from this response+bundle (original_reason)=c3ab243e75d2bcee… match=false
+(b) duplicate (grant_tx null): reason=duplicate_dispute verdict_id=dd44609f8032c9cb…  recomputed from this response+bundle (original_reason)=064ec74b2a3d75ba… match=false
+(c) replaced[0] keys: verdict,mandate_sha,receipt_sha,decided_at,grant_tx,provisional,verdict_id
+    replaced[0].verdict_id=a95b62400a041c14…  recomputed with grant_tx null: false  with grant_tx G (not in the entry): true
+(d) equivocation filed with mandate null, grant_tx 12345678901234567890 (a JSON number): reason=receipt_equivocation stored grant_tx="Gxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" (string) mandate_sha=null
+    stored verdict_id=50f01f5a91b2f938…  recomputed from the stored row=50f01f5a91b2f938…  match=true
+[exit 0]
+### l2-two-instances
+X in_scope c6cafde8 | B receipt_equivocation 424911f3 | A duplicate_dispute 424911f3
+stored 424911f3; replaced: [in_scope id c6cafde8]
+B's id kept in the record: true
+[exit 0]
+### r4-scan-fanout
+20 requests sent one at a time in 2280 ms, answers {"503":20}; scans in flight right after the last answer: 1
+supersession scans running at the same time (overlapping first..last page): 1 of 20; signature pages read 120, transactions read 10020 (500 dust credits, 20 grants), all done 25480 ms after the first request
+same grant, 5 other mandate ids: 0 new pages read; answers {"other-mandate-403":5}
+[exit 0]
+### r4b-scan-fanout-http
+K=1 grants, D=2000 dust: 1 requests one at a time in 135 ms, answers {"503":1}; the gate then sent 103 HTTP requests (21 signature pages, 2001 getTransaction elements), at most 2 in flight at once; quiet 10646 ms after the first request
+K=20 grants, D=2000 dust: 20 requests one at a time in 2272 ms, answers {"503":20}; the gate then sent 540 HTTP requests (420 signature pages, 2020 getTransaction elements), at most 4 in flight at once; quiet 33806 ms after the first request
+[exit 0]
+### r5-timer-leak
+50 requests whose grant read errors: answers {"500":50}; Timeout handles before 0, after 0 (budget 10000 ms)
+process exited 5 ms after the servers closed
+[exit 0]
+### r6-observe-pending
+warm check: HTTP 200, settled 1, req.iussum {"mode":"observe","mandate_id":"21319140ed2b5c2695ae53fb950bc02dea882f290a4e7b399c65a39acfc4196d","grant_tx":"GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG","violations":["resource_not_allowed"],"grant_check":"che
+cold check: HTTP 200, settled 1, req.iussum {"mode":"observe","mandate_id":"06454ce49c9de0fe0faa13f7248e0e78b4768f04b0f591f7c98a8e744b4a0d38","grant_tx":"GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG","violations":["resource_not_allowed"],"grant_check":"pen
+[exit 0]
+### r11-unknown-grant
+5 requests with a grant_tx that is not on chain: {"503 grant_check_pending":5}; the gate sent 5 getTransaction calls (1.0 per request), 78 ms
+the first unknown grant_tx again: 0 more getTransaction calls
+[exit 0]
+### r12-budget-overflow
+grantCheckBudgetMs 10000: statuses 200,200,200, settled 3
+grantCheckBudgetMs 2147483647: statuses 200,200,200, settled 3
+[exit 0]
+### r13-empty-before
+check 1 (page 2 empty once): true  
+check 2 (node fine again)  : true  
+control, fresh checker     : false grant_inactive superseded by G2xxxx
+[exit 0]
+### s16-usdc
+[exit 0]
+### retry-after
+no Retry-After header              -> 503 | paid sends 1 (distinct payloads 1) | gaps ms - | reservations held
+Retry-After: "" (empty)            -> 503 | paid sends 1 (distinct payloads 1) | gaps ms - | reservations held
+Retry-After: HTTP-date 2 s ahead   -> 503 | paid sends 4 (distinct payloads 1) | gaps ms 303,303,304 | reservations held
+Retry-After: -1                    -> 503 | paid sends 1 (distinct payloads 1) | gaps ms - | reservations held
+Retry-After: 1e9 (capped)          -> 503 | paid sends 1 (distinct payloads 1) | gaps ms - | reservations held
+Retry-After: 0.2                   -> 503 | paid sends 1 (distinct payloads 1) | gaps ms - | reservations held
+POST string body: 200, bodies per paid attempt: full,full,full | POST stream body: 200, bodies: full,full,full | reservations consumed,consumed
+[exit 0]
+### r10-batch-mcs
+ok      elements 30, without minContextSlot 777: 0
+refuse  elements 30, without minContextSlot 777: 0
+null    elements 8, without minContextSlot 777: 0
+[exit 0]
+### r2 --restart
+payment 1 under M1, scan cut short   : 403 {"error":"iussum_out_of_scope","reason":"grant_inactive","delta":[{"code":"grant_inactive","field":"grant","au
+gate restarted; scan_state rows     : {"since":"GGGG","partial":{"cursor":"DUST50","newest":"DUST149"}}
+payment 2 under M1, after G2 landed  : 403 {"error":"iussum_out_of_scope","reason":"grant_inactive","delta":[{"code":"grant_inactive","field":"grant","authorized": | settled: 0
+payment 3 under M1 (next scan)       : 403 {"error":"iussum_out_of_scope","reason":"grant_inactive","delta":[{"code":"grant | settled: 0
+RESULT: right, payment 2 refused
+### r8 (gc)
+0 checks: heap 14.5 MB
+50000 checks with distinct mandate ids (last: grant_mismatch), getTransaction RPC calls 50000: heap 18.6 MB
+100000 checks with distinct mandate ids (last: grant_mismatch), getTransaction RPC calls 100000: heap 22.1 MB
+200000 checks with distinct mandate ids (last: grant_mismatch), getTransaction RPC calls 200000: heap 29.3 MB
+### leak-abandoned (gc)
+start 1 (slow first read): start-up timeout after 300 ms
+retry right after the timeout: another agent holds the data directory /var/folders/pn/5hg5nd093rq5ysmw67b4kztw0
+retry after start 1 has finished (its agent is unreferenced): another agent holds the data directory /var/folders/pn/5hg5nd093rq5ysmw67b4kztw0
+retry after gc(): STARTED
+
+# review-20261021g repros, run on the final tree (Phase 1.9), incl. a2 with the real 142276f worktree, g4 recompute and g6 seeds 1 and 2
+### a6-dup-settle-sig
+control: distinct tx signatures: 200, 200, 200, period_over_budget, period_over_budget, period_over_budget | settled 30000 vs period_budget 30000 | agent ledger 3 entries
+seller reports one tx signature for every settle: 200, 200, 200, period_over_budget, period_over_budget, period_over_budget | settled 30000 vs period_budget 30000 | agent ledger 3 entries
+### a1-close-paid-lost
+control: close() after pay returned: pay() -> status 200 | settled by facilitator: 1 | seller handler ran: 1 | in-memory: consumed | on disk: ["consumed"]
+close() while paid request in flight: pay() -> status 200 | settled by facilitator: 1 | seller handler ran: 1 | in-memory: consumed | on disk: ["consumed"]
+### a3-signal-early
+control: abort 100 ms into the start: first createAgent rejected (This operation was aborted), chain reads it made: 1 | a new start on the same directory: STARTED
+signal already aborted: first createAgent rejected (This operation was aborted), chain reads it made: 0 | a new start on the same directory: STARTED
+abort() right after createAgent(): first createAgent rejected (This operation was aborted), chain reads it made: 0 | a new start on the same directory: STARTED
+### a5-abandoned-keeps-reading
+createAgent rejected: This operation was aborted right away (0 transaction reads after abort at that point) | 6 s later the abandoned start had made 0 more getTransaction calls after abort (of 17 total)
+### a4-close-hang
+paid requests sent: 1 (seller never answers) | close() still pending after 5 s | a new agent on the directory: another agent holds the data directory /var/folders/pn/5hg5n
+### g1e-slotless-gate
+control                 : 403 {"error":"iussum_out_of_scope","reason":"grant_inactive","delta":[{"co | settled: 0
+G2 answered without slot: 403 {"error":"iussum_out_of_scope","reason":"grant_inactive","delta":[{"co | settled: 0
+### g1c-slotless-resolver
+control                 : invalid mandate_superseded liable=null provisional=undefined stored rows=0 [{"field":"grant","authorized":"the current grant when the payment was made","actual":"superseded by G2xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx at slot 2
+G2 answered without slot: invalid history_incomplete liable=null provisional=undefined stored rows=0 [{"field":"supersession scan","authorized":"complete","actual":"transaction G2xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx has no usable slot (transaction un
+### g1-slotless-superseder
+control (slot present)       gate check ok=false superseded by G2xxxxxxxxxxxxxx | after the node heals, same checker ok=false | stored since=G2x | resolver-style scan superseded="G2x"
+G2 answer without slot       gate check ok=false could not verify the grant is  | after the node heals, same checker ok=false | stored since=G2x | resolver-style scan superseded="G2x"
+G2 slotless + G3 with slot   gate check ok=false could not verify the grant is  | after the node heals, same checker ok=false | stored since=G3x | resolver-style scan superseded="G2x"
+### g1b-slotless-http
+control: grant ok=false superseded by D7xxxxxxxxxxxxxxxxxxxxxxxx
+D7 (ApproveChecked) answered without slot: grant ok=false could not verify the grant is current: t
+### g1d-listing-err
+control: grant ok=false superseded by G2xxxx | getTransaction G2 read: 2
+listing marks G2 failed (tx meta.err null): grant ok=true  | getTransaction G2 read: 1
+### g5-maxscans-zero
+### g3-grant-not-yet-visible
+t=   0 ms (grant visible on the seller's node from t=1500): 503 {"error":"iussum_grant_check_pending","reason":"grant_check_ (34 ms)
+t=2500 ms (grant visible on the seller's node from t=1500): 503 {"error":"iussum_grant_check_pending","reason":"grant_check_ (15 ms)
+t=6500 ms (grant visible on the seller's node from t=1500): 200 {"ok":true} (34 ms)
+settled: 1
+### g2-scan-slot-starvation
+legit payment 1 (warms the grant)            : 200
+legit payment 2 (warm, before the attack)    : 200
+attacker requests, 4 own grants with slow scans: 503,503,503,503 (1027 ms)
+legit payment 3 (warm, during the attack)    : 200  (12 ms) 
+legit payment 4 (warm, during the attack)    : 200  (13 ms) 
+legit payment 5 (warm, during the attack)    : 200  (19 ms) 
+settled in total: 5
+### p1-pacing
+1. clock back 1 h: sleeps requested before the next calls (ms): [1667,1667]  tokens now 0.0
+### p3-burst
+### p2-starve
+one single-call loop for 5 s at rate 50/s, burst 2: 250 single calls answered; the 2-element batch finished after 23 ms
+### a2-reverse-lock (142276f, this tree)
+process 1 (142276f): STARTED | then process 2 (f62ae84): REFUSED: another agent holds the data directory /var/folders/pn/5hg5nd
+process 1 (f62ae84): STARTED | then process 2 (142276f): REFUSED: another agent (pid 15964) holds the data directory /var/folde
+### g4 independent verdict_id recomputation
+mismatches: 0
+### g6-fuzz-resume seed 1
+answers 1568, failed (closed) 232, wrong 0
+### g6-fuzz-resume seed 2
+answers 1579, failed (closed) 221, wrong 0

@@ -1,0 +1,42 @@
+# test/phase19 run against ade248e (a git worktree of the Phase 1.8 HEAD, the final test files copied in): 19 tests, 16 fail, 1 hangs (counted as a failure by the mutation script and by --test-timeout), 2 pass by design: the control with transaction.signatures and the guard that a self-disagreeing node is not read on every scan
+✖ O1 a restart after -32020 keeps the superseders the scan had already read: a lagging node cannot turn them into "not superseded" (r5)
+✖ O1 the carried superseder survives a restarted scan that is cut short again
+✖ O2 a stored state whose found entry has no usable slot is treated as absent: the scan restarts from the grant and finds the real superseder (r4)
+✖ O3 aborting cfg.signal after the start does not stop the agent: it covers the START only (r1, r1b)
+✖ O5 the pending memo of an unseen grant is never longer than the Retry-After the gate sends, so the agent's retries see the grant once the node has it (r6)
+✖ O6 close({ timeoutMs }) takes an integer from 0 to 2147483647 or Infinity; anything else is rejected at the call and the agent is not closed (r7)
+✖ O7 a close() during the grant check surfaces the agent_closed refusal, not "Failed to create payment payload: closed or abandoned"
+✖ O4a the bucket serves normal waiters before bulk ones, and bulk ones still get one grant in four
+✖ O4a legitimate warm payments settle during four cold scans on accounts of the attacker's own, through ONE paced bucket (r2)
+✖ O4b a warm check whose listing shows nothing new takes no lane slot, even when the warm lane is held by slow scans of other accounts (r3)
+✖ O4b one warm scan per source account: two questions about one grant (a gate and a resolver) scan one after the other
+✖ O4b a warm scan reads one page; a full page gives the warm slot back and the rest runs in the cold lane
+✖ O4b with the warm lane held by slow scans, a warm check that finds something new waits for a slot only up to its budget and a check with nothing new is answered at once
+✖ O7 a transaction re-orged into another slot is read again: the cache entry whose slot disagrees with the listing is evicted
+✔ O7 a node whose transactions disagree with its own listing is read again once, not on every scan (r4b)
+✔ O7 a restart counts each settled payment once (with transaction.signatures)
+✖ O7 a restart counts each settled payment once (without transaction.signatures)
+✖ O7 two spellings of one data directory are one directory: closing one agent does not remove the agent.lock of the other
+✖ O7 a node that keeps forgetting the cursor cannot make every payment re-read the whole history: restarts are capped per grant per hour and fail closed (busy)
+ℹ tests 19
+ℹ pass 2
+ℹ fail 16
+ℹ cancelled 1
+✖ failing tests:
+✖ O1 a restart after -32020 keeps the superseders the scan had already read: a lagging node cannot turn them into "not superseded" (r5)
+✖ O1 the carried superseder survives a restarted scan that is cut short again
+✖ O2 a stored state whose found entry has no usable slot is treated as absent: the scan restarts from the grant and finds the real superseder (r4)
+✖ O3 aborting cfg.signal after the start does not stop the agent: it covers the START only (r1, r1b)
+✖ O5 the pending memo of an unseen grant is never longer than the Retry-After the gate sends, so the agent's retries see the grant once the node has it (r6)
+✖ O6 close({ timeoutMs }) takes an integer from 0 to 2147483647 or Infinity; anything else is rejected at the call and the agent is not closed (r7)
+✖ O7 a close() during the grant check surfaces the agent_closed refusal, not "Failed to create payment payload: closed or abandoned"
+✖ O4a the bucket serves normal waiters before bulk ones, and bulk ones still get one grant in four
+✖ O4a legitimate warm payments settle during four cold scans on accounts of the attacker's own, through ONE paced bucket (r2)
+✖ O4b a warm check whose listing shows nothing new takes no lane slot, even when the warm lane is held by slow scans of other accounts (r3)
+✖ O4b one warm scan per source account: two questions about one grant (a gate and a resolver) scan one after the other
+✖ O4b a warm scan reads one page; a full page gives the warm slot back and the rest runs in the cold lane
+✖ O4b with the warm lane held by slow scans, a warm check that finds something new waits for a slot only up to its budget and a check with nothing new is answered at once
+✖ O7 a transaction re-orged into another slot is read again: the cache entry whose slot disagrees with the listing is evicted
+✖ O7 a restart counts each settled payment once (without transaction.signatures)
+✖ O7 two spellings of one data directory are one directory: closing one agent does not remove the agent.lock of the other
+✖ O7 a node that keeps forgetting the cursor cannot make every payment re-read the whole history: restarts are capped per grant per hour and fail closed (busy)

@@ -1,0 +1,59 @@
+### r1-signal-after-start
+payment 1, signal not aborted      : status 200
+payment 2, after the signal fired  : status 200
+payment 3                          : status 200
+settled in total: 3
+### r1b-timeout-signal
+start took 10 ms
+payment at ~0 s  : status 200
+payment at ~2 s  : status 200
+### r2-lanes-share-bucket
+rate 5/s burst 2, budget 2000 ms
+legit payment 1 (cold, warms the grant)        : 200 (252 ms)
+legit payment 2 (warm, no attack)              : 200 (395 ms)
+legit payment 3 (warm, during the attack)     : 200 (1851 ms)
+legit payment 4 (warm, during the attack)     : 200 (904 ms)
+legit payment 5 (warm, during the attack)     : 200 (1102 ms)
+attacker requests                              : 503 Retry-After 1 (2018 ms) | 503 Retry-After 1 (2017 ms) | 503 Retry-After 1 (2018 ms) | 503 Retry-After 1 (2018 ms)
+settled in total: 5 | http requests to the node: 28
+### r3-warm-lane-taken
+legit payment 1 (warms the grant)          : 200 (39 ms)
+attacker warm-up (its two grants scanned)  : 200 (18 ms) | 200 (18 ms)
+legit payment 2 (warm, during the attack): 200 (7 ms)
+legit payment 3 (warm, during the attack): 200 (17 ms)
+legit payment 4 (warm, during the attack): 200 (14 ms)
+attacker requests                          : 503 Retry-After 1 (1012 ms) | 503 Retry-After 1 (1013 ms)
+settled in total: 6
+### r4-stored-found-slotless
+call 1: superseded = REVOKExx slot 1200
+         stored state after: partial.found = null superseded = 1200
+call 2: superseded = REVOKExx slot 1200
+         stored state after: partial.found = null superseded = 1200
+call 3: superseded = REVOKExx slot 1200
+         stored state after: partial.found = null superseded = 1200
+### r5-reset-drops-found
+call 1: THREW getSignaturesForAddress: rpc http 503
+        stored partial.found: [{"sig":"REVOKE","slot":1300}]
+call 2: superseded by REVOKE at slot 1300
+        stored state: {"since":"P050xx","superseded":{"sig":"REVOKExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","tx_sig":"REVOKExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","slot":1300},"completed":true,"found":null}
+### r6-pending-memo-outlives-retry
+Retry-After 1 s, grant visible on the seller's node from t=300 ms: agent got 200 {"ok":true} after 1061 ms | grant reads by the gate: 2 | settled: 1
+### r7-close-timeout-unbounded
+close({ timeoutMs: Infinity }) -> resolved after 1014 ms; payment -> 200
+close({ timeoutMs: 2147483648 }) -> rejected: close({ timeoutMs }): timeoutMs must be  after 0 ms; payment -> 200
+close({ timeoutMs: 2592000000 }) -> rejected: close({ timeoutMs }): timeoutMs must be  after 0 ms; payment -> 200
+close({ timeoutMs: NaN }) -> rejected: close({ timeoutMs }): timeoutMs must be  after 0 ms; payment -> 200
+close({ timeoutMs: 5000 }) -> resolved after 1011 ms; payment -> 200
+### r6 with retryAfterSeconds 2
+Retry-After 2 s, grant visible on the seller's node from t=300 ms: agent got 200 {"ok":true} after 2077 ms | grant reads by the gate: 2 | settled: 1
+### r6 with retryAfterSeconds 5
+Retry-After 5 s, grant visible on the seller's node from t=300 ms: agent got 200 {"ok":true} after 5081 ms | grant reads by the gate: 2 | settled: 1
+### r2 with rate 200 burst 50
+rate 200/s burst 50, budget 2000 ms
+legit payment 1 (cold, warms the grant)        : 200 (56 ms)
+legit payment 2 (warm, no attack)              : 200 (12 ms)
+legit payment 3 (warm, during the attack)     : 200 (35 ms)
+legit payment 4 (warm, during the attack)     : 200 (268 ms)
+legit payment 5 (warm, during the attack)     : 200 (264 ms)
+attacker requests                              : 503 Retry-After 1 (2020 ms) | 503 Retry-After 1 (2019 ms) | 503 Retry-After 1 (2020 ms) | 503 Retry-After 1 (2024 ms)
+settled in total: 5 | http requests to the node: 46
