@@ -5,7 +5,7 @@
 //   IUSSUM_MODE=enforce  : run every check; a violation answers 403 {error:"iussum_out_of_scope", reason, delta} and nothing settles
 // After settlement the receipt (seller-signed, carrying mandate_id and grant_tx) goes back in the X-IUSSUM-RECEIPT header.
 import { createGrantChecker, scopeViolations, validateMandate, mandateId, signReceipt, receiptKey, offerHash, encodeReceipt, R, fails, registerCheck, isMutated } from '@iussum/core';
-import { decodePayment, readPaymentHeader } from './decode.js';
+import { decodePayment, readPaymentHeader, PaymentHeaderError } from './decode.js';
 import { openReceiptStore } from './receipt-store.js';
 
 export const SELLER_CHECKS = ['seller.enforce', 'seller.observe_passes', 'seller.off_skips', 'seller.require_mandate', 'seller.receipt_issued', 'seller.receipt_binds_mandate', 'seller.mandate_invalid', 'seller.payment_unreadable', 'seller.payment_source', 'seller.origin_required', 'seller.resource_from_origin', 'seller.one_receipt_per_tx', 'seller.store_receipts', 'seller.no_receipt_on_failed_write', 'seller.grant_budget', 'seller.grant_budget_observe', 'seller.pending_scope', 'seller.pending_memo_bounded'].map(registerCheck);
@@ -73,7 +73,9 @@ export function createSellerGate(cfg) {
     try {
       const eff = mode === 'off' && isMutated('seller.off_skips') ? 'enforce' : mode; // mutation: off behaves like enforce
       if (eff === 'off') return next();
-      const payload = readPaymentHeader(req);
+      let payload;
+      // a payment header that is present but cannot be decoded is refused, never passed to x402 unchecked (Addendum P, P4)
+      try { payload = readPaymentHeader(req); } catch (e) { if (!(e instanceof PaymentHeaderError)) throw e; log({ mode: eff, refuse: true, reason: 'payment_header_undecodable' }); return res.status(400).json({ error: 'iussum_payment_header_undecodable', reason: 'payment_header_undecodable', detail: e.message }); }
       if (!payload) return next(); // no payment yet: x402 issues the 402 challenge
       const ev = await evaluate(req, payload);
       if (ev.pending) {
