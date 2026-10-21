@@ -2,7 +2,7 @@
 import { TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
 import { fails, registerCheck } from './guard.js';
 
-export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain.self_transfer', 'chain.missing_balance_zero', 'rpc.cache_bound', 'rpc.batch', 'history.min_context', 'rpc.pace', 'rpc.pace_halve', 'rpc.batch_burst', 'rpc.option_bounds', 'rpc.clock_clamp', 'rpc.batch_json_limit', 'rpc.floor_cap', 'rpc.pace_fifo', 'rpc.pace_priority', 'history.reorg_evict'].map(registerCheck);
+export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain.self_transfer', 'chain.missing_balance_zero', 'rpc.cache_bound', 'rpc.batch', 'history.min_context', 'rpc.pace', 'rpc.pace_halve', 'rpc.batch_burst', 'rpc.option_bounds', 'rpc.clock_clamp', 'rpc.batch_json_limit', 'rpc.floor_cap', 'rpc.pace_fifo', 'rpc.pace_priority', 'history.reorg_evict', 'history.reorg_known'].map(registerCheck);
 
 // What the public endpoints allow, measured from a Mac in Node on 2026-10-20 (docs/phase17/limiter-probe.txt): about 10 getTransaction calls per 10 s window (a burst of
 // 10 is answered, the 11th is rejected; 1.0/s is answered, 1.25/s is not), a batch element counts like a call, and a block lasts about 18 s after the first rejection.
@@ -89,6 +89,7 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000,
     url, call,
     // drop a cached transaction: a re-orged transaction keeps its signature and changes its slot (Addendum O, O7)
     forget(sig) { txCache.delete(sig); },
+    cached(sig) { return txCache.has(sig); },
     pacing: () => ({ rate: bucket.rate, maxRate, burst: capacity, tokens: bucket.tokens }),
     async getTransaction(sig, opts = {}) {
       if (txCache.has(sig)) { const v = txCache.get(sig); txCache.delete(sig); txCache.set(sig, v); return v; }
@@ -235,15 +236,25 @@ export function reconcileAccount(payment, account) {
 // returned as null (the callers fail closed on it), an errored one throws. minContextSlot makes every request ask a node that has reached that slot.
 // The transactions of listing entries, each read against the slot the listing gives it. A confirmed transaction that was re-orged into another slot keeps its signature, so a
 // cached copy can carry the old slot for ever; an entry whose slot disagrees with the listing is evicted and read again (Addendum O, O7).
+const disagreements = new WeakMap(); // rpc -> signatures whose slot the node gives differently from its own listing, however often it is asked
 export async function readListed(rpc, entries, o = {}) {
+  const wasCached = rpc.cached ? entries.map((e) => rpc.cached(e.signature)) : [];
   const txs = await readTransactions(rpc, entries.map((e) => e.signature), o);
   if (!rpc.forget || !fails('history.reorg_evict', true)) return txs;
+  const known = disagreements.get(rpc) ?? disagreements.set(rpc, new Set()).get(rpc);
+  const differs = (e, t) => Number.isSafeInteger(e.slot) && Number.isSafeInteger(t?.slot) && t.slot !== e.slot;
+  // only a copy that came from the cache can be stale: a transaction the node has just answered is the node's word. A node whose answer stays different from its listing is a
+  // node that disagrees with itself, not a stale cache: it is read again once and then left alone, so it cannot double the cost of every scan
   const stale = [];
-  entries.forEach((e, k) => { if (Number.isSafeInteger(e.slot) && Number.isSafeInteger(txs[k]?.slot) && txs[k].slot !== e.slot) stale.push(k); });
+  entries.forEach((e, k) => {
+    if (!differs(e, txs[k])) return;
+    if (wasCached[k] && !(fails('history.reorg_known', true) && known.has(e.signature))) stale.push(k); else known.add(e.signature);
+  });
+  while (known.size > 5000) known.delete(known.values().next().value);
   if (!stale.length) return txs;
   for (const k of stale) rpc.forget(entries[k].signature);
   const again = await readTransactions(rpc, stale.map((k) => entries[k].signature), o);
-  stale.forEach((k, i) => { txs[k] = again[i]; });
+  stale.forEach((k, i) => { txs[k] = again[i]; if (differs(entries[k], again[i])) known.add(entries[k].signature); });
   return txs;
 }
 export async function readTransactions(rpc, sigs, { minContextSlot = null, priority } = {}) {

@@ -44,6 +44,19 @@ test('O7 a transaction re-orged into another slot is read again: the cache entry
   assert.equal(again.sig, R); assert.equal(again.slot, 1350, 'the re-read transaction, not the cached one');
 });
 
+test('O7 a node whose transactions disagree with its own listing is read again once, not on every scan (r4b)', async () => {
+  const m = mandate(); const sim = chainSim();
+  const G = sim.add('GRANT', grantAt(m, 1000));
+  for (let i = 0; i < 60; i++) sim.add(`P${String(i).padStart(3, '0')}`, payAt(1100 + i));
+  sim.setAccount(SRC, live(m));
+  const raw = sim.getSignaturesForAddress.bind(sim);
+  sim.getSignaturesForAddress = async (addr, o = {}) => (await raw(addr, o)).map((x) => ({ ...x, slot: x.slot + 1 })); // the listing is always one slot off
+  const n = nodeOver(sim);
+  const rpc = makeRpc('https://rpc.example.com', { fetchImpl: n.fetchImpl, rate: 1000, burst: 100 });
+  for (let i = 0; i < 4; i++) await createGrantChecker(rpc).supersededBy(SRC, G); // four scans of the same history, each from a new state
+  assert.ok(n.requests.tx <= 60 * 2 + 5, `${n.requests.tx} transaction requests for 4 scans of 60 transactions: read once, once more, then left alone`);
+});
+
 // ---- a node that answers jsonParsed without transaction.signatures
 const bh = '11111111111111111111111111111111';
 for (const variant of ['with transaction.signatures', 'without transaction.signatures']) {

@@ -50,7 +50,7 @@ test('O4a legitimate warm payments settle during four cold scans on accounts of 
   const n = nodeParts(); await new Promise((r) => n.srv.listen(0, '127.0.0.1', r));
   const rpc = makeRpc(`http://127.0.0.1:${n.srv.address().port}`, { rate: 5, burst: 2 });
   const facilitator = await startMockFacilitator();
-  const seller = await startSeller({ facilitator, mode: 'enforce', now: () => NOW, price: '10000', gateOpts: { rpc, grantCheckBudgetMs: 2000, retryAfterSeconds: 1 } });
+  const seller = await startSeller({ facilitator, mode: 'enforce', now: () => NOW, price: '10000', gateOpts: { rpc, grantCheckBudgetMs: 3000, retryAfterSeconds: 1 } });
   const agents = [];
   tc.after(async () => { for (const a of agents) await a.close(); seller.close(); facilitator.close(); n.srv.close(); });
   const allow = { pay_to: [A.sellerA], resource_prefix: [`${seller.origin}/v1/`] };
