@@ -1,0 +1,37 @@
+✖ N1 a seller that reports one transaction signature for every settle cannot lift the period budget (a6-dup-settle-sig)
+✖ N1 a restart does not collapse settled payments that the seller reported with one signature (restoreReservations)
+✖ N1 a landed payload is not mistaken for a payment already counted because a seller once reported its signature (settleHeld)
+✖ N2 core: a superseder answered without slot makes the check fail closed, with or without a well-formed superseder next to it (g1, g1b)
+✖ N2 core: the slot must equal the listing entry's slot when the listing has one, and a stored found list with a slot that is not a safe integer cannot reach NaN
+✖ N2 real gate: nothing settles under a mandate whose superseder was answered without slot (g1e)
+✖ N2 resolver: no final verdict is stored for a payment after a slotless superseder (g1c)
+✖ N3 one cold scan per source account: three grants of one account scan one after the other
+✔ N3 different accounts still scan in parallel, up to the cap
+✖ N3 a warm grant's incremental check is answered at once while cold scans hold every cold slot
+✔ N3 a cold check for an account with no completed state keeps the cap and the queue: full queue answers busy
+✖ N3 real gate (g2): legitimate warm payments settle during an attack with four grants on slow accounts
+✖ N4 close() while a paid request is in flight: the settled response is returned and the consumed entry is on disk (a1-close-paid-lost)
+✖ N6 a signal already aborted: createAgent rejects and the lock is not leaked (a3-signal-early)
+✖ N6 a aborted while the start is still before the lock: createAgent rejects and the lock is not leaked (a3-signal-early)
+✖ N6 a aborted in the same tick as the call: createAgent rejects and the lock is not leaked (a3-signal-early)
+✖ N6 an abandoned start makes no more chain calls once it is aborted (a5-abandoned-keeps-reading)
+✖ N6 rollback: while a new agent holds a directory, a 142276f agent that starts afterwards is refused by agent.lock; the file goes away on close (a2-reverse-lock)
+✖ N6 rollback: the legacy check ignores a lock file that names a live NEW-format holder, and a stale new-format file is replaced
+✖ N6 close({ timeoutMs }) rejects when a payment is still in flight and KEEPS the lock; without a timeout close() still waits (a4-close-hang)
+✖ N5 (a) a grant the seller's node does not show yet is answered 503 + Retry-After (pending), never 403, memoised as pending, and settles once it shows (g3)
+✖ N5 (b) maxConcurrentScans must be an integer >= 1 and maxQueuedScans an integer >= 0, in the gate and in the checker (g5)
+✖ N5 (c) a stored since or cursor that the node no longer knows (-32020) restarts that grant's scan from the grant instead of failing for ever
+✖ N7 a wall clock that steps back one hour does not stall the next call for an hour (and the default clock is monotonic)
+✔ N7 a whole batch refused via http429 empties the bucket and halves the rate
+✖ N7 a whole batch refused via json200 empties the bucket and halves the rate
+✖ N7 a bad rate or burst is refused at makeRpc: rate finite and > 0, burst finite and >= 1
+✔ N7 burst 1 paces 1/s exactly: 20 calls at rate 1 take 19 s
+✖ N7 a configured rate below the floor is never raised by a 429
+✔ N7 (p2-starve) the bucket serves its waiters in order: a batch that needs 2 tokens is not starved by a loop of single calls
+✔ verdict_id is recomputed from the response alone by an independent Python implementation: mismatches 0
+ℹ tests 31
+ℹ pass 6
+ℹ fail 25
+ℹ cancelled 0
+ℹ skipped 0
+✖ failing tests:

@@ -6,22 +6,22 @@ Everything runs on **devnet** (no mainnet transaction was made). Node 24 or newe
 
 ```bash
 npm ci
-npm test            # expect: ℹ tests 440  ℹ pass 440  ℹ fail 0  ℹ skipped 0
+npm test            # expect: ℹ tests 471  ℹ pass 471  ℹ fail 0  ℹ skipped 0
 ```
 
 `skipped 0` matters: a suite that skips its real tests also prints no failures.
 
-## 2. Every check is load-bearing (about 1 hour 50 minutes: the suite runs once per check)
+## 2. Every check is load-bearing (about 2 hours: the suite runs once per check)
 
 ```bash
-npm run mutation    # expect: baseline: 440 tests, 440 pass, 0 fail ... checks mutated: 157, survived: 0   (exit code 0)
+npm run mutation    # expect: baseline: 471 tests, 471 pass, 0 fail ... checks mutated: 174, survived: 0   (exit code 0)
 ```
 
 It skips one check at a time and requires some test to fail. A line starting `SURVIVED` would be a vacuous check. The table is in `TESTS.md`.
 
 ## 3. The devnet transactions (3 minutes, browser only)
 
-The five clean Phase 1.7 demo runs (scenarios 1 to 16 and 16b, 97, 98, 97, 97 and 97 checks, 205 signatures all checked with `getSignatureStatuses`) are in `demo-runs-1.7/` (`signatures.md`; the five scenario 16b transactions are there as "failed-on-chain (expected)"). The five clean Phase 1.2 demo runs are in `demo-runs-1.2/run-1.txt` to `run-5.txt` (each ends `61/61 checks passed`, exit code 0). `demo-runs-1.2/signatures.md` lists all 160 signatures the runs printed, each checked with `getSignatureStatuses` (all finalized). The runs before the review fixes are kept: `demo-runs/` (Phase 1) and `demo-runs-1.1/` (Phase 1.1); the two Phase 1.2 attempts that were not clean are kept in `demo-runs-1.2-attempt1/` and `demo-runs-1.2-attempt2/` (see `REPORT-phase1.2.md` for why). The newest five clean runs (Phase 1.4, 63/63 checks each, 160 signatures, all finalized) are in `demo-runs-1.4/`. The links below are from the Phase 1.1 run 1 (scenarios 1 to 10) and Phase 1.2 run 1 (scenarios 11 to 13), one link per claim:
+The five clean Phase 1.8 demo runs (scenarios 1 to 16 and 16b, 97, 97, 97, 98 and 97 checks, 205 signatures, all checked) are in `demo-runs-1.8/`. The five clean Phase 1.7 demo runs (scenarios 1 to 16 and 16b, 97, 98, 97, 97 and 97 checks, 205 signatures all checked with `getSignatureStatuses`) are in `demo-runs-1.7/` (`signatures.md`; the five scenario 16b transactions are there as "failed-on-chain (expected)"). The five clean Phase 1.2 demo runs are in `demo-runs-1.2/run-1.txt` to `run-5.txt` (each ends `61/61 checks passed`, exit code 0). `demo-runs-1.2/signatures.md` lists all 160 signatures the runs printed, each checked with `getSignatureStatuses` (all finalized). The runs before the review fixes are kept: `demo-runs/` (Phase 1) and `demo-runs-1.1/` (Phase 1.1); the two Phase 1.2 attempts that were not clean are kept in `demo-runs-1.2-attempt1/` and `demo-runs-1.2-attempt2/` (see `REPORT-phase1.2.md` for why). The newest five clean runs (Phase 1.4, 63/63 checks each, 160 signatures, all finalized) are in `demo-runs-1.4/`. The links below are from the Phase 1.1 run 1 (scenarios 1 to 10) and Phase 1.2 run 1 (scenarios 11 to 13), one link per claim:
 
 | claim | what to look at | link |
 |---|---|---|

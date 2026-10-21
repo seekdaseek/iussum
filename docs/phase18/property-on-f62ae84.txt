@@ -1,0 +1,9 @@
+# the same test file on the f62ae84 code (the N1 generator must make it red)
+✔ property I1: 600 random histories, every dispute gets the model's verdict on a readable chain (seeds 1..600)
+✔ property I2: RPC faults give the model's verdict or no verdict, never a different decided verdict (600 histories)
+✔ property I3: at most one refund per payment, and only on a seller-liable verdict (200 histories)
+✖ property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds)
+✔ property I5: a facilitator that reports success twice for one transaction does not make an honest seller sign two receipts (20 seeds)
+✔ property I6: a seller gate whose grant check is cold answers 503 with Retry-After, the agent retries with the SAME payload, nothing is lost or doubled (12 seeds)
+ℹ tests 6
+ℹ pass 5
