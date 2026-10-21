@@ -14,7 +14,7 @@ import { fillBlockIndices, comparePositions, readTransactions } from './chain.js
 
 export const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export const MEMO_V2 = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
-export const GRANT_CHECKS = ['grant.tx_err', 'grant.scan_resume_top', 'grant.scan_wellformed', 'grant.scan_slot', 'grant.scan_found_slot', 'grant.scan_state_tolerant', 'grant.scan_cap', 'grant.warm_lane', 'grant.source_serial', 'grant.scan_options', 'grant.not_found_pending', 'grant.reset_keeps_found', 'grant.stored_found_wellformed', 'grant.scan_reset_unknown', 'grant.scan_first', 'grant.cache_bound', 'grant.mismatch_uncached', 'grant.not_found_cached', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.superseded_inner', 'grant.scan_failed', 'grant.scan_unreadable', 'grant.superseded_position', 'grant.coalesce_scans', 'grant.scan_store'].map(registerCheck);
+export const GRANT_CHECKS = ['grant.tx_err', 'grant.scan_resume_top', 'grant.scan_wellformed', 'grant.scan_slot', 'grant.scan_found_slot', 'grant.scan_state_tolerant', 'grant.scan_cap', 'grant.warm_lane', 'grant.source_serial', 'grant.scan_options', 'grant.not_found_pending', 'grant.reset_keeps_found', 'grant.stored_found_wellformed', 'grant.scan_reset_unknown', 'grant.scan_first', 'grant.cache_bound', 'grant.mismatch_uncached', 'grant.not_found_cached', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.superseded_inner', 'grant.scan_failed', 'grant.scan_unreadable', 'grant.superseded_position', 'grant.coalesce_scans', 'grant.scan_store', 'grant.warm_probe', 'grant.warm_one_page', 'grant.warm_source_serial', 'grant.bulk_reads'].map(registerCheck);
 
 export async function principalAta(principal, asset) {
   const [ata] = await findAssociatedTokenPda({ mint: asset, owner: principal, tokenProgram: TOKEN_PROGRAM_ADDRESS });
@@ -83,7 +83,7 @@ export function supersedes(tx, source) {
 // a superseder the scan has read and placed: a signature and a safe-integer slot. Anything else in a stored or resumed `found` is not a finding (Addendum O, O2)
 const wellFormedFound = (f) => Boolean(f) && typeof f === 'object' && typeof f.sig === 'string' && Number.isSafeInteger(f.slot);
 const dedupeFound = (list) => { const seen = new Set(); return list.filter((f) => !seen.has(f.sig) && seen.add(f.sig)); };
-export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPages = 1000, resume = null, onProgress = null, stopAtFirst = false, carry = [] } = {}) {
+export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPages = 1000, resume = null, onProgress = null, stopAtFirst = false, carry = [], pageBudget = 0, listPriority } = {}) {
   // resumable (Addendum I, J1): `resume` = { cursor, newest, found } is the state after the last page that was read completely; onProgress(state) is called after each
   // such page, so a scan that was cut short (a request that ran out of time budget, an RPC error) continues where it stopped instead of starting over
   let before = resume?.cursor, newest = resume?.newest ?? null;
@@ -91,10 +91,10 @@ export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPag
   const found = dedupeFound([...(resume?.found ?? []), ...carry]);
   for (let pages = 0; ; pages++) {
     if (pages >= maxPages) throw new Error('too many pages to scan');
-    const page = await rpc.getSignaturesForAddress(source, { until: since, ...(before ? { before } : {}), limit: pageSize });
+    const page = await rpc.getSignaturesForAddress(source, { until: since, ...(before ? { before } : {}), limit: pageSize, ...(listPriority ? { priority: listPriority } : {}) });
     if (newest === null && pages === 0 && !resume && page.length) newest = page[0].signature;
     const listed = page.filter((e) => !e.err);
-    const txs = await readTransactions(rpc, listed.map((e) => e.signature));
+    const txs = await readTransactions(rpc, listed.map((e) => e.signature), { priority: fails('grant.bulk_reads', true) ? 'bulk' : undefined }); // a scan's reads are bulk: they never delay a check's own reads (Addendum O, O4 a)
     listed.forEach((e, k) => {
       if (fails('grant.scan_unreadable', !txs[k])) throw new Error(`transaction ${e.signature} could not be read`);
       // the bar parsePayment uses: a jsonParsed transaction (an instruction array) with meta; anything else (an empty object, a base64 transaction) is unreadable
@@ -110,7 +110,10 @@ export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPag
     if (page.length < pageSize) break;
     // an ACTIVE question (is this grant still current?) is answered by the first superseding signature there is; the resolver asks for the earliest and reads on
     if (stopAtFirst && found.length) break;
-    onProgress?.({ cursor: before, newest, found: [...found] });
+    const partial = { cursor: before, newest, found: [...found] };
+    onProgress?.(partial);
+    // a WARM scan reads one page; a full page means more history follows, and the rest is the cold lane's work (Addendum O, O4 b)
+    if (pageBudget && pages + 1 >= pageBudget) return { newest, superseded: null, more: partial };
   }
   let earliest = null;
   if (found.length) {
@@ -142,9 +145,9 @@ export function createGrantChecker(rpc, { scanStore = null, maxScans = 4, maxQue
   // cold scan per source account runs at a time, so one account's grants cannot take every slot; up to `maxQueuedScans` wait, beyond that the check answers busy. A WARM
   // scan (from a completed state: it reads only what is new) has its own `maxWarmScans` slots and never queues behind cold ones, so an attacker's slow scans on accounts of
   // its own cannot turn legitimate, already-warm payments into 503.
-  const lane = (cap) => ({ cap, running: 0, waiting: [] });
+  // Each lane runs at most one scan per source account (Addendum O, O4 b: a warm lane that anyone's grants could fill is no reserve).
+  const lane = (cap) => ({ cap, running: 0, waiting: [], srcActive: new Set(), srcWaiting: new Map() });
   const cold = lane(maxScans), warmLane = lane(maxWarmScans);
-  const srcActive = new Set(), srcWaiting = new Map();
   let queued = 0;
   const busy = () => Object.assign(new Error('too many supersession scans are running'), { busy: true });
   async function takeLane(l) {
@@ -155,7 +158,8 @@ export function createGrantChecker(rpc, { scanStore = null, maxScans = 4, maxQue
   const freeLane = (l) => { const next = l.waiting.shift(); if (next) next(); else l.running--; };
   async function withSlot(source, warm, fn) {
     const l = warm && fails('grant.warm_lane', true) ? warmLane : cold;
-    const serial = l === cold && fails('grant.source_serial', true);
+    const serial = l === cold ? fails('grant.source_serial', true) : fails('grant.warm_source_serial', true);
+    const { srcActive, srcWaiting } = l;
     if (serial) {
       if (srcActive.has(source)) {
         if (queued >= maxQueuedScans) throw busy();
@@ -193,14 +197,26 @@ export function createGrantChecker(rpc, { scanStore = null, maxScans = 4, maxQue
     for (;;) {
       if (st.superseded) return st.superseded;
       const resumed = Boolean(st.partial), since = st.since;
+      const warm = Boolean(st.completed && !st.partial) && fails('grant.warm_lane', true);
       let r;
-      try { r = await withSlot(source, Boolean(st.completed && !st.partial), () => scanSupersede(rpc, source, since, { resume: st.partial ?? null, stopAtFirst: stop, carry: st.carry ?? [], onProgress: (partial) => { const cur = { since, superseded: null, partial }; scans.set(k, cur); scanStore?.put(k, cur); } })); }
-      catch (e) {
+      try {
+        // A warm check first asks the node for ONE signature newer than the last scan, outside every lane: when nothing is newer the answer is the stored one and no lane slot
+        // is taken, so a lane that other people's grants hold cannot delay a check that has nothing to read (Addendum O, O4 b)
+        if (warm && fails('grant.warm_probe', true)) {
+          const probe = await rpc.getSignaturesForAddress(source, { until: since, limit: 1 });
+          if (!probe.length) return st.superseded;
+        }
+        const oneWarmPage = warm && fails('grant.warm_one_page', true);
+        r = await withSlot(source, warm, () => scanSupersede(rpc, source, since, { resume: st.partial ?? null, stopAtFirst: stop, carry: st.carry ?? [], pageBudget: oneWarmPage ? 1 : 0, listPriority: warm ? undefined : 'bulk', onProgress: (partial) => { const cur = { since, superseded: null, partial }; scans.set(k, cur); scanStore?.put(k, cur); } }));
+      } catch (e) {
         // a stored since or cursor that the node no longer knows (the public node answers -32020 "Transaction ... not found") would fail every scan of this grant for ever: restart
         // that grant's scan from the grant. It reads more, never less, and it happens once per call (a node that does not know the grant itself still fails closed).
+        // A superseder the scan had read is carried into the restart: a node that lags must not turn "found" into "not superseded" (Addendum O, O1).
         if (!resetOnce && /Transaction \S+ not found/i.test(e.message) && (st.partial || st.since !== grantTx) && fails('grant.scan_reset_unknown', true)) { resetOnce = true; { const keep = fails('grant.reset_keeps_found', true) ? dedupeFound([...(st.partial?.found ?? []), ...(st.carry ?? [])].filter(wellFormedFound)) : []; st = { since: grantTx, superseded: null, ...(keep.length ? { carry: keep } : {}) }; } scans.delete(k); scanStore?.put(k, st); continue; }
         throw e;
       }
+      // the warm page was full: the rest of the history is read by the cold lane, serialised per account, and the warm slot is free
+      if (r.more) { st = { since, superseded: null, partial: r.more }; continue; }
       st = { since: r.newest ?? since, superseded: r.superseded, completed: true };
       scans.delete(k); scans.set(k, st); if (scans.size > SCANS_MAX) scans.delete(scans.keys().next().value); scanStore?.put(k, st);
       // a resumed scan read the history only down from the top of the scan it resumed, never above it: read what landed after that top before answering (Addendum M, M1)
@@ -218,7 +234,7 @@ export function createGrantChecker(rpc, { scanStore = null, maxScans = 4, maxQue
   };
   return {
     supersededBy: supersededOnce,
-    stats: () => ({ grants: cache.size, notFound: notFound.size, scans: scans.size, runningScans: cold.running + warmLane.running, queuedScans: queued }),
+    stats: () => ({ grants: cache.size, notFound: notFound.size, scans: scans.size, runningScans: cold.running + warmLane.running, warmRunning: warmLane.running, coldRunning: cold.running, queuedScans: queued }),
     async check(mandate, grantTx, { active = true } = {}) {
       if (typeof grantTx !== 'string' || grantTx.length < 80) return bad(R.grant_not_found, 'no grant_tx');
       const key = `${grantTx}:${mandateId(mandate)}`;

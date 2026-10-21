@@ -2,7 +2,7 @@
 import { TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
 import { fails, registerCheck } from './guard.js';
 
-export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain.self_transfer', 'chain.missing_balance_zero', 'rpc.cache_bound', 'rpc.batch', 'history.min_context', 'rpc.pace', 'rpc.pace_halve', 'rpc.batch_burst', 'rpc.option_bounds', 'rpc.clock_clamp', 'rpc.batch_json_limit', 'rpc.floor_cap', 'rpc.pace_fifo'].map(registerCheck);
+export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain.self_transfer', 'chain.missing_balance_zero', 'rpc.cache_bound', 'rpc.batch', 'history.min_context', 'rpc.pace', 'rpc.pace_halve', 'rpc.batch_burst', 'rpc.option_bounds', 'rpc.clock_clamp', 'rpc.batch_json_limit', 'rpc.floor_cap', 'rpc.pace_fifo', 'rpc.pace_priority'].map(registerCheck);
 
 // What the public endpoints allow, measured from a Mac in Node on 2026-10-20 (docs/phase17/limiter-probe.txt): about 10 getTransaction calls per 10 s window (a burst of
 // 10 is answered, the 11th is rejected; 1.0/s is answered, 1.25/s is not), a batch element counts like a call, and a block lasts about 18 s after the first rejection.
@@ -22,9 +22,32 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000,
   const maxRate = rate ?? dflt.rate, capacity = burst ?? dflt.burst, MIN_RATE = 0.05;
   const bucket = { tokens: capacity, rate: maxRate, t: now() };
   const refill = () => { const t = now(); bucket.tokens = Math.min(capacity, bucket.tokens + (Math.max(fails('rpc.clock_clamp', true) ? 0 : -Infinity, t - bucket.t) / 1000) * bucket.rate); bucket.t = t; };
-  // waiters are served in the order they came (a batch that needs 2 tokens is not starved by a loop of single calls that each need 1)
-  let tail = Promise.resolve();
-  const take = (n = 1) => { if (!fails('rpc.pace_fifo', true)) return takeNow(n); const run = tail.then(() => takeNow(n)); tail = run.catch(() => {}); return run; };
+  // Two classes of waiter (Addendum O, O4 a). A NORMAL waiter (a grant or account read, a check's listing probe) is served before a BULK one (the reads of a supersession scan:
+  // pages of transactions, a cold scan's listing pages); when both wait, a bulk waiter still gets one grant in BULK_EVERY, so a scan is slowed, never starved. Inside a class the
+  // order is the order they came (a batch that needs 2 tokens is not starved by a loop of single calls that each need 1).
+  const BULK_EVERY = 4;
+  const queues = { normal: [], bulk: [] };
+  let pumping = false, sinceBulk = 0;
+  async function pump() {
+    if (pumping) return;
+    pumping = true;
+    try {
+      while (queues.normal.length || queues.bulk.length) {
+        const useBulk = queues.bulk.length && (!queues.normal.length || sinceBulk >= BULK_EVERY - 1);
+        const q = useBulk ? queues.bulk : queues.normal;
+        if (useBulk) sinceBulk = 0; else if (queues.bulk.length) sinceBulk++;
+        const w = q.shift();
+        await takeNow(w.n);
+        w.res();
+        await new Promise((r) => setImmediate(r)); // the waiter that was just served issues its request before the next one is served
+      }
+    } finally { pumping = false; }
+  }
+  const take = (n = 1, priority = 'normal') => {
+    if (!fails('rpc.pace_fifo', true)) return takeNow(n);
+    const cls = fails('rpc.pace_priority', priority === 'bulk') ? 'bulk' : 'normal';
+    return new Promise((res) => { queues[cls].push({ n, res }); pump(); });
+  };
   async function takeNow(n = 1) {
     if (!fails('rpc.pace', true)) { await sleep(1); return; } // a skipped check still yields a millisecond, so a fake clock advances and a mutated run cannot spin
     const need = Math.min(n, capacity);
@@ -41,10 +64,10 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000,
   const limited = () => { if (!fails('rpc.pace_halve', true)) return; refill(); bucket.tokens = 0; const t = now(); if (t - lastHalved >= Math.min(20_000, Math.max(1000, 8000 / bucket.rate))) { bucket.rate = Math.max(fails('rpc.floor_cap', true) ? Math.min(MIN_RATE, maxRate) : MIN_RATE, bucket.rate / 2); lastHalved = t; } };
   const answeredEls = (k = 1) => { if (bucket.rate < maxRate) bucket.rate = Math.min(maxRate, bucket.rate * 1.1 ** k); };
   const RATE_LIMITED = /rate|limit|too many|429/i;
-  async function call(method, params) {
+  async function call(method, params, { priority = 'normal' } = {}) {
     for (let attempt = 0; ; attempt++) {
       try {
-        await take(1);
+        await take(1, priority);
         const r = await fetchImpl(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method, params }) });
         if (r.status === 429 || r.status >= 500) throw Object.assign(new Error(`rpc http ${r.status}`), { retry: true, limited: r.status === 429 });
         const j = await r.json();
@@ -68,16 +91,16 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000,
     async getTransaction(sig, opts = {}) {
       if (txCache.has(sig)) { const v = txCache.get(sig); txCache.delete(sig); txCache.set(sig, v); return v; }
       const cfg = txConfig(opts);
-      let t = await call('getTransaction', [sig, cfg]);
+      let t = await call('getTransaction', [sig, cfg], { priority: opts.priority });
       // a transaction a node does not have yet is asked again a few times (the index lags); inside a request that must not cost seconds: nullRetries 0 reads once
-      for (let i = 0; i < (opts.nullRetries ?? 6) && !t; i++) { await sleep(700); t = await call('getTransaction', [sig, cfg]); }
+      for (let i = 0; i < (opts.nullRetries ?? 6) && !t; i++) { await sleep(700); t = await call('getTransaction', [sig, cfg], { priority: opts.priority }); }
       keep(sig, t);
       return t;
     },
     // Transactions in JSON-RPC batches (Addendum I, J2): an array of getTransaction requests in ONE POST, `batchSize` per batch (25), at most `concurrency`
     // batches in flight, 429 / 5xx backoff on a batch. Result i belongs to sigs[i]. A null element is retried one by one like getTransaction does (nullRetries 0
     // leaves it null) and stays null if the node still has nothing: the caller treats null as unreadable. An errored element throws: fail closed.
-    async getTransactions(sigs, { batchSize = 25, concurrency = 2, minContextSlot = null, nullRetries = 6 } = {}) {
+    async getTransactions(sigs, { batchSize = 25, concurrency = 2, minContextSlot = null, nullRetries = 6, priority = 'normal' } = {}) {
       const out = new Array(sigs.length), todo = [];
       sigs.forEach((sg, i) => { if (txCache.has(sg)) { const v = txCache.get(sg); txCache.delete(sg); txCache.set(sg, v); out[i] = v; } else todo.push(i); });
       const cfg = txConfig({ minContextSlot });
@@ -96,7 +119,7 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000,
         let pending = idx.map((_, k) => k), stall = 0, limit = pending.length, lastProgress = now();
         while (pending.length) {
           const slice = pending.slice(0, Math.min(limit, size));
-          await take(slice.length);
+          await take(slice.length, priority);
           let answered = 0, retryable = false;
           try {
             const body = slice.map((k) => ({ jsonrpc: '2.0', id: ++id, method: 'getTransaction', params: [sigs[idx[k]], cfg] }));
@@ -117,7 +140,7 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000,
             if (still.length) limited();
             if (answered) answeredEls(answered);
           } catch (e) {
-            if (e.whole && !e.retry) { for (const k of pending) results[k] = await rpcObj.getTransaction(sigs[idx[k]], { minContextSlot }); return results; } // a node that refuses batches: one by one
+            if (e.whole && !e.retry) { for (const k of pending) results[k] = await rpcObj.getTransaction(sigs[idx[k]], { minContextSlot, priority }); return results; } // a node that refuses batches: one by one
             if (e.limited) limited();
             if (!(e.retry || e.name === 'TypeError')) throw e;
             retryable = true;
@@ -131,7 +154,7 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000,
       let next = 0;
       const worker = async () => { while (next < chunks.length) { const ch = chunks[next++]; const res = await batch(ch); ch.forEach((i, k) => { out[i] = res[k]; keep(sigs[i], res[k]); }); } };
       await Promise.all(Array.from({ length: Math.min(concurrency, chunks.length) }, worker));
-      for (let i = 0; i < sigs.length; i++) if (out[i] === null && nullRetries > 0) out[i] = await rpcObj.getTransaction(sigs[i], { minContextSlot });
+      for (let i = 0; i < sigs.length; i++) if (out[i] === null && nullRetries > 0) out[i] = await rpcObj.getTransaction(sigs[i], { minContextSlot, priority });
       return out;
     },
     async getAccountInfoParsed(addr) { return (await call('getAccountInfo', [addr, { encoding: 'jsonParsed', commitment: 'confirmed' }])).value; },
@@ -147,7 +170,7 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000,
     // so that one error is retried for a few seconds. Any other error, or the same error after the retries, propagates (callers fail closed).
     async getSignaturesForAddress(addr, opts = {}) {
       for (let attempt = 0; ; attempt++) {
-        try { return await call('getSignaturesForAddress', [addr, { commitment: 'confirmed', ...opts }]); }
+        try { const { priority, ...params } = opts; return await call('getSignaturesForAddress', [addr, { commitment: 'confirmed', ...params }], { priority }); }
         catch (e) { if (attempt >= 8 || !/Transaction .* not found/i.test(e.message)) throw e; await new Promise((res) => setTimeout(res, 800)); }
       }
     },
@@ -208,11 +231,11 @@ export function reconcileAccount(payment, account) {
 
 // Read many transactions: in JSON-RPC batches when the client has them (Addendum I, J2), one by one otherwise. Result i belongs to sigs[i]; a null element is
 // returned as null (the callers fail closed on it), an errored one throws. minContextSlot makes every request ask a node that has reached that slot.
-export async function readTransactions(rpc, sigs, { minContextSlot = null } = {}) {
+export async function readTransactions(rpc, sigs, { minContextSlot = null, priority } = {}) {
   if (!sigs.length) return [];
-  if (rpc.getTransactions && fails('rpc.batch', true)) return rpc.getTransactions(sigs, { minContextSlot });
+  if (rpc.getTransactions && fails('rpc.batch', true)) return rpc.getTransactions(sigs, { minContextSlot, ...(priority ? { priority } : {}) });
   const out = [];
-  for (const sg of sigs) out.push(await rpc.getTransaction(sg, minContextSlot != null ? { minContextSlot } : undefined));
+  for (const sg of sigs) out.push(await rpc.getTransaction(sg, minContextSlot != null || priority ? { ...(minContextSlot != null ? { minContextSlot } : {}), ...(priority ? { priority } : {}) } : undefined));
   return out;
 }
 

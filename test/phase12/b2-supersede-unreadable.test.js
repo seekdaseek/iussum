@@ -60,5 +60,5 @@ test('B2 concurrent checks of one grant share one supersession scan (five concur
   assert.equal(c.calls.getSignaturesForAddress, 1, 'one scan for five concurrent checks');
   c.add('P', payAt(1100, { amount: '10000' }));
   assert.equal((await checker.check(M1, sig('G1'), { active: true })).ok, true);
-  assert.equal(c.calls.getSignaturesForAddress, 2, 'a call after the scan finished scans only what is new');
+  assert.equal(c.calls.getSignaturesForAddress, 3, 'a call after the scan finished asks for one newer signature, then scans only what is new');
 });

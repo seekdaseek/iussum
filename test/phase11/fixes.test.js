@@ -192,7 +192,9 @@ test('F1: the supersession scan is incremental: the second check only asks for s
   c.add('P2', payAt(1200));
   assert.equal((await checker.check(PM, G, { active: true })).ok, true);
   const untils = c.calls.pages.map((p) => p.until);
-  assert.deepEqual(untils, [G, sig('P1')], 'the second scan starts after the newest signature of the first');
+  // the second check asks for ONE newer signature first (the warm probe, Addendum O O4 b), then reads the page: both start after the newest signature of the first scan
+  assert.deepEqual(untils, [G, sig('P1'), sig('P1')], 'the second scan starts after the newest signature of the first');
+  assert.deepEqual(c.calls.pages.map((p) => p.limit), [100, 1, 100], 'a probe of one signature, then the page');
 });
 test('F2: agentSpendHistory pages with before until the grant is reached, and says it is complete', async () => {
   const c = chainSim(); c.add('G', grantAt(PM, 1000));
