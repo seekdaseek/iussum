@@ -2,7 +2,7 @@
 // from a refund-float wallet when the seller is liable. In production the seller would refund itself on a signed ruling; here the float
 // stands in for the seller's own refund key so the demo shows money actually moving back.
 import { resolve, verifyReceipt, parsePayment, agentSpendHistory, createGrantChecker, fillBlockIndices, validateMandate, mandateId, canonicalize, sha256Hex, verdictId, verdictRecord, periodStart, R, fails, registerCheck } from '@iussum/core';
-export const RESOLVER_SERVICE_CHECKS = ['resolver.duplicate', 'resolver.refund_seller_only', 'resolver.refund_retry', 'resolver.refund_pending_guard', 'resolver.refund_decimals', 'resolver.provisional', 'resolver.provisional_needs_receipt', 'resolver.replace_binds_mandate', 'resolver.history_to_grant', 'resolver.equivocation', 'resolver.checkpoint', 'resolver.verdict_id_kept', 'resolver.record_out', 'resolver.eq_grant_stored', 'resolver.cas'].map(registerCheck);
+export const RESOLVER_SERVICE_CHECKS = ['resolver.duplicate', 'resolver.refund_seller_only', 'resolver.refund_retry', 'resolver.refund_pending_guard', 'resolver.refund_decimals', 'resolver.provisional', 'resolver.provisional_needs_receipt', 'resolver.replace_binds_mandate', 'resolver.history_to_grant', 'resolver.equivocation', 'resolver.checkpoint', 'resolver.verdict_id_kept', 'resolver.record_out', 'resolver.eq_grant_stored', 'resolver.cas', 'resolver.refund_claim'].map(registerCheck);
 const sha = (x) => (x ? sha256Hex(canonicalize(x)) : null);
 // A rejected dispute (artifacts do not verify, evidence missing or incomplete, mandate mismatch or superseded) is not a decision about the
 // payment and may be resubmitted; a decided one is stored.
@@ -13,6 +13,7 @@ const rowRecord = (s) => verdictRecord({ tx_sig: s.tx_sig, mandate_id: s.verdict
 export const rowId = (s) => s.verdict_id ?? idOf(s.tx_sig, s.verdict, s.receipt_sha, s.grant_tx, s.provisional); // a row stored before L2 has no id: it is computed from the row, and its grant_tx is null
 // what every response carries next to the id: the STORED record the id hashes, so an auditor can recompute the id from the response alone (Addendum M, M4 c)
 export const rowRecordOut = (s) => rowRecord(s);
+const CLAIM = 'claim:';
 const PENDING_GRACE_S = 150; // a signed refund transaction may still land for about this long
 
 export function createResolver({ rpc, network, sellerKey, store, sendRefund = null, now = () => Math.floor(Date.now() / 1000), historyPageSize = 100, historyMaxPages = 1000 }) {
@@ -25,14 +26,29 @@ export function createResolver({ rpc, network, sellerKey, store, sendRefund = nu
   async function payRefund(tx_sig, payment) {
     const s = store.get(tx_sig);
     if (s.refund_tx) return { refund_tx: s.refund_tx };
+    let over = null;
     if (s.refund_pending) {
-      const st = (await rpc.call('getSignatureStatuses', [[s.refund_pending], { searchTransactionHistory: true }])).value[0];
-      if (st && !st.err && (st.confirmationStatus === 'confirmed' || st.confirmationStatus === 'finalized')) { store.setRefund(tx_sig, s.refund_pending); return { refund_tx: s.refund_pending }; }
+      const isClaim = s.refund_pending.startsWith(CLAIM);
+      if (!isClaim) { // a signed refund: look it up on chain first
+        const st = (await rpc.call('getSignatureStatuses', [[s.refund_pending], { searchTransactionHistory: true }])).value[0];
+        if (st && !st.err && (st.confirmationStatus === 'confirmed' || st.confirmationStatus === 'finalized')) { store.setRefund(tx_sig, s.refund_pending); return { refund_tx: s.refund_pending }; }
+      }
+      // a claim that was never signed is pending too, until the grace period ends (its holder may be between the claim and the signature); then it can be taken over
       if (fails('resolver.refund_pending_guard', now() - (s.refund_pending_at ?? 0) < PENDING_GRACE_S)) return { refund_tx: null, refund_state: 'pending', refund_pending: s.refund_pending };
+      over = { pending: s.refund_pending, at: s.refund_pending_at };
     }
     const t = payment.transfers[0];
     if (!t) throw new Error('the payment has no TransferChecked to refund');
-    const sig = await sendRefund({ to: t.source_owner, mint: t.mint, amount: t.amount, decimals: fails('resolver.refund_decimals', true) ? t.decimals : 6, reason: `dispute ${tx_sig}` }, { onSigned: (p) => store.setPending(tx_sig, p, now()) });
+    // claim before sending: only the statement that changed the row may send, so two services on one store cannot both pay (Addendum P, P6)
+    const claim = `${CLAIM}${crypto.randomUUID()}`;
+    if (fails('resolver.refund_claim', !store.claimRefund(tx_sig, claim, now(), over))) {
+      const cur = store.get(tx_sig);
+      return cur?.refund_tx ? { refund_tx: cur.refund_tx } : { refund_tx: null, refund_state: 'pending', refund_pending: cur?.refund_pending ?? null };
+    }
+    let sig;
+    try {
+      sig = await sendRefund({ to: t.source_owner, mint: t.mint, amount: t.amount, decimals: fails('resolver.refund_decimals', true) ? t.decimals : 6, reason: `dispute ${tx_sig}` }, { onSigned: (p) => { if (!store.signRefund(tx_sig, claim, p, now())) throw new Error('the refund claim was taken over by another service: not sent'); } });
+    } catch (e) { store.releaseClaim(tx_sig, claim); throw e; } // a claim that was never signed is given back (a signed one stays as the signature)
     store.setRefund(tx_sig, sig);
     return { refund_tx: sig };
   }

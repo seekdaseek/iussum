@@ -16,6 +16,13 @@ export function openStore(path = ':memory:') {
   const replaceAny = db.prepare('UPDATE verdicts SET mandate_sha = ?, receipt_sha = ?, verdict = ?, created_at = ?, provisional = 0, replaced = ?, receipt_json = ?, grant_tx = ?, verdict_id = ? WHERE tx_sig = ? AND created_at = ? AND verdict = ?');
   const setRefund = db.prepare('UPDATE verdicts SET refund_tx = ?, refund_pending = NULL WHERE tx_sig = ? AND refund_tx IS NULL');
   const setPending = db.prepare('UPDATE verdicts SET refund_pending = ?, refund_pending_at = ? WHERE tx_sig = ? AND refund_tx IS NULL');
+  // The refund is CLAIMED in the store before anything is sent (Addendum P, P6): one atomic UPDATE, and only the statement that changed the row may send. A claim is
+  // `claim:<nonce>`; the signature replaces it when the refund is signed (only while the claim is still ours); a claim older than the grace period can be taken over,
+  // by compare-and-swap on the value and time that were read.
+  const claimFresh = db.prepare('UPDATE verdicts SET refund_pending = ?, refund_pending_at = ? WHERE tx_sig = ? AND refund_tx IS NULL AND refund_pending IS NULL');
+  const claimOver = db.prepare('UPDATE verdicts SET refund_pending = ?, refund_pending_at = ? WHERE tx_sig = ? AND refund_tx IS NULL AND refund_pending = ? AND refund_pending_at = ?');
+  const signClaim = db.prepare('UPDATE verdicts SET refund_pending = ?, refund_pending_at = ? WHERE tx_sig = ? AND refund_tx IS NULL AND refund_pending = ?');
+  const dropClaim = db.prepare('UPDATE verdicts SET refund_pending = NULL, refund_pending_at = NULL WHERE tx_sig = ? AND refund_tx IS NULL AND refund_pending = ?');
   const rowOf = (r) => ({ ...r, verdict: JSON.parse(r.verdict), provisional: r.provisional === 1, replaced: r.replaced ? JSON.parse(r.replaced) : [] });
   return {
     get(tx) { const r = get.get(tx); return r ? { ...r, verdict: JSON.parse(r.verdict), provisional: r.provisional === 1, replaced: r.replaced ? JSON.parse(r.replaced) : [] } : null; },
@@ -41,6 +48,9 @@ export function openStore(path = ':memory:') {
     },
     setRefund(tx, sig) { return setRefund.run(sig, tx).changes === 1; },
     setPending(tx, sig, at) { setPending.run(sig, at, tx); },
+    claimRefund(tx, claim, at, over = null) { return (over ? claimOver.run(claim, at, tx, over.pending, over.at) : claimFresh.run(claim, at, tx)).changes === 1; },
+    signRefund(tx, claim, sig, at) { return signClaim.run(sig, at, tx, claim).changes === 1; },
+    releaseClaim(tx, claim) { return dropClaim.run(tx, claim).changes === 1; },
     getCheckpoint(key) { const r = getCp.get(key); return r ? JSON.parse(r.json) : null; },
     putCheckpoint(key, cp, now) { putCp.run(key, JSON.stringify(cp), now); },
     count() { return db.prepare('SELECT COUNT(*) AS n FROM verdicts').get().n; },

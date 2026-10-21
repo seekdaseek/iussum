@@ -8,7 +8,7 @@ import { createGrantChecker, scopeViolations, validateMandate, mandateId, signRe
 import { decodePayment, readPaymentHeader, PaymentHeaderError } from './decode.js';
 import { openReceiptStore } from './receipt-store.js';
 
-export const SELLER_CHECKS = ['seller.enforce', 'seller.observe_passes', 'seller.off_skips', 'seller.require_mandate', 'seller.receipt_issued', 'seller.receipt_binds_mandate', 'seller.mandate_invalid', 'seller.payment_unreadable', 'seller.payment_source', 'seller.origin_required', 'seller.resource_from_origin', 'seller.one_receipt_per_tx', 'seller.store_receipts', 'seller.no_receipt_on_failed_write', 'seller.grant_budget', 'seller.grant_budget_observe', 'seller.pending_scope', 'seller.pending_memo_bounded'].map(registerCheck);
+export const SELLER_CHECKS = ['seller.enforce', 'seller.observe_passes', 'seller.off_skips', 'seller.require_mandate', 'seller.receipt_issued', 'seller.receipt_binds_mandate', 'seller.mandate_invalid', 'seller.payment_unreadable', 'seller.payment_source', 'seller.origin_required', 'seller.resource_from_origin', 'seller.one_receipt_per_tx', 'seller.store_receipts', 'seller.no_receipt_on_failed_write', 'seller.grant_budget', 'seller.grant_budget_observe', 'seller.pending_scope', 'seller.pending_memo_bounded', 'seller.settle_margin'].map(registerCheck);
 export const MODES = ['off', 'observe', 'enforce'];
 
 export function createSellerGate(cfg) {
@@ -25,6 +25,19 @@ export function createSellerGate(cfg) {
   // setTimeout turns a delay above 2^31-1 ms into 1 ms, which would give every payment a 503: refuse such a configuration at start (Addendum M, M5 d)
   if (!Number.isInteger(budgetMs) || budgetMs < 1 || budgetMs > 2 ** 31 - 1) throw new Error('createSellerGate: grantCheckBudgetMs must be an integer from 1 to 2147483647');
   if (!Number.isInteger(retryAfterSeconds) || retryAfterSeconds < 0 || retryAfterSeconds > 86_400) throw new Error('createSellerGate: retryAfterSeconds must be an integer from 0 to 86400');
+  // x402 settles AFTER the resource handler has run, and the resolver judges the window at the block time of the settlement, where mandate_expired is seller-visible. The gate
+  // therefore accepts a payment only if it is still inside the window `settleMarginSeconds` later, and was already inside it that long ago: the usable window, as the gate
+  // sees it, is the mandate window shrunk by the margin at each end (Addendum P, P7). The default covers the handler time and the blockhash lifetime.
+  const margin = cfg.settleMarginSeconds === undefined ? 120 : cfg.settleMarginSeconds;
+  if (!Number.isInteger(margin) || margin < 0) throw new Error('createSellerGate: settleMarginSeconds must be an integer >= 0');
+  const scopeNow = (m, p) => {
+    const t = now();
+    const v = scopeViolations(m, { ...p, time: t });
+    if (margin === 0 || !fails('seller.settle_margin', true)) return v;
+    const rest = v.filter((x) => x.code !== R.mandate_not_yet_valid && x.code !== R.mandate_expired);
+    const timeAt = (at, code) => scopeViolations(m, { ...p, time: at }).filter((x) => x.code === code).map((x) => ({ ...x, actual: `${t} (checked at ${at}: now ${at < t ? '-' : '+'} settleMarginSeconds ${margin})` }));
+    return [...rest, ...timeAt(t - margin, R.mandate_not_yet_valid), ...timeAt(t + margin, R.mandate_expired)];
+  };
   let checker;
   // ONE receipt per settled transaction (Addendum G, S1): a facilitator that reports success twice for one tx_sig must not make this seller sign a second
   // receipt (that is receipt_equivocation). The first receipt's bytes are returned again. Bounded: least recently used out at 10,000.
@@ -59,13 +72,13 @@ export function createSellerGate(cfg) {
     // records is not a clean-looking nothing (Addendum M, M5 e).
     if (g === late || g?.busy || g?.pending) {
       out.pending = true;
-      if (fails('seller.pending_scope', true)) out.violations.push(...scopeViolations(info.mandate, { amount: out.payment.amount, pay_to: payTo, resource: resourceUrl(req), asset, network, payer: out.payment.authority, time: now() }));
+      if (fails('seller.pending_scope', true)) out.violations.push(...scopeNow(info.mandate, { amount: out.payment.amount, pay_to: payTo, resource: resourceUrl(req), asset, network, payer: out.payment.authority }));
       return out;
     }
     if (!g.ok) out.violations.push({ code: g.reason, field: 'grant', authorized: 'an active ApproveChecked + Memo bound to the mandate id', actual: g.detail });
     // the payment must come out of the granted account, otherwise it is not a payment under this mandate (Addendum C, fix 6)
     else if (fails('seller.payment_source', out.payment.source !== g.source)) out.violations.push({ code: R.grant_mismatch, field: 'source', authorized: g.source, actual: out.payment.source });
-    out.violations.push(...scopeViolations(info.mandate, { amount: out.payment.amount, pay_to: payTo, resource: resourceUrl(req), asset, network, payer: out.payment.authority, time: now() }));
+    out.violations.push(...scopeNow(info.mandate, { amount: out.payment.amount, pay_to: payTo, resource: resourceUrl(req), asset, network, payer: out.payment.authority }));
     return out;
   }
 

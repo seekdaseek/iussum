@@ -15,7 +15,7 @@ import { validateMandate, mandateId, scopeViolations, periodSpendAt } from './ma
 import { verifyReceipt } from './receipt.js';
 import { reconcileAccount, comparePositions, PositionUnknown, allowanceCheck } from './chain.js';
 
-export const RESOLVER_CHECKS = ['resolver.receipt_tx', 'resolver.chain_amount', 'resolver.chain_pay_to', 'resolver.chain_payer', 'resolver.chain_asset', 'resolver.agent_debit', 'resolver.after_grant', 'resolver.reconcile', 'resolver.debit_not_x402', 'resolver.allowance', 'resolver.mandate_presented', 'resolver.seller_visible', 'resolver.period_since_grant', 'resolver.mandate_mismatch', 'resolver.superseded', 'resolver.history_complete', 'resolver.history_found', 'resolver.no_receipt_judged'].map(registerCheck);
+export const RESOLVER_CHECKS = ['resolver.receipt_tx', 'resolver.chain_amount', 'resolver.chain_pay_to', 'resolver.chain_payer', 'resolver.chain_asset', 'resolver.agent_debit', 'resolver.after_grant', 'resolver.reconcile', 'resolver.debit_not_x402', 'resolver.allowance', 'resolver.mandate_presented', 'resolver.seller_visible', 'resolver.period_since_grant', 'resolver.mandate_mismatch', 'resolver.superseded', 'resolver.history_complete', 'resolver.history_found', 'resolver.no_receipt_judged', 'resolver.period_time_known'].map(registerCheck);
 const out = (verdict, reason, liable, extra = {}) => ({ verdict, tier: 1, reason, delta: [], liable, time_source: null, ...extra });
 const nul = (reason, extra) => out('invalid', reason, null, extra);
 
@@ -99,6 +99,8 @@ function judgeX402(e, mid, x) {
     }
     const p = periodSpendAt(mandate, since, tx_sig);
     if (fails('resolver.history_found', !p.found)) return nul(R.history_incomplete, { mandate_id: mid, delta: [{ field: 'history', authorized: 'the disputed payment among the agent\'s payments from the granted account', actual: 'the payment is not in the history' }] });
+    // a payment whose period cannot be told (a block time is missing): what is already a violation stays one, but nothing is called in scope on a period that was never computed
+    if (p.unknownTime && fails('resolver.period_time_known', delta.length === 0)) return nul(R.history_incomplete, { mandate_id: mid, delta: [{ field: 'block time', authorized: 'a block time for every payment from the grant up to the disputed one', actual: 'at least one payment has none, so the period of the disputed payment cannot be told' }] });
     if (p.over) delta.push({ code: R.period_over_budget, field: 'period_budget', authorized: mandate.period_budget, actual: `${p.spent} spent in period ${p.period}` });
   } catch (err) { if (err instanceof PositionUnknown) return nul(R.history_incomplete, { mandate_id: mid, delta: [{ field: 'position', authorized: 'a known order of the transactions that are compared', actual: err.message }] }); throw err; }
   const extra = { mandate_id: mid, time_source, ...(unjudged.length ? { unjudged } : {}) };

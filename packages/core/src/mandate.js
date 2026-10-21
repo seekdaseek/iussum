@@ -83,8 +83,13 @@ export function scopeViolations(m, p, { judgeResource = true, judgeTime = true }
 }
 
 // Period accounting. Periods are anchored at not_before: index = floor((t - not_before) / period_seconds).
-export const periodIndex = (m, t) => Math.floor((t - m.not_before) / m.period_seconds);
+// A time that is not a finite number has no period: `floor((null - not_before) / period)` put such a payment in a period that holds no other payment (Addendum P, P8).
+export const periodIndex = (m, t) => {
+  if (fails('mandate.period_time_finite', typeof t !== 'number' || !Number.isFinite(t))) throw new Error(`periodIndex: time must be a finite number, got ${String(t)}`);
+  return Math.floor((t - m.not_before) / m.period_seconds);
+};
 export const PERIOD_CHECK = registerCheck(R.period_over_budget);
+export const PERIOD_TIME_CHECKS = ['mandate.period_time_finite', 'mandate.period_unknown_time'].map(registerCheck);
 // entries: [{tx_sig, slot, block_time, amount}] in EXECUTION order (slot, then position in the block: agentSpendHistory returns them that way).
 // They are re-sorted by slot only, and the sort is stable, so the order within a slot is the order given; it is never decided by signature
 // string (Addendum E, S7). Returns { spent, over } for the payment `tx_sig`, counting only the same period, up to and including that
@@ -93,6 +98,8 @@ export function periodSpendAt(m, entries, tx_sig) {
   const sorted = [...entries].sort((a, b) => a.slot - b.slot);
   const at = sorted.findLastIndex((x) => x.tx_sig === tx_sig);
   if (at < 0) return { spent: 0n, over: false, found: false };
+  // every block time from the start of `entries` up to and including this payment must be known, or the period of the payment cannot be told: the caller asks again later
+  if (fails('mandate.period_unknown_time', sorted.slice(0, at + 1).some((x) => typeof x.block_time !== 'number' || !Number.isFinite(x.block_time)))) return { spent: 0n, over: false, found: true, unknownTime: true };
   const k = periodIndex(m, sorted[at].block_time);
   let spent = 0n;
   for (let i = 0; i <= at; i++) if (periodIndex(m, sorted[i].block_time) === k) spent += BigInt(sorted[i].amount);
