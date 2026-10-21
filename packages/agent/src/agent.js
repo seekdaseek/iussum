@@ -147,7 +147,7 @@ async function build(cfg, guard) {
         catch (err) {
           if (err.code !== 'EEXIST') throw err;
           const l = readAgentLock();
-          if (l && !l.newFormat && l.pid !== process.pid && alive(l.pid)) { dirs.delete(dataDir); throw new Error(`another agent holds the data directory ${dataDir}: a legacy agent.lock names the live process ${l.pid} (stop the older agent first)`); }
+          if (fails('agent.legacy_lock', l && !l.newFormat && l.pid !== process.pid && alive(l.pid))) { dirs.delete(dataDir); throw new Error(`another agent holds the data directory ${dataDir}: a legacy agent.lock names the live process ${l.pid} (stop the older agent first)`); }
           if (l?.newFormat && l.pid !== process.pid && alive(l.pid)) break; // another process's new agent (another grant) keeps the file: leave it
           try { fs.rmSync(lf, { force: true }); } catch { /* gone */ } // stale: a crashed holder, or a legacy file of a dead process
         }

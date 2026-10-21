@@ -71,7 +71,7 @@ test('M2 agent.client used after close() reads no chain, writes nothing, and can
   const before = snap();
   const challenge = await realFetch(seller.url);
   const paymentRequired = JSON.parse(Buffer.from(challenge.headers.get('payment-required'), 'base64').toString('utf8'));
-  await assert.rejects(() => a.client.createPaymentPayload(paymentRequired));
+  await assert.rejects(() => a.client.createPaymentPayload(paymentRequired), /agent_closed/, 'the hook refuses at its top with its own reason, before any chain read');
   assert.equal(snap(), before, 'the data directory is untouched');
   assert.deepEqual(calls, [], 'the hook reads no chain once the agent is closed');
   await b.close();
