@@ -14,7 +14,7 @@ import { fillBlockIndices, comparePositions, readTransactions } from './chain.js
 
 export const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export const MEMO_V2 = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
-export const GRANT_CHECKS = ['grant.tx_err', 'grant.scan_resume_top', 'grant.scan_wellformed', 'grant.scan_slot', 'grant.scan_found_slot', 'grant.scan_state_tolerant', 'grant.scan_cap', 'grant.warm_lane', 'grant.source_serial', 'grant.scan_options', 'grant.not_found_pending', 'grant.scan_reset_unknown', 'grant.scan_first', 'grant.cache_bound', 'grant.mismatch_uncached', 'grant.not_found_cached', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.superseded_inner', 'grant.scan_failed', 'grant.scan_unreadable', 'grant.superseded_position', 'grant.coalesce_scans', 'grant.scan_store'].map(registerCheck);
+export const GRANT_CHECKS = ['grant.tx_err', 'grant.scan_resume_top', 'grant.scan_wellformed', 'grant.scan_slot', 'grant.scan_found_slot', 'grant.scan_state_tolerant', 'grant.scan_cap', 'grant.warm_lane', 'grant.source_serial', 'grant.scan_options', 'grant.not_found_pending', 'grant.reset_keeps_found', 'grant.stored_found_wellformed', 'grant.scan_reset_unknown', 'grant.scan_first', 'grant.cache_bound', 'grant.mismatch_uncached', 'grant.not_found_cached', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.superseded_inner', 'grant.scan_failed', 'grant.scan_unreadable', 'grant.superseded_position', 'grant.coalesce_scans', 'grant.scan_store'].map(registerCheck);
 
 export async function principalAta(principal, asset) {
   const [ata] = await findAssociatedTokenPda({ mint: asset, owner: principal, tokenProgram: TOKEN_PROGRAM_ADDRESS });
@@ -80,11 +80,15 @@ export function supersedes(tx, source) {
 // newest signature seen and the EARLIEST superseding transaction by position in the chain (slot, then index in the block; never signature
 // order). Throws if a page cannot be read OR a listed transaction cannot be read (Addendum E, B2): an unreadable transaction must not count
 // as "does not supersede", and the caller fails closed and does not advance past it.
-export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPages = 1000, resume = null, onProgress = null, stopAtFirst = false } = {}) {
+// a superseder the scan has read and placed: a signature and a safe-integer slot. Anything else in a stored or resumed `found` is not a finding (Addendum O, O2)
+const wellFormedFound = (f) => Boolean(f) && typeof f === 'object' && typeof f.sig === 'string' && Number.isSafeInteger(f.slot);
+const dedupeFound = (list) => { const seen = new Set(); return list.filter((f) => !seen.has(f.sig) && seen.add(f.sig)); };
+export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPages = 1000, resume = null, onProgress = null, stopAtFirst = false, carry = [] } = {}) {
   // resumable (Addendum I, J1): `resume` = { cursor, newest, found } is the state after the last page that was read completely; onProgress(state) is called after each
   // such page, so a scan that was cut short (a request that ran out of time budget, an RPC error) continues where it stopped instead of starting over
   let before = resume?.cursor, newest = resume?.newest ?? null;
-  const found = [...(resume?.found ?? [])];
+  // `carry`: superseders an earlier scan of this grant had read and a restart must not forget (Addendum O, O1); a restarted scan finds them again if its node shows them
+  const found = dedupeFound([...(resume?.found ?? []), ...carry]);
   for (let pages = 0; ; pages++) {
     if (pages >= maxPages) throw new Error('too many pages to scan');
     const page = await rpc.getSignaturesForAddress(source, { until: since, ...(before ? { before } : {}), limit: pageSize });
@@ -99,7 +103,7 @@ export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPag
       // scan can place, and a scan that cannot place it must not answer "not superseded" (Addendum N, N2)
       if (supersedes(txs[k], source)) {
         if (fails('grant.scan_slot', !Number.isSafeInteger(txs[k].slot) || (e.slot !== undefined && e.slot !== null && e.slot !== txs[k].slot))) throw new Error(`transaction ${e.signature} has no usable slot (transaction ${txs[k].slot}, listing ${e.slot})`);
-        found.push({ sig: e.signature, tx_sig: e.signature, slot: txs[k].slot });
+        if (!found.some((x) => x.sig === e.signature)) found.push({ sig: e.signature, tx_sig: e.signature, slot: txs[k].slot });
       }
     });
     if (page.length) before = page[page.length - 1].signature;
@@ -166,29 +170,35 @@ export function createGrantChecker(rpc, { scanStore = null, maxScans = 4, maxQue
     }
   }
   // A stored marker that does not parse or has the wrong shape is treated as absent: the scan restarts from the grant (it reads more, never less) (Addendum M, M1 b)
-  const stored = (k) => {
+  const stored = (k, grantTx) => {
     if (!fails('grant.scan_state_tolerant', true)) return scanStore?.get(k);
     try {
       const v = scanStore?.get(k);
+      if (!v || typeof v !== 'object') return undefined;
       const okPartial = (p) => p === undefined || p === null || (typeof p.cursor === 'string' && (p.newest === null || typeof p.newest === 'string') && Array.isArray(p.found));
-      return v && typeof v === 'object' && typeof v.since === 'string' && (v.superseded === null || (v.superseded && typeof v.superseded.sig === 'string')) && okPartial(v.partial) ? v : undefined;
+      const foundAll = [...(Array.isArray(v.partial?.found) ? v.partial.found : []), ...(Array.isArray(v.carry) ? v.carry : [])];
+      const good = foundAll.filter(wellFormedFound);
+      const shapeOk = typeof v.since === 'string' && (v.superseded === null || (v.superseded && typeof v.superseded.sig === 'string')) && okPartial(v.partial) && (v.carry === undefined || Array.isArray(v.carry));
+      if (shapeOk && (good.length === foundAll.length || !fails('grant.stored_found_wellformed', true))) return v;
+      // a state that does not hold together restarts that grant's scan from the grant (it reads more, never less) but keeps every well-formed finding it carried
+      return { since: grantTx, superseded: null, ...(good.length ? { carry: dedupeFound(good) } : {}) };
     } catch { return undefined; }
   };
   async function supersededBy(source, grantTx, { first = false } = {}) {
     const stop = first && fails('grant.scan_first', true);
     const k = `${source}:${grantTx}${stop ? ':first' : ''}`;
     // scanStore (optional, { get(key), put(key, state) }) keeps the marker across restarts: each signature of the account is read once (Addendum G, T2)
-    let st = scans.get(k) ?? (fails('grant.scan_store', true) ? stored(k) : null) ?? { since: grantTx, superseded: null };
+    let st = scans.get(k) ?? (fails('grant.scan_store', true) ? stored(k, grantTx) : null) ?? { since: grantTx, superseded: null };
     let resetOnce = false;
     for (;;) {
       if (st.superseded) return st.superseded;
       const resumed = Boolean(st.partial), since = st.since;
       let r;
-      try { r = await withSlot(source, Boolean(st.completed && !st.partial), () => scanSupersede(rpc, source, since, { resume: st.partial ?? null, stopAtFirst: stop, onProgress: (partial) => { const cur = { since, superseded: null, partial }; scans.set(k, cur); scanStore?.put(k, cur); } })); }
+      try { r = await withSlot(source, Boolean(st.completed && !st.partial), () => scanSupersede(rpc, source, since, { resume: st.partial ?? null, stopAtFirst: stop, carry: st.carry ?? [], onProgress: (partial) => { const cur = { since, superseded: null, partial }; scans.set(k, cur); scanStore?.put(k, cur); } })); }
       catch (e) {
         // a stored since or cursor that the node no longer knows (the public node answers -32020 "Transaction ... not found") would fail every scan of this grant for ever: restart
         // that grant's scan from the grant. It reads more, never less, and it happens once per call (a node that does not know the grant itself still fails closed).
-        if (!resetOnce && /Transaction \S+ not found/i.test(e.message) && (st.partial || st.since !== grantTx) && fails('grant.scan_reset_unknown', true)) { resetOnce = true; st = { since: grantTx, superseded: null }; scans.delete(k); scanStore?.put(k, st); continue; }
+        if (!resetOnce && /Transaction \S+ not found/i.test(e.message) && (st.partial || st.since !== grantTx) && fails('grant.scan_reset_unknown', true)) { resetOnce = true; { const keep = fails('grant.reset_keeps_found', true) ? dedupeFound([...(st.partial?.found ?? []), ...(st.carry ?? [])].filter(wellFormedFound)) : []; st = { since: grantTx, superseded: null, ...(keep.length ? { carry: keep } : {}) }; } scans.delete(k); scanStore?.put(k, st); continue; }
         throw e;
       }
       st = { since: r.newest ?? since, superseded: r.superseded, completed: true };
