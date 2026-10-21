@@ -29,7 +29,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 
-export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid', 'agent.release_needs_height', 'agent.min_context_slot', 'agent.consume_released', 'agent.persist_before_send', 'agent.restore_reservations', 'agent.checkpoint', 'agent.datadir_lock', 'agent.closed_refuses', 'agent.corrupt_reservations_refuse', 'agent.tmp_cleanup', 'agent.history_min_context', 'agent.keyed_by_grant', 'agent.retry_after', 'agent.closed_hook', 'agent.closed_scheme', 'agent.write_needs_lock', 'agent.held_any_period', 'agent.keep_settled', 'agent.legacy_lock', 'agent.legacy_import', 'agent.expiry_context', 'agent.retry_after_header', 'agent.fsync_dir', 'agent.dedupe_own_sig', 'agent.close_waits', 'agent.start_releases'].map(registerCheck);
+export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid', 'agent.release_needs_height', 'agent.min_context_slot', 'agent.consume_released', 'agent.persist_before_send', 'agent.restore_reservations', 'agent.checkpoint', 'agent.datadir_lock', 'agent.closed_refuses', 'agent.corrupt_reservations_refuse', 'agent.tmp_cleanup', 'agent.history_min_context', 'agent.keyed_by_grant', 'agent.retry_after', 'agent.closed_hook', 'agent.closed_scheme', 'agent.write_needs_lock', 'agent.held_any_period', 'agent.keep_settled', 'agent.legacy_lock', 'agent.legacy_import', 'agent.expiry_context', 'agent.retry_after_header', 'agent.fsync_dir', 'agent.dedupe_own_sig', 'agent.rpc_guard', 'agent.abort_early', 'agent.rollback_lock', 'agent.close_timeout', 'agent.close_waits', 'agent.start_releases'].map(registerCheck);
 const MARK = 'IUSSUM_REFUSAL:';
 const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export class IussumRefusal extends Error {
@@ -42,6 +42,7 @@ const u32 = (n) => [n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >>> 24) & 255];
 // history can take many minutes), so cfg.signal is how it gives up: the lock is released at once and the start writes nothing afterwards.
 export function createAgent(cfg) {
   const guard = { release: null, abort: null };
+  if (cfg.signal?.aborted && fails('agent.abort_early', true)) return Promise.reject(cfg.signal.reason ?? new Error('createAgent aborted')); // nothing is built, nothing is locked
   const started = build(cfg, guard).catch((e) => { if (fails('agent.start_releases', true)) guard.release?.(); throw e; });
   if (!cfg.signal) return started;
   started.catch(() => {});
@@ -53,8 +54,12 @@ export function createAgent(cfg) {
   });
 }
 async function build(cfg, guard) {
-  const { mandate, grant_tx, signer, rpc, localChecks = true, attachMandate: wantAttach = true, now = () => Math.floor(Date.now() / 1000) } = cfg;
+  const { mandate, grant_tx, signer, rpc: rawRpc, localChecks = true, attachMandate: wantAttach = true, now = () => Math.floor(Date.now() / 1000) } = cfg;
   if (mandate) assertMandate(mandate);
+  let closed = false;
+  // Every chain call goes through this wrapper: once the agent is closed or its start was abandoned (cfg.signal) it throws instead of calling the node, so an abandoned start
+  // stops reading a history the caller gave up on, and a closed agent reads nothing (Addendum N, N6 b).
+  const rpc = new Proxy(rawRpc, { get(t, prop) { const v = Reflect.get(t, prop); return typeof v === 'function' ? (...a) => { if (fails('agent.rpc_guard', closed || cfg.signal?.aborted)) throw new Error('iussum agent: closed or abandoned, no more chain reads'); return v.apply(t, a); } : v; } });
   // localChecks: true (full), 'caps' (payer-side caps only: per-payment and period amounts, no allow-lists, no grant check, no mandate attached), false (naive)
   const capsOnly = localChecks === 'caps';
   const attachMandate = wantAttach && !capsOnly;
@@ -83,7 +88,8 @@ async function build(cfg, guard) {
   const fileOf = (kind) => path.join(dataDir, `${stem}.${kind}.json`);
   function writeAtomic(file, obj) {
     // nothing is written to the data directory without the lock held: after close() (or an abandoned start) the next agent owns it (Addendum M, M2)
-    if (stem && fails('agent.write_needs_lock', closed || !lockDb)) throw new Error('iussum agent: the data directory is not locked by this agent (closed, or the start was abandoned)');
+    // only the lock matters here: a payment in flight when close() is called still writes its settled entry while the lock is held; new payloads are stopped by the hook and the scheme (Addendum N, N4)
+    if (stem && fails('agent.write_needs_lock', !lockDb)) throw new Error('iussum agent: the data directory is not locked by this agent (closed, or the start was abandoned)');
     fs.mkdirSync(path.dirname(file), { recursive: true });
     const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
     const fd = fs.openSync(tmp, 'w', 0o600);
@@ -101,7 +107,7 @@ async function build(cfg, guard) {
   // The lock is an OS-level lock held for the life of the agent (Addendum K, K1): a SQLite connection that runs BEGIN EXCLUSIVE with busy_timeout 0 and keeps the
   // transaction open until close(). A second agent, in this process or another, gets SQLITE_BUSY and refuses to start; the kernel drops the lock when the process
   // dies, SIGKILL and SIGTERM included, so there is no pid, no lock-file content and no stale-lock logic to get wrong.
-  let lockDb = null, closed = false;
+  let lockDb = null;
   function acquireLock() {
     fs.mkdirSync(dataDir, { recursive: true });
     const file = path.join(dataDir, `${stem}.lock.db`);
@@ -124,20 +130,48 @@ async function build(cfg, guard) {
     if (lastErr || !db) throw new Error(`another agent holds the data directory ${dataDir} for this grant: one agent per grant`);
     lockDb = db;
   }
-  const releaseLock = () => { if (lockDb) { try { lockDb.exec('ROLLBACK'); } catch { /* already ended */ } try { lockDb.close(); } catch { /* closed */ } lockDb = null; } };
+  // agent.lock, for the other direction of an upgrade (Addendum N, N6 c): while this agent holds the SQLite lock it also keeps `agent.lock` with its pid on the FIRST line, which
+  // is all a 142276f agent reads (it refuses while that process is alive), and a marker line that tells a newer agent whose file it is. One file per directory, created by the
+  // first new agent of the directory in this process and removed when the last one of them is closed.
+  const dirKey = Symbol.for('iussum.agent.directories');
+  const dirs = (globalThis[dirKey] ??= new Map());
+  let guardCounted = false;
+  const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+  const readAgentLock = () => { try { const t = fs.readFileSync(path.join(dataDir, 'agent.lock'), 'utf8'); const pid = Number.parseInt(t, 10); return { pid: Number.isInteger(pid) && pid > 0 ? pid : NaN, newFormat: /^iussum-sqlite /m.test(t) }; } catch { return null; } };
+  function takeRollbackGuard() {
+    const e = dirs.get(dataDir) ?? { count: 0, created: false }; dirs.set(dataDir, e);
+    if (e.count === 0) {
+      const lf = path.join(dataDir, 'agent.lock');
+      for (let attempt = 0; attempt < 2 && !e.created; attempt++) {
+        try { const fd = fs.openSync(lf, 'wx', 0o600); try { fs.writeSync(fd, `${process.pid}\niussum-sqlite ${stem}\n`); fs.fsyncSync(fd); } finally { fs.closeSync(fd); } e.created = true; }
+        catch (err) {
+          if (err.code !== 'EEXIST') throw err;
+          const l = readAgentLock();
+          if (l && !l.newFormat && l.pid !== process.pid && alive(l.pid)) { dirs.delete(dataDir); throw new Error(`another agent holds the data directory ${dataDir}: a legacy agent.lock names the live process ${l.pid} (stop the older agent first)`); }
+          if (l?.newFormat && l.pid !== process.pid && alive(l.pid)) break; // another process's new agent (another grant) keeps the file: leave it
+          try { fs.rmSync(lf, { force: true }); } catch { /* gone */ } // stale: a crashed holder, or a legacy file of a dead process
+        }
+      }
+    }
+    e.count++; guardCounted = true;
+  }
+  function dropRollbackGuard() {
+    if (!guardCounted) return; guardCounted = false;
+    const e = dirs.get(dataDir); if (!e) return;
+    if (--e.count <= 0) { if (e.created) { const l = readAgentLock(); if (l && l.pid === process.pid) { try { fs.rmSync(path.join(dataDir, 'agent.lock'), { force: true }); } catch { /* gone */ } } } dirs.delete(dataDir); }
+  }
+  const releaseLock = () => { dropRollbackGuard(); if (lockDb) { try { lockDb.exec('ROLLBACK'); } catch { /* already ended */ } try { lockDb.close(); } catch { /* closed */ } lockDb = null; } };
   if (dataDir && mandate && fails('agent.datadir_lock', true)) acquireLock();
   guard.release = releaseLock;
   guard.abort = () => { closed = true; releaseLock(); };
   // a 142276f process holding its agent.lock (a rolling deploy: the new process starts before the old one is stopped) is a holder this lock cannot see (Addendum M, M3 c)
   if (dataDir && mandate && lockDb && fails('agent.legacy_lock', true)) {
-    const lf = path.join(dataDir, 'agent.lock');
-    const pid = fs.existsSync(lf) ? Number(fs.readFileSync(lf, 'utf8').trim()) : NaN;
-    if (Number.isInteger(pid) && pid > 0 && pid !== process.pid) {
-      let alive = false; try { process.kill(pid, 0); alive = true; } catch (e) { alive = e.code === 'EPERM'; }
-      if (alive) throw new Error(`another agent holds the data directory ${dataDir}: a legacy agent.lock names the live process ${pid} (stop the older agent first)`);
-    }
+    const l = readAgentLock();
+    // a lock file that names a live NEW-format holder is not a legacy agent (that holder's SQLite lock is what counts, and we hold ours)
+    if (l && !l.newFormat && Number.isInteger(l.pid) && l.pid !== process.pid && alive(l.pid)) throw new Error(`another agent holds the data directory ${dataDir}: a legacy agent.lock names the live process ${l.pid} (stop the older agent first)`);
   }
-  const abortCheck = () => { if (closed) throw new Error('iussum agent: the start was abandoned (cfg.signal)'); };
+  if (dataDir && mandate && lockDb && fails('agent.rollback_lock', true)) takeRollbackGuard();
+  const abortCheck = () => { if (closed || cfg.signal?.aborted) throw new Error('iussum agent: the start was abandoned (cfg.signal)'); };
   abortCheck();
   // temp files a crash left between write and rename are never read (the rename is atomic: the last complete file is the truth); remove them now that the lock is ours
   if (dataDir && mandate && lockDb && fails('agent.tmp_cleanup', true)) for (const f of fs.readdirSync(dataDir)) if (f.startsWith(stem) && f.endsWith('.tmp')) fs.rmSync(path.join(dataDir, f), { force: true });
@@ -409,5 +443,17 @@ async function build(cfg, guard) {
     res.receipt = rh ? decodeReceipt(rh) : null;
     return res;
   }
-  return { fetch: pay, client, ledger, reservations, async close() { closed = true; if (fails('agent.close_waits', true)) await Promise.allSettled([...inflight]); releaseLock(); }, source, mandateId: mandate ? mandateId(mandate) : null, address: signer.address };
+  return { fetch: pay, client, ledger, reservations, async close({ timeoutMs } = {}) {
+      closed = true;
+      if (fails('agent.close_waits', true) && inflight.size) {
+        const done = Promise.allSettled([...inflight]);
+        if (timeoutMs === undefined || !fails('agent.close_timeout', true)) await done;
+        else {
+          let t; const r = await Promise.race([done.then(() => 'done'), new Promise((res) => { t = setTimeout(() => res('timeout'), timeoutMs); })]); clearTimeout(t);
+          // the lock is KEPT: a payment may still be writing its settled entry. Process exit frees it; a later close() waits again.
+          if (r === 'timeout') throw new Error(`iussum agent close(): ${inflight.size} payments still in flight after ${timeoutMs} ms; the data directory lock is kept until they return or the process exits`);
+        }
+      }
+      releaseLock();
+    }, source, mandateId: mandate ? mandateId(mandate) : null, address: signer.address };
 }

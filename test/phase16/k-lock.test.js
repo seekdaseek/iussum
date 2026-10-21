@@ -57,7 +57,7 @@ for (const sig of ['SIGTERM', 'SIGKILL']) {
     assert.equal(await b.result(), 'STARTED', 'the lock died with the process');
   });
 }
-test('K1 the same process cannot take the lock twice, and no pid file or stale-lock file exists', async (tc) => {
+test('K1 the same process cannot take the lock twice, and there is no stale-lock logic (agent.lock is only the rollback guard of Addendum N: our pid, no stale files)', async (tc) => {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'iussum-k-')); tc.after(() => fs.rmSync(d, { recursive: true, force: true }));
   const facilitator = await startMockFacilitator(); const seller = await startSeller({ facilitator, mode: 'off', now: () => T0 + 1000, price: '100' });
   tc.after(() => { facilitator.close(); seller.close(); });
@@ -67,8 +67,10 @@ test('K1 the same process cannot take the lock twice, and no pid file or stale-l
   await assert.rejects(mk, /data directory|lock/i);
   const files = fs.readdirSync(d);
   assert.ok(files.some((f) => f.endsWith('.lock.db')), files.join());
-  assert.ok(!files.some((f) => f === 'agent.lock' || f.endsWith('.lock') || f.includes('.stale')), `a pid lock file is still there: ${files}`);
+  assert.ok(!files.some((f) => f.includes('.stale')), `a stale-lock file is there: ${files}`);
+  assert.equal(Number.parseInt(fs.readFileSync(path.join(d, 'agent.lock'), 'utf8'), 10), process.pid, 'agent.lock holds our pid (the rollback guard), nothing decides on it');
   await a.close();
+  assert.ok(!fs.existsSync(path.join(d, 'agent.lock')), 'and it goes away on close');
 });
 test('K3 after close() the agent refuses to fetch, and nothing is written to the data directory', async (tc) => {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'iussum-k-')); tc.after(() => fs.rmSync(d, { recursive: true, force: true }));
