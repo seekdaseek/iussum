@@ -12,7 +12,8 @@ const run = (env) => {
   const r = spawnSync(process.execPath, ['--test', '--test-force-exit', '--test-timeout=60000', '--test-reporter=tap', ...files], { env: { PROPERTY_SEEDS: '120', ...process.env, ...env }, encoding: 'utf8' });
   const n = (k) => Number(new RegExp(`^# ${k} (\\d+)`, 'm').exec(r.stdout)?.[1] ?? NaN);
   const names = [...r.stdout.matchAll(/^not ok \d+ - (.+?)(?: #.*)?$/gm)].map((m) => m[1]);
-  return { tests: n('tests'), pass: n('pass'), fail: n('fail'), names };
+  // a test that hangs until the test timeout is reported as cancelled, not failed: count it, or a hang would pass as a survivor
+  return { tests: n('tests'), pass: n('pass'), fail: n('fail') + (n('cancelled') || 0), names };
 };
 const base = run({ IUSSUM_MUTATE: '' });
 console.log(`baseline: ${base.tests} tests, ${base.pass} pass, ${base.fail} fail`);

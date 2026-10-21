@@ -57,3 +57,17 @@ test('N7 a configured rate below the floor is never raised by a 429', async () =
   await rpc.call('getSlot', []);
   assert.ok(rpc.pacing().rate <= 0.01 + 1e-12, `${rpc.pacing().rate}`);
 });
+
+test('N7 (p2-starve) the bucket serves its waiters in order: a batch that needs 2 tokens is not starved by a loop of single calls', async () => {
+  const rpc = makeRpc('https://rpc.example.com', { rate: 50, burst: 2, fetchImpl: async (_u, init) => {
+    const b = JSON.parse(init.body);
+    return new Response(JSON.stringify(Array.isArray(b) ? b.map((x) => ({ jsonrpc: '2.0', id: x.id, result: { slot: 1 } })) : { jsonrpc: '2.0', id: b.id, result: 1 }), { status: 200 });
+  } });
+  let stop = false; const loop = (async () => { while (!stop) await rpc.call('getSlot', []); })();
+  const t0 = performance.now(); // the batch is asked for in the same tick as the loop starts, like p2-starve.mjs
+  const done = await Promise.race([rpc.getTransactions(['a', 'b'], { nullRetries: 0 }).then(() => 'done'), new Promise((r) => setTimeout(() => r('STARVED'), 1500))]);
+  const took = performance.now() - t0;
+  stop = true; await Promise.race([loop, new Promise((r) => setTimeout(r, 500))]);
+  assert.equal(done, 'done', `the 2-element batch was still waiting after ${Math.round(took)} ms behind the single-call loop`);
+  assert.ok(took < 500, `the 2-element batch waited ${Math.round(took)} ms`);
+});

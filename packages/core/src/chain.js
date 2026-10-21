@@ -2,7 +2,7 @@
 import { TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
 import { fails, registerCheck } from './guard.js';
 
-export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain.self_transfer', 'chain.missing_balance_zero', 'rpc.cache_bound', 'rpc.batch', 'history.min_context', 'rpc.pace', 'rpc.pace_halve', 'rpc.batch_burst', 'rpc.option_bounds', 'rpc.clock_clamp', 'rpc.batch_json_limit', 'rpc.floor_cap'].map(registerCheck);
+export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain.self_transfer', 'chain.missing_balance_zero', 'rpc.cache_bound', 'rpc.batch', 'history.min_context', 'rpc.pace', 'rpc.pace_halve', 'rpc.batch_burst', 'rpc.option_bounds', 'rpc.clock_clamp', 'rpc.batch_json_limit', 'rpc.floor_cap', 'rpc.pace_fifo'].map(registerCheck);
 
 // What the public endpoints allow, measured from a Mac in Node on 2026-10-20 (docs/phase17/limiter-probe.txt): about 10 getTransaction calls per 10 s window (a burst of
 // 10 is answered, the 11th is rejected; 1.0/s is answered, 1.25/s is not), a batch element counts like a call, and a block lasts about 18 s after the first rejection.
@@ -22,7 +22,10 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000,
   const maxRate = rate ?? dflt.rate, capacity = burst ?? dflt.burst, MIN_RATE = 0.05;
   const bucket = { tokens: capacity, rate: maxRate, t: now() };
   const refill = () => { const t = now(); bucket.tokens = Math.min(capacity, bucket.tokens + (Math.max(fails('rpc.clock_clamp', true) ? 0 : -Infinity, t - bucket.t) / 1000) * bucket.rate); bucket.t = t; };
-  async function take(n = 1) {
+  // waiters are served in the order they came (a batch that needs 2 tokens is not starved by a loop of single calls that each need 1)
+  let tail = Promise.resolve();
+  const take = (n = 1) => { if (!fails('rpc.pace_fifo', true)) return takeNow(n); const run = tail.then(() => takeNow(n)); tail = run.catch(() => {}); return run; };
+  async function takeNow(n = 1) {
     if (!fails('rpc.pace', true)) { await sleep(1); return; } // a skipped check still yields a millisecond, so a fake clock advances and a mutated run cannot spin
     const need = Math.min(n, capacity);
     for (;;) {
