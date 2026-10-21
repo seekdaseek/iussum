@@ -10,11 +10,11 @@ import { findAssociatedTokenPda, TOKEN_PROGRAM_ADDRESS } from '@solana-program/t
 import { fails, registerCheck } from './guard.js';
 import { R } from './codes.js';
 import { summaryLine, mandateId } from './mandate.js';
-import { fillBlockIndices, comparePositions, readTransactions } from './chain.js';
+import { fillBlockIndices, comparePositions, readListed } from './chain.js';
 
 export const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export const MEMO_V2 = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
-export const GRANT_CHECKS = ['grant.tx_err', 'grant.scan_resume_top', 'grant.scan_wellformed', 'grant.scan_slot', 'grant.scan_found_slot', 'grant.scan_state_tolerant', 'grant.scan_cap', 'grant.warm_lane', 'grant.source_serial', 'grant.scan_options', 'grant.not_found_pending', 'grant.reset_keeps_found', 'grant.stored_found_wellformed', 'grant.scan_reset_unknown', 'grant.scan_first', 'grant.cache_bound', 'grant.mismatch_uncached', 'grant.not_found_cached', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.superseded_inner', 'grant.scan_failed', 'grant.scan_unreadable', 'grant.superseded_position', 'grant.coalesce_scans', 'grant.scan_store', 'grant.warm_probe', 'grant.warm_one_page', 'grant.warm_source_serial', 'grant.bulk_reads'].map(registerCheck);
+export const GRANT_CHECKS = ['grant.tx_err', 'grant.scan_resume_top', 'grant.scan_wellformed', 'grant.scan_slot', 'grant.scan_found_slot', 'grant.scan_state_tolerant', 'grant.scan_cap', 'grant.warm_lane', 'grant.source_serial', 'grant.scan_options', 'grant.not_found_pending', 'grant.reset_keeps_found', 'grant.stored_found_wellformed', 'grant.scan_reset_unknown', 'grant.scan_first', 'grant.cache_bound', 'grant.mismatch_uncached', 'grant.not_found_cached', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.superseded_inner', 'grant.scan_failed', 'grant.scan_unreadable', 'grant.superseded_position', 'grant.coalesce_scans', 'grant.scan_store', 'grant.warm_probe', 'grant.warm_one_page', 'grant.warm_source_serial', 'grant.bulk_reads', 'grant.restart_cap'].map(registerCheck);
 
 export async function principalAta(principal, asset) {
   const [ata] = await findAssociatedTokenPda({ mint: asset, owner: principal, tokenProgram: TOKEN_PROGRAM_ADDRESS });
@@ -94,7 +94,7 @@ export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPag
     const page = await rpc.getSignaturesForAddress(source, { until: since, ...(before ? { before } : {}), limit: pageSize, ...(listPriority ? { priority: listPriority } : {}) });
     if (newest === null && pages === 0 && !resume && page.length) newest = page[0].signature;
     const listed = page.filter((e) => !e.err);
-    const txs = await readTransactions(rpc, listed.map((e) => e.signature), { priority: fails('grant.bulk_reads', true) ? 'bulk' : undefined }); // a scan's reads are bulk: they never delay a check's own reads (Addendum O, O4 a)
+    const txs = await readListed(rpc, listed, { priority: fails('grant.bulk_reads', true) ? 'bulk' : undefined }); // a scan's reads are bulk: they never delay a check's own reads (Addendum O, O4 a)
     listed.forEach((e, k) => {
       if (fails('grant.scan_unreadable', !txs[k])) throw new Error(`transaction ${e.signature} could not be read`);
       // the bar parsePayment uses: a jsonParsed transaction (an instruction array) with meta; anything else (an empty object, a base64 transaction) is unreadable
@@ -129,13 +129,16 @@ export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPag
 }
 
 // rpc = { getTransaction(sig), getAccountInfoParsed(addr) }. The immutable part is cached by (grant_tx, mandate id).
-export function createGrantChecker(rpc, { scanStore = null, maxScans = 4, maxQueuedScans = 64, maxWarmScans = 2, grantNullRetries = undefined, cacheMax = 1000, notFoundTtlMs = 5000 } = {}) {
+export function createGrantChecker(rpc, { scanStore = null, maxScans = 4, maxQueuedScans = 64, maxWarmScans = 2, grantNullRetries = undefined, cacheMax = 1000, notFoundTtlMs = 5000, maxScanRestartsPerHour = 6 } = {}) {
   // the caps are integers, not whatever a configuration file produced: 0 or a negative cap queues every scan for ever, NaN switches the cap off (Addendum N, N5 b)
   if (fails('grant.scan_options', !Number.isInteger(maxScans) || maxScans < 1 || !Number.isInteger(maxWarmScans) || maxWarmScans < 1 || !Number.isInteger(maxQueuedScans) || maxQueuedScans < 0)) throw new Error('createGrantChecker: maxConcurrentScans and maxWarmScans must be integers >= 1 and maxQueuedScans an integer >= 0');
   // inspected grants that are OK, bounded (least recently used out): a grant_mismatch is not cached per mandate id, because the ids are the caller's to choose and
   // an unbounded map of them is a memory leak anyone can feed (Addendum M, M5 b)
   const cache = new Map();
   const cacheSet = (k, v) => { cache.delete(k); cache.set(k, v); if (fails('grant.cache_bound', cache.size > cacheMax)) cache.delete(cache.keys().next().value); };
+  // restarts of a grant's scan from the grant (the node forgot a cursor, -32020): each re-reads the whole history above the grant, and a load balancer that keeps switching nodes
+  // would make every payment pay for it again, so a grant gets a few per hour and then fails closed (busy: the gate answers 503) (Addendum O, O7)
+  const restarts = new Map();
   const notFound = new Map(); // grant_tx -> until (ms): an unknown grant_tx is read once, not on every request
   const scans = new Map(); // `${source}:${grantTx}` -> { since, superseded }: later calls only scan what is newer than the last scan
   const SCANS_MAX = 10_000;
@@ -188,6 +191,11 @@ export function createGrantChecker(rpc, { scanStore = null, maxScans = 4, maxQue
       return { since: grantTx, superseded: null, ...(good.length ? { carry: dedupeFound(good) } : {}) };
     } catch { return undefined; }
   };
+  function restartBudget(k) {
+    const t = Date.now(), recent = (restarts.get(k) ?? []).filter((x) => t - x < 3_600_000);
+    if (fails('grant.restart_cap', recent.length >= maxScanRestartsPerHour)) throw Object.assign(new Error(`the scan of this grant was restarted ${recent.length} times in the last hour (the node keeps forgetting the cursor)`), { busy: true });
+    recent.push(t); restarts.delete(k); restarts.set(k, recent); if (restarts.size > cacheMax) restarts.delete(restarts.keys().next().value);
+  }
   async function supersededBy(source, grantTx, { first = false } = {}) {
     const stop = first && fails('grant.scan_first', true);
     const k = `${source}:${grantTx}${stop ? ':first' : ''}`;
@@ -212,7 +220,7 @@ export function createGrantChecker(rpc, { scanStore = null, maxScans = 4, maxQue
         // a stored since or cursor that the node no longer knows (the public node answers -32020 "Transaction ... not found") would fail every scan of this grant for ever: restart
         // that grant's scan from the grant. It reads more, never less, and it happens once per call (a node that does not know the grant itself still fails closed).
         // A superseder the scan had read is carried into the restart: a node that lags must not turn "found" into "not superseded" (Addendum O, O1).
-        if (!resetOnce && /Transaction \S+ not found/i.test(e.message) && (st.partial || st.since !== grantTx) && fails('grant.scan_reset_unknown', true)) { resetOnce = true; { const keep = fails('grant.reset_keeps_found', true) ? dedupeFound([...(st.partial?.found ?? []), ...(st.carry ?? [])].filter(wellFormedFound)) : []; st = { since: grantTx, superseded: null, ...(keep.length ? { carry: keep } : {}) }; } scans.delete(k); scanStore?.put(k, st); continue; }
+        if (!resetOnce && /Transaction \S+ not found/i.test(e.message) && (st.partial || st.since !== grantTx) && fails('grant.scan_reset_unknown', true)) { resetOnce = true; restartBudget(k); { const keep = fails('grant.reset_keeps_found', true) ? dedupeFound([...(st.partial?.found ?? []), ...(st.carry ?? [])].filter(wellFormedFound)) : []; st = { since: grantTx, superseded: null, ...(keep.length ? { carry: keep } : {}) }; } scans.delete(k); scanStore?.put(k, st); continue; }
         throw e;
       }
       // the warm page was full: the rest of the history is read by the cold lane, serialised per account, and the warm slot is free

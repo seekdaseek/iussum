@@ -2,7 +2,7 @@
 import { TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
 import { fails, registerCheck } from './guard.js';
 
-export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain.self_transfer', 'chain.missing_balance_zero', 'rpc.cache_bound', 'rpc.batch', 'history.min_context', 'rpc.pace', 'rpc.pace_halve', 'rpc.batch_burst', 'rpc.option_bounds', 'rpc.clock_clamp', 'rpc.batch_json_limit', 'rpc.floor_cap', 'rpc.pace_fifo', 'rpc.pace_priority'].map(registerCheck);
+export const CHAIN_CHECKS = ['history.reconcile', 'allowance.crosscheck', 'chain.self_transfer', 'chain.missing_balance_zero', 'rpc.cache_bound', 'rpc.batch', 'history.min_context', 'rpc.pace', 'rpc.pace_halve', 'rpc.batch_burst', 'rpc.option_bounds', 'rpc.clock_clamp', 'rpc.batch_json_limit', 'rpc.floor_cap', 'rpc.pace_fifo', 'rpc.pace_priority', 'history.reorg_evict'].map(registerCheck);
 
 // What the public endpoints allow, measured from a Mac in Node on 2026-10-20 (docs/phase17/limiter-probe.txt): about 10 getTransaction calls per 10 s window (a burst of
 // 10 is answered, the 11th is rejected; 1.0/s is answered, 1.25/s is not), a batch element counts like a call, and a block lasts about 18 s after the first rejection.
@@ -87,6 +87,8 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000,
   const keep = (sig, t) => { if (t) { txCache.set(sig, t); if (fails('rpc.cache_bound', txCache.size > CACHE_MAX)) txCache.delete(txCache.keys().next().value); } };
   const rpcObj = {
     url, call,
+    // drop a cached transaction: a re-orged transaction keeps its signature and changes its slot (Addendum O, O7)
+    forget(sig) { txCache.delete(sig); },
     pacing: () => ({ rate: bucket.rate, maxRate, burst: capacity, tokens: bucket.tokens }),
     async getTransaction(sig, opts = {}) {
       if (txCache.has(sig)) { const v = txCache.get(sig); txCache.delete(sig); txCache.set(sig, v); return v; }
@@ -171,7 +173,7 @@ export function makeRpc(url, { retries = 8, fetchImpl = fetch, stallMs = 90_000,
     async getSignaturesForAddress(addr, opts = {}) {
       for (let attempt = 0; ; attempt++) {
         try { const { priority, ...params } = opts; return await call('getSignaturesForAddress', [addr, { commitment: 'confirmed', ...params }], { priority }); }
-        catch (e) { if (attempt >= 8 || !/Transaction .* not found/i.test(e.message)) throw e; await new Promise((res) => setTimeout(res, 800)); }
+        catch (e) { if (attempt >= 8 || !/Transaction .* not found/i.test(e.message)) throw e; await sleep(800); }
       }
     },
   };
@@ -231,6 +233,19 @@ export function reconcileAccount(payment, account) {
 
 // Read many transactions: in JSON-RPC batches when the client has them (Addendum I, J2), one by one otherwise. Result i belongs to sigs[i]; a null element is
 // returned as null (the callers fail closed on it), an errored one throws. minContextSlot makes every request ask a node that has reached that slot.
+// The transactions of listing entries, each read against the slot the listing gives it. A confirmed transaction that was re-orged into another slot keeps its signature, so a
+// cached copy can carry the old slot for ever; an entry whose slot disagrees with the listing is evicted and read again (Addendum O, O7).
+export async function readListed(rpc, entries, o = {}) {
+  const txs = await readTransactions(rpc, entries.map((e) => e.signature), o);
+  if (!rpc.forget || !fails('history.reorg_evict', true)) return txs;
+  const stale = [];
+  entries.forEach((e, k) => { if (Number.isSafeInteger(e.slot) && Number.isSafeInteger(txs[k]?.slot) && txs[k].slot !== e.slot) stale.push(k); });
+  if (!stale.length) return txs;
+  for (const k of stale) rpc.forget(entries[k].signature);
+  const again = await readTransactions(rpc, stale.map((k) => entries[k].signature), o);
+  stale.forEach((k, i) => { txs[k] = again[i]; });
+  return txs;
+}
 export async function readTransactions(rpc, sigs, { minContextSlot = null, priority } = {}) {
   if (!sigs.length) return [];
   if (rpc.getTransactions && fails('rpc.batch', true)) return rpc.getTransactions(sigs, { minContextSlot, ...(priority ? { priority } : {}) });
@@ -297,6 +312,8 @@ export function comparePositions(a, b, idxOf = {}) {
 export const isAfter = (a, b, idxOf) => comparePositions(a, b, idxOf) > 0;
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
+// the signers of a transaction, from its account keys: what identifies a payment when the node answered without transaction.signatures (Addendum O, O7)
+const signersOf = (tx) => (tx.transaction?.message?.accountKeys ?? []).filter((k) => k.signer).map((k) => k.pubkey);
 // Agent spend history from chain: every debit out of `source` signed by `agent`, successful transactions only, in execution order.
 // PAGINATED (Addendum C, fix 2): getSignaturesForAddress is newest first, so page with `before` until the history reaches the grant
 // (`until`) or the start of the period of interest (`stopAtTime`: the oldest signature on the page is older than it). `complete` says
@@ -326,14 +343,14 @@ export async function agentSpendHistory(rpc, { source, agent, mint, until = null
         const page = await rpc.getSignaturesForAddress(source, { limit: pageSize, ...(floorSig ? { until: floorSig } : {}), ...(cursor ? { before: cursor } : {}), ...mcs });
         const batch = [];
         const listed = page.filter((x) => !x.err);
-        const txs = await readTransactions(rpc, listed.map((x) => x.signature), mcs);
+        const txs = await readListed(rpc, listed, mcs);
         for (const [k, sg] of listed.entries()) {
           const p = parsePayment(txs[k]);
           if (!p.found) throw new Error(`transaction ${sg.signature} could not be read`);
           if (p.err) continue;
           const rec = fails('history.reconcile', true) ? reconcileAccount(p, source) : { ok: true };
           if (!rec.ok) throw new Error(`transaction ${sg.signature}: the parsed instructions move ${rec.moved} out of the account but its balance changed by ${rec.dropped}`);
-          for (const d of p.debits) if (d.source === source && d.authority === agent && d.mint === mint) batch.push({ tx_sig: sg.signature, slot: p.slot, block_time: p.block_time, amount: d.amount, kind: d.kind, top: d.top, pos: d.pos, dest_owner: d.dest_owner, signatures: p.signatures });
+          for (const d of p.debits) if (d.source === source && d.authority === agent && d.mint === mint) batch.push({ tx_sig: sg.signature, slot: p.slot, block_time: p.block_time, amount: d.amount, kind: d.kind, top: d.top, pos: d.pos, dest_owner: d.dest_owner, signatures: p.signatures, ...(p.signatures.length ? {} : { signers: signersOf(txs[k]), blockhash: txs[k].transaction?.message?.recentBlockhash ?? null }) });
         }
         got.push(...batch); // the page is done: only now does the cursor move
         if (first === undefined && before === undefined && page.length) first = page[0].signature;

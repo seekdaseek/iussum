@@ -29,7 +29,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 
-export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid', 'agent.release_needs_height', 'agent.min_context_slot', 'agent.consume_released', 'agent.persist_before_send', 'agent.restore_reservations', 'agent.checkpoint', 'agent.datadir_lock', 'agent.closed_refuses', 'agent.corrupt_reservations_refuse', 'agent.tmp_cleanup', 'agent.history_min_context', 'agent.keyed_by_grant', 'agent.retry_after', 'agent.closed_hook', 'agent.closed_scheme', 'agent.write_needs_lock', 'agent.held_any_period', 'agent.keep_settled', 'agent.legacy_lock', 'agent.legacy_import', 'agent.expiry_context', 'agent.retry_after_header', 'agent.fsync_dir', 'agent.dedupe_own_sig', 'agent.rpc_guard', 'agent.abort_early', 'agent.rollback_lock', 'agent.close_timeout', 'agent.signal_start_only', 'agent.close_timeout_bounds', 'agent.close_maps_guard', 'agent.close_waits', 'agent.start_releases'].map(registerCheck);
+export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid', 'agent.release_needs_height', 'agent.min_context_slot', 'agent.consume_released', 'agent.persist_before_send', 'agent.restore_reservations', 'agent.checkpoint', 'agent.datadir_lock', 'agent.closed_refuses', 'agent.corrupt_reservations_refuse', 'agent.tmp_cleanup', 'agent.history_min_context', 'agent.keyed_by_grant', 'agent.retry_after', 'agent.closed_hook', 'agent.closed_scheme', 'agent.write_needs_lock', 'agent.held_any_period', 'agent.keep_settled', 'agent.legacy_lock', 'agent.legacy_import', 'agent.expiry_context', 'agent.retry_after_header', 'agent.fsync_dir', 'agent.dedupe_own_sig', 'agent.rpc_guard', 'agent.abort_early', 'agent.rollback_lock', 'agent.close_timeout', 'agent.signal_start_only', 'agent.close_timeout_bounds', 'agent.close_maps_guard', 'agent.close_waits', 'agent.start_releases', 'agent.dirs_realpath', 'agent.unsigned_entries'].map(registerCheck);
 const MARK = 'IUSSUM_REFUSAL:';
 const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export class IussumRefusal extends Error {
@@ -136,11 +136,14 @@ async function build(cfg, guard) {
   // first new agent of the directory in this process and removed when the last one of them is closed.
   const dirKey = Symbol.for('iussum.agent.directories');
   const dirs = (globalThis[dirKey] ??= new Map());
-  let guardCounted = false;
+  let guardCounted = false, dirId = null;
+  // the key is the directory itself, not one spelling of it: `./d`, `d/../d` and a symlink to it are one directory, one count, one agent.lock (Addendum O, O7)
+  const dirIdOf = () => { if (!fails('agent.dirs_realpath', true)) return dataDir; try { return fs.realpathSync(dataDir); } catch { return path.resolve(dataDir); } };
   const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
   const readAgentLock = () => { try { const t = fs.readFileSync(path.join(dataDir, 'agent.lock'), 'utf8'); const pid = Number.parseInt(t, 10); return { pid: Number.isInteger(pid) && pid > 0 ? pid : NaN, newFormat: /^iussum-sqlite /m.test(t) }; } catch { return null; } };
   function takeRollbackGuard() {
-    const e = dirs.get(dataDir) ?? { count: 0, created: false }; dirs.set(dataDir, e);
+    dirId = dirIdOf();
+    const e = dirs.get(dirId) ?? { count: 0, created: false }; dirs.set(dirId, e);
     if (e.count === 0) {
       const lf = path.join(dataDir, 'agent.lock');
       for (let attempt = 0; attempt < 2 && !e.created; attempt++) {
@@ -148,7 +151,7 @@ async function build(cfg, guard) {
         catch (err) {
           if (err.code !== 'EEXIST') throw err;
           const l = readAgentLock();
-          if (fails('agent.legacy_lock', l && !l.newFormat && l.pid !== process.pid && alive(l.pid))) { dirs.delete(dataDir); throw new Error(`another agent holds the data directory ${dataDir}: a legacy agent.lock names the live process ${l.pid} (stop the older agent first)`); }
+          if (fails('agent.legacy_lock', l && !l.newFormat && l.pid !== process.pid && alive(l.pid))) { dirs.delete(dirId); throw new Error(`another agent holds the data directory ${dataDir}: a legacy agent.lock names the live process ${l.pid} (stop the older agent first)`); }
           if (l?.newFormat && l.pid !== process.pid && alive(l.pid)) break; // another process's new agent (another grant) keeps the file: leave it
           try { fs.rmSync(lf, { force: true }); } catch { /* gone */ } // stale: a crashed holder, or a legacy file of a dead process
         }
@@ -158,8 +161,8 @@ async function build(cfg, guard) {
   }
   function dropRollbackGuard() {
     if (!guardCounted) return; guardCounted = false;
-    const e = dirs.get(dataDir); if (!e) return;
-    if (--e.count <= 0) { if (e.created) { const l = readAgentLock(); if (l && l.pid === process.pid) { try { fs.rmSync(path.join(dataDir, 'agent.lock'), { force: true }); } catch { /* gone */ } } } dirs.delete(dataDir); }
+    const e = dirs.get(dirId); if (!e) return;
+    if (--e.count <= 0) { if (e.created) { const l = readAgentLock(); if (l && l.pid === process.pid) { try { fs.rmSync(path.join(dataDir, 'agent.lock'), { force: true }); } catch { /* gone */ } } } dirs.delete(dirId); }
   }
   const releaseLock = () => { dropRollbackGuard(); if (lockDb) { try { lockDb.exec('ROLLBACK'); } catch { /* already ended */ } try { lockDb.close(); } catch { /* closed */ } lockDb = null; } };
   if (dataDir && mandate && fails('agent.datadir_lock', true)) acquireLock();
@@ -219,7 +222,14 @@ async function build(cfg, guard) {
   // make the agent forget a payment (Addendum N, N1). Ledger entries carry `agentSig` (a payment the agent made) or `signatures` (read from the chain).
   const ownedBy = (x, sig) => Boolean(sig) && (x.agentSig === sig || x.signatures?.includes(sig));
   const counted = (ownSig, reportedSig) => (fails('agent.dedupe_own_sig', true) ? ledger.some((x) => ownedBy(x, ownSig)) : Boolean(reportedSig) && ledger.some((x) => x.sig === reportedSig));
-  const showsIn = (entries, x) => entries?.some((e) => (fails('agent.dedupe_own_sig', true) ? false : x.sig && e.tx_sig === x.sig) || (x.agentSig && e.signatures.includes(x.agentSig)));
+  // A node that answers without transaction.signatures gives the history entry no signature list. Such an entry is matched to a payment this agent made by what the
+  // transaction itself says: the agent is a signer, the recent blockhash and the amount are the payload's (or the transaction id is the agent's own signature, as when the agent
+  // pays the fee). One entry matches one payment, so two payments are never counted as one nor one as two (Addendum O, O7).
+  const claimed = new Map();
+  const unsignedMatch = (e, x) => fails('agent.unsigned_entries', true) && !e.signatures?.length && x.agentSig && (claimed.get(e) ?? x.agentSig) === x.agentSig
+    && (e.tx_sig === x.agentSig || (Boolean(x.blockhash) && e.blockhash === x.blockhash && e.signers?.includes(signer.address) && String(e.amount) === String(x.amount)));
+  const findLanded = (entries, x) => entries?.find((e) => x.agentSig && e.signatures?.includes(x.agentSig)) ?? entries?.find((e) => unsignedMatch(e, x) && (claimed.set(e, x.agentSig), true));
+  const showsIn = (entries, x) => entries?.some((e) => (fails('agent.dedupe_own_sig', true) ? false : x.sig && e.tx_sig === x.sig)) || Boolean(findLanded(entries, x));
   function restoreReservations(entries) {
     const saved = dataDir && mandate && fails('agent.restore_reservations', true) ? savedReservations : [];
     for (const x of saved) {
@@ -232,7 +242,7 @@ async function build(cfg, guard) {
         reservations.push({ id: nextReservation++, amount: BigInt(x.amount), t: x.t, state: 'consumed', created: true, agentSig: x.agentSig, blockhash: x.blockhash, lastValid: null, contextSlot: x.contextSlot, sig: x.sig ?? null, spentAt: x.spentAt ?? x.t, seen: false, restored: true });
         continue;
       }
-      const landed = entries?.find((e) => x.agentSig && e.signatures.includes(x.agentSig));
+      const landed = findLanded(entries, x);
       reservations.push({ id: nextReservation++, amount: BigInt(x.amount), t: x.t, state: landed ? 'consumed' : 'held', created: true, agentSig: x.agentSig, blockhash: x.blockhash, lastValid: x.lastValidBlockHeight == null ? null : BigInt(x.lastValidBlockHeight), contextSlot: x.contextSlot, sig: landed?.tx_sig ?? null, seen: Boolean(landed), restored: true });
     }
     if (saved.length) persistReservations();
@@ -349,7 +359,7 @@ async function build(cfg, guard) {
     markSeen(h.entries);
     for (const r of expired) {
       if (r.state !== 'held') continue; // another call resolved it while this one was reading the chain
-      const landed = h.entries.find((e) => r.agentSig && e.signatures.includes(r.agentSig));
+      const landed = findLanded(h.entries, r);
       if (landed && fails('agent.landed_consumed', true)) { r.state = 'consumed'; r.seen = true; r.sig = landed.tx_sig; if (!counted(r.agentSig, landed.tx_sig)) ledger.push({ amount: landed.amount, t: landed.block_time ?? r.t, sig: landed.tx_sig, agentSig: r.agentSig, signatures: landed.signatures }); }
       else if (!landed && fails('agent.release_on_expiry', true)) r.state = 'released';
     }
