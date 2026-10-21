@@ -21,6 +21,10 @@
 // Address-lookup-table transactions are refused, not passed: their account pubkeys
 // cannot be resolved from the message alone, so they cannot be compared safely here.
 // x402 micropayments do not use lookup tables.
+//
+// iussum addition (Addendum P, P3): the lifetime is part of what the signer may not change. The agent records ITS blockhash and last valid block height for the
+// reservation and proves expiry about that blockhash; a signer that swapped it would make the proof about a blockhash the payload does not carry. So the recent blockhash
+// (`lifetimeToken`) of both messages must be equal, and a durable-nonce lifetime (a first AdvanceNonceAccount instruction) is refused outright: it never expires.
 
 import {
   getTransactionDecoder,
@@ -28,6 +32,7 @@ import {
 } from '@solana/kit'
 
 const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111'
+const SYSTEM_PROGRAM = '11111111111111111111111111111111'
 
 const txDecoder = getTransactionDecoder()
 const msgDecoder = getCompiledTransactionMessageDecoder()
@@ -64,6 +69,8 @@ function canonicalize(b64, label) {
 
   const accounts = msg.staticAccounts.map(String)
   const feePayer = accounts[0]
+  const first = msg.instructions[0]
+  const durable = Boolean(first) && accounts[first.programAddressIndex] === SYSTEM_PROGRAM && first.data?.length >= 4 && Buffer.from(first.data).readUInt32LE(0) === 4 // AdvanceNonceAccount
   const instructions = []
   for (const ix of msg.instructions) {
     const program = accounts[ix.programAddressIndex]
@@ -74,7 +81,7 @@ function canonicalize(b64, label) {
       data: toHex(ix.data),
     })
   }
-  return { feePayer, instructions }
+  return { feePayer, instructions, lifetime: String(msg.lifetimeToken), durable }
 }
 
 /**
@@ -85,9 +92,22 @@ function canonicalize(b64, label) {
  * @param {string} sentB64     base64 wire transaction handed to the wallet
  * @param {string} returnedB64 base64 wire transaction the wallet signed and returned
  */
-export function assertOnlyComputeBudgetChanged(sentB64, returnedB64) {
+export function assertOnlyComputeBudgetChanged(sentB64, returnedB64, { lifetime = true, durableNonce = true } = {}) {
   const sent = canonicalize(sentB64, 'sent')
   const got = canonicalize(returnedB64, 'returned')
+
+  if (durableNonce && (sent.durable || got.durable)) {
+    throw new WalletMutationError('wallet used a durable-nonce lifetime (AdvanceNonceAccount): the payload would never expire, so no expiry can be proven for it', {
+      sentDurable: sent.durable,
+      returnedDurable: got.durable,
+    })
+  }
+  if (lifetime && sent.lifetime !== got.lifetime) {
+    throw new WalletMutationError('wallet changed the transaction lifetime (the recent blockhash)', {
+      sent: sent.lifetime,
+      returned: got.lifetime,
+    })
+  }
 
   if (sent.feePayer !== got.feePayer) {
     throw new WalletMutationError('wallet changed the fee payer', {

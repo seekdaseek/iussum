@@ -20,7 +20,7 @@
 import { x402Client } from '@x402/core/client';
 import { wrapFetchWithPayment } from '@x402/fetch';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { createGrantChecker, scopeViolations, mandateId, periodIndex, periodStart, decodeReceipt, normalizeResource, agentSpendHistory, allowanceCheck, mintDecimals, R, fails, isMutated, registerCheck, principalAta, assertMandate } from '@iussum/core';
+import { createGrantChecker, scopeViolations, mandateId, periodIndex, periodStart, decodeReceipt, normalizeResource, agentSpendHistory, allowanceCheck, mintDecimals, isAmountString, R, fails, isMutated, registerCheck, principalAta, assertMandate } from '@iussum/core';
 import { getTransactionDecoder, getBase58Decoder, pipe, createTransactionMessage, setTransactionMessageFeePayer, appendTransactionMessageInstructions, setTransactionMessageLifetimeUsingBlockhash, partiallySignTransactionMessageWithSigners, compileTransaction, getBase64EncodedWireTransaction, getTransactionEncoder } from '@solana/kit';
 import { getTransferCheckedInstruction, TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
 import { assertOnlyComputeBudgetChanged } from './txguard.js';
@@ -29,7 +29,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 
-export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid', 'agent.release_needs_height', 'agent.min_context_slot', 'agent.consume_released', 'agent.persist_before_send', 'agent.restore_reservations', 'agent.checkpoint', 'agent.datadir_lock', 'agent.closed_refuses', 'agent.corrupt_reservations_refuse', 'agent.tmp_cleanup', 'agent.history_min_context', 'agent.keyed_by_grant', 'agent.retry_after', 'agent.closed_hook', 'agent.closed_scheme', 'agent.write_needs_lock', 'agent.held_any_period', 'agent.keep_settled', 'agent.legacy_lock', 'agent.legacy_import', 'agent.expiry_context', 'agent.retry_after_header', 'agent.fsync_dir', 'agent.dedupe_own_sig', 'agent.rpc_guard', 'agent.abort_early', 'agent.rollback_lock', 'agent.close_timeout', 'agent.signal_start_only', 'agent.close_timeout_bounds', 'agent.close_maps_guard', 'agent.close_waits', 'agent.start_releases', 'agent.dirs_realpath', 'agent.unsigned_entries'].map(registerCheck);
+export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid', 'agent.release_needs_height', 'agent.min_context_slot', 'agent.consume_released', 'agent.persist_before_send', 'agent.restore_reservations', 'agent.checkpoint', 'agent.datadir_lock', 'agent.closed_refuses', 'agent.corrupt_reservations_refuse', 'agent.tmp_cleanup', 'agent.history_min_context', 'agent.keyed_by_grant', 'agent.retry_after', 'agent.closed_hook', 'agent.closed_scheme', 'agent.write_needs_lock', 'agent.held_any_period', 'agent.keep_settled', 'agent.legacy_lock', 'agent.legacy_import', 'agent.expiry_context', 'agent.retry_after_header', 'agent.fsync_dir', 'agent.dedupe_own_sig', 'agent.rpc_guard', 'agent.abort_early', 'agent.rollback_lock', 'agent.close_timeout', 'agent.signal_start_only', 'agent.close_timeout_bounds', 'agent.close_maps_guard', 'agent.close_waits', 'agent.start_releases', 'agent.dirs_realpath', 'agent.unsigned_entries', 'agent.amount_decimal', 'agent.redirect_manual', 'agent.tx_lifetime', 'agent.tx_durable_nonce'].map(registerCheck);
 const MARK = 'IUSSUM_REFUSAL:';
 const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export class IussumRefusal extends Error {
@@ -299,7 +299,7 @@ async function build(cfg, guard) {
       const signed = getBase64EncodedWireTransaction(await sign(built));
       if (fails('agent.closed_scheme', closed)) throw new Error('iussum agent is closed: no payload is created'); // closed while signing: the payload never leaves
       // whatever signs this transaction may add ComputeBudget instructions and nothing else (copied x402-wallet guard)
-      if (fails('agent.tx_guard', true)) assertOnlyComputeBudgetChanged(sent, signed);
+      if (fails('agent.tx_guard', true)) assertOnlyComputeBudgetChanged(sent, signed, { lifetime: fails('agent.tx_lifetime', true), durableNonce: fails('agent.tx_durable_nonce', true) });
       // the reservation of this payment learns that a payload exists, which agent signature it carries and until which block it can land
       const mine = requested.getStore()?.ids.map((id) => reservations[id]).findLast((r) => r.state === 'held' && !r.created);
       if (mine) { mine.created = true; mine.blockhash = bh.blockhash; mine.lastValid = bh.lastValidBlockHeight === undefined ? null : BigInt(bh.lastValidBlockHeight); mine.contextSlot = bh.contextSlot ?? null; mine.agentSig = agentSignature(signed); if (fails('agent.persist_before_send', true)) { try { persistReservations(); } catch (e) { mine.created = false; throw e; } } } // on disk before the payload leaves (if it cannot be written the payload is not returned and the reservation is released)
@@ -370,6 +370,8 @@ async function build(cfg, guard) {
       // a closed agent reads no chain and writes nothing: refuse at the top (Addendum M, M2)
       if (fails('agent.closed_hook', closed)) return { abort: true, reason: MARK + JSON.stringify({ reason: 'agent_closed', delta: [] }) };
       const r = ctx.selectedRequirements;
+      // the amount is a plain decimal integer string or nothing is reserved: BigInt() takes '-5', '0x10' and ' 5', and a negative reservation subtracts from the period total while the payload is built (Addendum P, P1)
+      if (fails('agent.amount_decimal', !isAmountString(r.amount))) return { abort: true, reason: MARK + JSON.stringify({ reason: R.amount_over_cap, delta: [{ code: R.amount_over_cap, field: 'amount', authorized: 'a decimal integer string (digits only, no sign, no leading zeros)', actual: String(r.amount) }] }) };
       const store = requested.getStore();
       const asked = store?.url ?? null; // fix 8: judge the URL actually requested
       const declared = ctx.paymentRequired.resource?.url ?? null;
@@ -410,7 +412,8 @@ async function build(cfg, guard) {
   const retryingFetch = async (input, init) => {
     for (let attempt = 0; ; attempt++) {
       const copy = input instanceof Request ? input.clone() : input;
-      const res = await baseFetch(copy, init);
+      // every request is sent with redirect: 'manual': the agent judged the URL it asked for, and a redirect would send it, and its payment header, to a server it did not judge (Addendum P, P2)
+      const res = await baseFetch(copy, fails('agent.redirect_manual', true) ? { ...init, redirect: 'manual' } : init);
       if (res.status !== 503 || !paid(input, init) || attempt >= retryMax || !fails('agent.retry_after', true)) return res;
       // retry only when the server said when: Retry-After as whole seconds, or a future HTTP-date (Addendum M, M8); a 503 without it is not hammered three times at once
       const ra = (res.headers.get('retry-after') ?? '').trim();

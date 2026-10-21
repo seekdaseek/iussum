@@ -62,7 +62,10 @@ export function summaryLine(m) {
 
 // Tier 1: pure scope check of one payment against a mandate. p = { amount, pay_to, resource, asset, network, payer, time }.
 export const periodStart = (m, t) => m.not_before + Math.floor((t - m.not_before) / m.period_seconds) * m.period_seconds;
-export const SCOPE_CHECKS = ['network_mismatch', 'asset_mismatch', 'mandate_not_yet_valid', 'mandate_expired', 'agent_mismatch', 'amount_over_cap', 'pay_to_not_allowed', 'resource_not_allowed'].map(registerCheck);
+export const SCOPE_CHECKS = ['network_mismatch', 'asset_mismatch', 'mandate_not_yet_valid', 'mandate_expired', 'agent_mismatch', 'amount_over_cap', 'pay_to_not_allowed', 'resource_not_allowed', 'scope.amount_decimal'].map(registerCheck);
+// An amount is a plain decimal integer string: no sign, no spaces, no leading zeros, no hex, no exponent (Addendum P, P1). BigInt() accepts '-5', '0x10', ' 5' and '007', and a negative
+// amount that passes the cap would subtract from a period total. The agent, the gate and the resolver judge amounts the same way, with this.
+export const isAmountString = (a) => typeof a === 'string' && /^(0|[1-9][0-9]*)$/.test(a);
 // opts.judgeResource=false / judgeTime=false: the evidence for that field is not available (a dispute without a receipt has no resource);
 // the caller lists it as unjudged instead of guessing.
 export function scopeViolations(m, p, { judgeResource = true, judgeTime = true } = {}) {
@@ -73,7 +76,7 @@ export function scopeViolations(m, p, { judgeResource = true, judgeTime = true }
   if (judgeTime && fails(R.mandate_not_yet_valid, p.time < m.not_before)) add(R.mandate_not_yet_valid, 'time', `>= ${m.not_before}`, String(p.time));
   if (judgeTime && fails(R.mandate_expired, p.time >= m.expires_at)) add(R.mandate_expired, 'time', `< ${m.expires_at}`, String(p.time));
   if (fails(R.agent_mismatch, p.payer !== m.agent)) add(R.agent_mismatch, 'payer', m.agent, p.payer);
-  if (fails(R.amount_over_cap, BigInt(p.amount) > BigInt(m.per_payment_max))) add(R.amount_over_cap, 'amount', m.per_payment_max, String(p.amount));
+  if (fails(R.amount_over_cap, fails('scope.amount_decimal', !isAmountString(p.amount)) || BigInt(p.amount) > BigInt(m.per_payment_max))) add(R.amount_over_cap, 'amount', m.per_payment_max, String(p.amount));
   if (fails(R.pay_to_not_allowed, !m.allow.pay_to.includes(p.pay_to))) add(R.pay_to_not_allowed, 'pay_to', m.allow.pay_to.join(','), p.pay_to);
   if (judgeResource && fails(R.resource_not_allowed, !resourceAllowed(m.allow.resource_prefix, p.resource))) add(R.resource_not_allowed, 'resource', m.allow.resource_prefix.join(','), String(p.resource));
   return v;
