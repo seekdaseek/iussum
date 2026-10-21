@@ -29,7 +29,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 
-export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid', 'agent.release_needs_height', 'agent.min_context_slot', 'agent.consume_released', 'agent.persist_before_send', 'agent.restore_reservations', 'agent.checkpoint', 'agent.datadir_lock', 'agent.closed_refuses', 'agent.corrupt_reservations_refuse', 'agent.tmp_cleanup', 'agent.history_min_context', 'agent.keyed_by_grant', 'agent.retry_after', 'agent.closed_hook', 'agent.closed_scheme', 'agent.write_needs_lock', 'agent.held_any_period', 'agent.keep_settled', 'agent.legacy_lock', 'agent.legacy_import', 'agent.expiry_context', 'agent.retry_after_header', 'agent.fsync_dir', 'agent.close_waits', 'agent.start_releases'].map(registerCheck);
+export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid', 'agent.release_needs_height', 'agent.min_context_slot', 'agent.consume_released', 'agent.persist_before_send', 'agent.restore_reservations', 'agent.checkpoint', 'agent.datadir_lock', 'agent.closed_refuses', 'agent.corrupt_reservations_refuse', 'agent.tmp_cleanup', 'agent.history_min_context', 'agent.keyed_by_grant', 'agent.retry_after', 'agent.closed_hook', 'agent.closed_scheme', 'agent.write_needs_lock', 'agent.held_any_period', 'agent.keep_settled', 'agent.legacy_lock', 'agent.legacy_import', 'agent.expiry_context', 'agent.retry_after_header', 'agent.fsync_dir', 'agent.dedupe_own_sig', 'agent.close_waits', 'agent.start_releases'].map(registerCheck);
 const MARK = 'IUSSUM_REFUSAL:';
 const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export class IussumRefusal extends Error {
@@ -179,7 +179,12 @@ async function build(cfg, guard) {
   // Addendum E, C1: while the grant is current the debits found must add up to total_cap minus the allowance that is left on the account.
   // Reservations that a previous run persisted: a payload may still be out there. They are held again; if the rebuilt history shows the agent's signature
   // from that payload, it landed and is already in the ledger (consumed). They are resolved later by the same proven-expiry rule as any other.
-  const showsIn = (entries, x) => entries?.some((e) => (x.sig && e.tx_sig === x.sig) || (x.agentSig && e.signatures.includes(x.agentSig)));
+  // A payment is recognised by the agent's OWN signature on it (the fee payer's signature is the transaction id; the agent's is the delegate's), never by the
+  // `transaction` a seller or facilitator reports in payment-response: that is the other party's word, and a repeated, borrowed or invented signature must not
+  // make the agent forget a payment (Addendum N, N1). Ledger entries carry `agentSig` (a payment the agent made) or `signatures` (read from the chain).
+  const ownedBy = (x, sig) => Boolean(sig) && (x.agentSig === sig || x.signatures?.includes(sig));
+  const counted = (ownSig, reportedSig) => (fails('agent.dedupe_own_sig', true) ? ledger.some((x) => ownedBy(x, ownSig)) : Boolean(reportedSig) && ledger.some((x) => x.sig === reportedSig));
+  const showsIn = (entries, x) => entries?.some((e) => (fails('agent.dedupe_own_sig', true) ? false : x.sig && e.tx_sig === x.sig) || (x.agentSig && e.signatures.includes(x.agentSig)));
   function restoreReservations(entries) {
     const saved = dataDir && mandate && fails('agent.restore_reservations', true) ? savedReservations : [];
     for (const x of saved) {
@@ -187,8 +192,8 @@ async function build(cfg, guard) {
         // a payment that settled before the restart: counted as spent until the start-up history shows it (a node a little behind may show neither the payment nor
         // the lower allowance, and the cross-check passes on that old but consistent view)
         if (showsIn(entries, x)) continue;
-        if (x.sig && ledger.some((l) => l.sig === x.sig)) continue;
-        ledger.push({ amount: String(x.amount), t: x.spentAt ?? x.t, sig: x.sig ?? null });
+        if (counted(x.agentSig, x.sig)) continue;
+        ledger.push({ amount: String(x.amount), t: x.spentAt ?? x.t, sig: x.sig ?? null, agentSig: x.agentSig ?? null });
         reservations.push({ id: nextReservation++, amount: BigInt(x.amount), t: x.t, state: 'consumed', created: true, agentSig: x.agentSig, blockhash: x.blockhash, lastValid: null, contextSlot: x.contextSlot, sig: x.sig ?? null, spentAt: x.spentAt ?? x.t, seen: false, restored: true });
         continue;
       }
@@ -215,7 +220,7 @@ async function build(cfg, guard) {
     const h = await agentSpendHistory(rpc, { source, agent: signer.address, mint: mandate.asset, until: grant_tx, stopAtTime: full ? null : periodStart(mandate, now()), checkpoint: full ? cp : null });
     if (full && h.checkpoint) saveCheckpoint(h.checkpoint);
     ledgerComplete = h.complete; ledgerReason = h.reason;
-    for (const e of h.entries) ledger.push({ amount: e.amount, t: e.block_time ?? now(), sig: e.tx_sig });
+    for (const e of h.entries) ledger.push({ amount: e.amount, t: e.block_time ?? now(), sig: e.tx_sig, signatures: e.signatures });
     restoreReservations(ledgerComplete ? h.entries : null);
     if (ledgerComplete && markSeen(h.entries)) persistReservations();
     if (reservationsCorrupt && fails('agent.corrupt_reservations_refuse', true)) { ledgerComplete = false; ledgerReason = reservationsCorrupt; }
@@ -310,7 +315,7 @@ async function build(cfg, guard) {
     for (const r of expired) {
       if (r.state !== 'held') continue; // another call resolved it while this one was reading the chain
       const landed = h.entries.find((e) => r.agentSig && e.signatures.includes(r.agentSig));
-      if (landed && fails('agent.landed_consumed', true)) { r.state = 'consumed'; r.seen = true; r.sig = landed.tx_sig; if (!ledger.some((x) => x.sig === landed.tx_sig)) ledger.push({ amount: landed.amount, t: landed.block_time ?? r.t, sig: landed.tx_sig }); }
+      if (landed && fails('agent.landed_consumed', true)) { r.state = 'consumed'; r.seen = true; r.sig = landed.tx_sig; if (!counted(r.agentSig, landed.tx_sig)) ledger.push({ amount: landed.amount, t: landed.block_time ?? r.t, sig: landed.tx_sig, agentSig: r.agentSig, signatures: landed.signatures }); }
       else if (!landed && fails('agent.release_on_expiry', true)) r.state = 'released';
     }
     persistReservations();
@@ -398,7 +403,7 @@ async function build(cfg, guard) {
       const settle = JSON.parse(Buffer.from(pr, 'base64').toString('utf8'));
       // a success is counted even if the reservation was released meanwhile (a release must be proven, but the money moved): consume it, dedupe by signature
       const mine = st.ids.map((id) => reservations[id]).findLast((r) => r.created && (r.state === 'held' || (r.state === 'released' && fails('agent.consume_released', true))));
-      if (settle.success && mine) { mine.state = 'consumed'; mine.seen = false; mine.spentAt = now(); mine.sig = settle.transaction ?? null; if (!mine.sig || !ledger.some((x) => x.sig === mine.sig)) ledger.push({ amount: String(mine.amount), t: now(), sig: mine.sig }); persistReservations(); }
+      if (settle.success && mine) { mine.state = 'consumed'; mine.seen = false; mine.spentAt = now(); mine.sig = settle.transaction ?? null; if (!counted(mine.agentSig, mine.sig)) ledger.push({ amount: String(mine.amount), t: now(), sig: mine.sig, agentSig: mine.agentSig }); persistReservations(); }
     }
     const rh = res.headers.get('x-iussum-receipt');
     res.receipt = rh ? decodeReceipt(rh) : null;

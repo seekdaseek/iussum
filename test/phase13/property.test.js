@@ -257,11 +257,14 @@ const b58 = getBase58Decoder(), txDec = getTransactionDecoder(), msgDec = getCom
 const decodeTx = (b64) => txDec.decode(Uint8Array.from(Buffer.from(b64, 'base64')));
 test('property I4: the agent never settles more than period_budget under concurrency, lost responses, kept payloads, seller blockhash fields, expiry, a lagging node and restarts (60 seeds)', async (tc) => {
   const NOW = T0 + 1000;
-  let settledTotal = 0, refusals = 0, restarts = 0, restartsWithKept = 0, expiries = 0, lags = 0, histLags = 0, regrants = 0, i3s = 0;
+  let settledTotal = 0, refusals = 0, restarts = 0, restartsWithKept = 0, expiries = 0, lags = 0, histLags = 0, regrants = 0, i3s = 0, liars = 0;
   for (const seed of seeds.slice(0, 60)) {
     const r = rngFor(seed * 101 + 9);
     const price = pick(r, [10000, 20000]), budget = pick(r, [30000, 50000, 70000]);
-    const facilitator = await startMockFacilitator();
+    // N1: in half the seeds the seller (its facilitator) repeats a signature it has already reported (the first one) for every later settle; the agent must count each
+    // payment by its OWN signature. A separate random stream, so the other seeds keep their histories.
+    const liar = rngFor(seed * 7 + 3)() < 0.5; if (liar) liars++;
+    const facilitator = await startMockFacilitator({ fixedTx: liar ? (k) => (k > 1 ? 'MOCKSETTLE1'.padEnd(88, 'x') : null) : null });
     const seller = await startSeller({ facilitator, mode: 'off', now: () => NOW, price: String(price) });
     const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'iussum-prop-'));
     const s = await newScenario(seller, { mandate: { period_budget: String(budget), per_payment_max: String(price), total_cap: '10000000' } });
@@ -346,7 +349,7 @@ test('property I4: the agent never settles more than period_budget under concurr
       settledTotal += facilitator.counts.settle;
     } finally { globalThis.fetch = realFetch; await agent.close(); facilitator.close(); seller.close(); fs.rmSync(dataDir, { recursive: true, force: true }); }
   }
-  console.log(`property I4: 60 seeds, ${i3s} landings behind a lagging history node followed by an expiry, ${settledTotal} payments settled, ${refusals} local refusals (all period_over_budget), ${restarts} restarts (${restartsWithKept} while a seller held a payload), ${expiries} expiries, ${lags} lagging-node phases, ${histLags} lagging-history-node phases, ${regrants} same-mandate re-grants with the data directory reused, never above the budget`);
+  console.log(`property I4: 60 seeds, ${liars} with a seller that repeats a signature, ${i3s} landings behind a lagging history node followed by an expiry, ${settledTotal} payments settled, ${refusals} local refusals (all period_over_budget), ${restarts} restarts (${restartsWithKept} while a seller held a payload), ${expiries} expiries, ${lags} lagging-node phases, ${histLags} lagging-history-node phases, ${regrants} same-mandate re-grants with the data directory reused, never above the budget`);
 });
 
 test('property I5: a facilitator that reports success twice for one transaction does not make an honest seller sign two receipts (20 seeds)', async (tc) => {

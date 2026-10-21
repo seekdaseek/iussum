@@ -1,0 +1,71 @@
+### a6-dup-settle-sig
+control: distinct tx signatures: 200, 200, 200, period_over_budget, period_over_budget, period_over_budget | settled 30000 vs period_budget 30000 | agent ledger 3 entries
+seller reports one tx signature for every settle: 200, 200, 200, 200, 200, 200 | settled 60000 vs period_budget 30000 | agent ledger 1 entries
+### a1-close-paid-lost
+control: close() after pay returned: pay() -> status 200 | settled by facilitator: 1 | seller handler ran: 1 | in-memory: consumed | on disk: ["consumed"]
+close() while paid request in flight: pay() -> THREW: iussum agent: the data directory is not locked by this agent (closed, or the start was aba | settled by facilitator: 1 | seller handler ran: 1 | in-memory: consumed | on disk: ["held"]
+### a3-signal-early
+control: abort 100 ms into the start: first createAgent rejected (This operation was aborted), chain reads it made: 1 | a new start on the same directory: STARTED
+signal already aborted: first createAgent rejected (This operation was aborted), chain reads it made: 1 | a new start on the same directory: another agent holds the data directory <tmp>
+abort() right after createAgent(): first createAgent rejected (This operation was aborted), chain reads it made: 1 | a new start on the same directory: another agent holds the data directory <tmp>
+### a5-abandoned-keeps-reading
+createAgent rejected: This operation was aborted right away (0 transaction reads after abort at that point) | 6 s later the abandoned start had made 231 more getTransaction calls after abort (of 250 total)
+### a4-close-hang
+paid requests sent: 1 (seller never answers) | close() still pending after 5 s | a new agent on the directory: another agent holds the data directory <tmp>
+### g1e-slotless-gate
+control                 : 403 {"error":"iussum_out_of_scope","reason":"grant_inactive","delta":[{"co | settled: 0
+G2 answered without slot: 200 {"ok":true} | settled: 1
+### g1c-slotless-resolver
+control                 : invalid mandate_superseded liable=null provisional=undefined stored rows=0 [{"field":"grant","authorized":"the current grant when the payment was made","actual":"superseded by G2xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx at slot 2
+G2 answered without slot: invalid in_scope liable=principal provisional=false stored rows=1 []
+### g1-slotless-superseder
+control (slot present)       gate check ok=false superseded by G2xxxxxxxxxxxxxx | after the node heals, same checker ok=false | stored since=G2x | resolver-style scan superseded="G2x"
+G2 answer without slot       gate check ok=true  | after the node heals, same checker ok=true | stored since=G2x | resolver-style scan superseded="G2x"
+G2 slotless + G3 with slot   gate check ok=true  | after the node heals, same checker ok=true | stored since=G3x | resolver-style scan superseded="G2x"
+### g1b-slotless-http
+control: grant ok=false superseded by D7xxxxxxxxxxxxxxxxxxxxxxxx
+D7 (ApproveChecked) answered without slot: grant ok=true 
+### g1d-listing-err
+control: grant ok=false superseded by G2xxxx | getTransaction G2 read: 2
+listing marks G2 failed (tx meta.err null): grant ok=true  | getTransaction G2 read: 1
+### g5-maxscans-zero
+maxConcurrentScans=0: gate starts | check: no answer after 3 s | stats {"grants":1,"notFound":0,"scans":0,"runningScans":0,"queuedScans":1}
+maxConcurrentScans=-1: gate starts | check: no answer after 3 s | stats {"grants":1,"notFound":0,"scans":0,"runningScans":0,"queuedScans":1}
+maxConcurrentScans=null: gate starts | check: answered ok=true | stats {"grants":1,"notFound":0,"scans":1,"runningScans":0,"queuedScans":0}
+maxConcurrentScans="2": gate starts | check: answered ok=true | stats {"grants":1,"notFound":0,"scans":1,"runningScans":0,"queuedScans":0}
+### g3-grant-not-yet-visible
+t=   0 ms (grant visible on the seller's node from t=1500): 403 {"error":"iussum_out_of_scope","reason":"grant_not_found","d (37 ms)
+t=2500 ms (grant visible on the seller's node from t=1500): 403 {"error":"iussum_out_of_scope","reason":"grant_not_found","d (10 ms)
+t=6500 ms (grant visible on the seller's node from t=1500): 200 {"ok":true} (27 ms)
+settled: 1
+### g2-scan-slot-starvation
+legit payment 1 (warms the grant)            : 200
+legit payment 2 (warm, before the attack)    : 200
+attacker requests, 4 own grants with slow scans: 503,503,503,503 (1023 ms)
+legit payment 3 (warm, during the attack)    : 503 Retry-After 1 (1007 ms) 
+legit payment 4 (warm, during the attack)    : 503 Retry-After 1 (1008 ms) 
+legit payment 5 (warm, during the attack)    : 503 Retry-After 1 (1015 ms) 
+settled in total: 2
+### p1-pacing
+1. clock back 1 h: sleeps requested before the next calls (ms): [3600000,1667,1667]  tokens now 0.0
+2. rate 0: calls 1 and 2: finished,gave up, fetches 1, sleep values asked: Infinity
+2. rate NaN: calls 1 and 2: gave up,gave up, fetches 0, sleep values asked: NaN
+2. rate -1: calls 1 and 2: finished,gave up, fetches 1, sleep values asked: 1
+3. whole batch limited via http429: posts 6, virtual time spent 1.11 s, rate after 7.32 (configured 10)
+3. whole batch limited via json200: posts 6, virtual time spent 0.60 s, rate after 10.00 (configured 10)
+4. configured rate 0.01/s: before 0.01, after one 429 the bucket rate is 0.05
+### p3-burst
+rate 1/s, burst 0: 20 calls took 0.0 virtual s (expected about 19 s)
+rate 1/s, burst 0.5: 20 calls took 9.5 virtual s (expected about 19 s)
+rate 1/s, burst 1: 20 calls took 19.0 virtual s (expected about 19 s)
+### p2-starve
+one single-call loop for 5 s at rate 50/s, burst 2: 253 single calls answered; the 2-element batch finished after 5062 ms
+### a2-reverse-lock (142276f, this tree)
+process 1 (142276f): STARTED | then process 2 (f62ae84): REFUSED: another agent holds the data directory <tmp>
+process 1 (f62ae84): STARTED | then process 2 (142276f): STARTED
+### g4 independent verdict_id recomputation
+mismatches: 0
+### g6-fuzz-resume seed 1
+answers 1618, failed (closed) 182, wrong 0
+### g6-fuzz-resume seed 2
+answers 1628, failed (closed) 172, wrong 0

@@ -20,7 +20,7 @@ export async function startMockFacilitator({ fixedTx = null } = {}) {
       res.setHeader('content-type', 'application/json');
       if (req.url === '/supported') return res.end(JSON.stringify({ kinds: [{ x402Version: 2, scheme: 'exact', network: DEVNET, extra: { feePayer: A.thief } }], extensions: [], signers: { 'solana:*': [A.thief] } }));
       if (req.url === '/verify') { counts.verify++; return res.end(JSON.stringify({ isValid: true, payer: A.agent })); }
-      if (req.url === '/settle') { counts.settle++; try { settled.push(JSON.parse(b).paymentPayload); } catch { /* ignore */ } return res.end(JSON.stringify({ success: true, transaction: fixedTx ?? `MOCKSETTLE${++n}`.padEnd(88, 'x'), network: DEVNET, payer: JSON.parse(b).paymentPayload ? A.agent : A.agent })); }
+      if (req.url === '/settle') { counts.settle++; try { settled.push(JSON.parse(b).paymentPayload); } catch { /* ignore */ } return res.end(JSON.stringify({ success: true, transaction: (typeof fixedTx === 'function' ? fixedTx(n + 1) : fixedTx) ?? `MOCKSETTLE${++n}`.padEnd(88, 'x'), network: DEVNET, payer: JSON.parse(b).paymentPayload ? A.agent : A.agent })); }
       res.statusCode = 404; res.end('{}');
     });
   });
