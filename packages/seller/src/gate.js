@@ -8,7 +8,7 @@ import { createGrantChecker, scopeViolations, validateMandate, mandateId, signRe
 import { decodePayment, readPaymentHeader } from './decode.js';
 import { openReceiptStore } from './receipt-store.js';
 
-export const SELLER_CHECKS = ['seller.enforce', 'seller.observe_passes', 'seller.off_skips', 'seller.require_mandate', 'seller.receipt_issued', 'seller.receipt_binds_mandate', 'seller.mandate_invalid', 'seller.payment_unreadable', 'seller.payment_source', 'seller.origin_required', 'seller.resource_from_origin', 'seller.one_receipt_per_tx', 'seller.store_receipts', 'seller.no_receipt_on_failed_write', 'seller.grant_budget', 'seller.grant_budget_observe', 'seller.pending_scope'].map(registerCheck);
+export const SELLER_CHECKS = ['seller.enforce', 'seller.observe_passes', 'seller.off_skips', 'seller.require_mandate', 'seller.receipt_issued', 'seller.receipt_binds_mandate', 'seller.mandate_invalid', 'seller.payment_unreadable', 'seller.payment_source', 'seller.origin_required', 'seller.resource_from_origin', 'seller.one_receipt_per_tx', 'seller.store_receipts', 'seller.no_receipt_on_failed_write', 'seller.grant_budget', 'seller.grant_budget_observe', 'seller.pending_scope', 'seller.pending_memo_bounded'].map(registerCheck);
 export const MODES = ['off', 'observe', 'enforce'];
 
 export function createSellerGate(cfg) {
@@ -31,7 +31,8 @@ export function createSellerGate(cfg) {
   // With cfg.dataDir the issued receipts are also kept in the gate's own SQLite file (H1): written BEFORE the response that carries the receipt is sent, so
   // a repeated success after a restart returns the stored bytes. cfg.receiptStore replaces it (tests). An unreadable or corrupt store stops the start.
   const store = fails('seller.store_receipts', true) ? (cfg.receiptStore ?? (cfg.dataDir ? openReceiptStore(cfg.dataDir) : null)) : null;
-  checker = createGrantChecker(rpc, { grantNullRetries: 0, maxScans: cfg.maxConcurrentScans, maxQueuedScans: cfg.maxQueuedScans, maxWarmScans: cfg.maxWarmScans, notFoundTtlMs: cfg.notFoundTtlMs, scanStore: store?.getScan ? { get: (k) => store.getScan(k), put: (k, v) => store.putScan(k, v) } : null });
+  checker = createGrantChecker(rpc, { grantNullRetries: 0, maxScans: cfg.maxConcurrentScans, maxQueuedScans: cfg.maxQueuedScans, maxWarmScans: cfg.maxWarmScans, // the pending memo of an unseen grant never outlasts the Retry-After the gate sends, or the agent's retries would all land inside it (Addendum O, O5)
+    notFoundTtlMs: fails('seller.pending_memo_bounded', true) ? Math.min(cfg.notFoundTtlMs ?? 5000, retryAfterSeconds * 1000) : cfg.notFoundTtlMs, scanStore: store?.getScan ? { get: (k) => store.getScan(k), put: (k, v) => store.putScan(k, v) } : null });
   const signed = new Map();
   const remember = (tx, bytes) => { signed.delete(tx); signed.set(tx, bytes); if (signed.size > 10_000) signed.delete(signed.keys().next().value); };
   const resourceUrl = (req) => `${fails('seller.resource_from_origin', true) ? origin : `${req.protocol}://${req.get('host')}`}${req.originalUrl.split('?')[0]}`;

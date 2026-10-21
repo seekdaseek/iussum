@@ -29,7 +29,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 
-export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid', 'agent.release_needs_height', 'agent.min_context_slot', 'agent.consume_released', 'agent.persist_before_send', 'agent.restore_reservations', 'agent.checkpoint', 'agent.datadir_lock', 'agent.closed_refuses', 'agent.corrupt_reservations_refuse', 'agent.tmp_cleanup', 'agent.history_min_context', 'agent.keyed_by_grant', 'agent.retry_after', 'agent.closed_hook', 'agent.closed_scheme', 'agent.write_needs_lock', 'agent.held_any_period', 'agent.keep_settled', 'agent.legacy_lock', 'agent.legacy_import', 'agent.expiry_context', 'agent.retry_after_header', 'agent.fsync_dir', 'agent.dedupe_own_sig', 'agent.rpc_guard', 'agent.abort_early', 'agent.rollback_lock', 'agent.close_timeout', 'agent.close_waits', 'agent.start_releases'].map(registerCheck);
+export const AGENT_CHECKS = ['agent.grant', 'agent.scope', 'agent.period', 'agent.tx_guard', 'agent.attach_mandate', 'agent.ledger', 'agent.ledger_rebuild', 'agent.history_complete', 'agent.resource_mismatch', 'agent.requested_url', 'agent.requested_url_present', 'agent.decimals', 'agent.destination_mismatch', 'agent.destination_ata', 'agent.reserve_held', 'agent.reserve_atomic', 'agent.hold_until_proven', 'agent.release_uncreated', 'agent.release_on_expiry', 'agent.landed_consumed', 'agent.rebuild_allowance', 'agent.history_to_grant', 'agent.own_blockhash', 'agent.blockhash_valid', 'agent.release_needs_height', 'agent.min_context_slot', 'agent.consume_released', 'agent.persist_before_send', 'agent.restore_reservations', 'agent.checkpoint', 'agent.datadir_lock', 'agent.closed_refuses', 'agent.corrupt_reservations_refuse', 'agent.tmp_cleanup', 'agent.history_min_context', 'agent.keyed_by_grant', 'agent.retry_after', 'agent.closed_hook', 'agent.closed_scheme', 'agent.write_needs_lock', 'agent.held_any_period', 'agent.keep_settled', 'agent.legacy_lock', 'agent.legacy_import', 'agent.expiry_context', 'agent.retry_after_header', 'agent.fsync_dir', 'agent.dedupe_own_sig', 'agent.rpc_guard', 'agent.abort_early', 'agent.rollback_lock', 'agent.close_timeout', 'agent.signal_start_only', 'agent.close_timeout_bounds', 'agent.close_maps_guard', 'agent.close_waits', 'agent.start_releases'].map(registerCheck);
 const MARK = 'IUSSUM_REFUSAL:';
 const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export class IussumRefusal extends Error {
@@ -57,9 +57,10 @@ async function build(cfg, guard) {
   const { mandate, grant_tx, signer, rpc: rawRpc, localChecks = true, attachMandate: wantAttach = true, now = () => Math.floor(Date.now() / 1000) } = cfg;
   if (mandate) assertMandate(mandate);
   let closed = false;
+  let started = false; // cfg.signal covers the START only: once createAgent has returned the agent, aborting the signal (or a timeout signal firing) changes nothing
   // Every chain call goes through this wrapper: once the agent is closed or its start was abandoned (cfg.signal) it throws instead of calling the node, so an abandoned start
   // stops reading a history the caller gave up on, and a closed agent reads nothing (Addendum N, N6 b).
-  const rpc = new Proxy(rawRpc, { get(t, prop) { const v = Reflect.get(t, prop); return typeof v === 'function' ? (...a) => { if (fails('agent.rpc_guard', closed || cfg.signal?.aborted)) throw new Error('iussum agent: closed or abandoned, no more chain reads'); return v.apply(t, a); } : v; } });
+  const rpc = new Proxy(rawRpc, { get(t, prop) { const v = Reflect.get(t, prop); return typeof v === 'function' ? (...a) => { if (fails('agent.rpc_guard', closed || (cfg.signal?.aborted && (!started || !fails('agent.signal_start_only', true))))) throw new Error('iussum agent: closed or abandoned, no more chain reads'); return v.apply(t, a); } : v; } });
   // localChecks: true (full), 'caps' (payer-side caps only: per-payment and period amounts, no allow-lists, no grant check, no mandate attached), false (naive)
   const capsOnly = localChecks === 'caps';
   const attachMandate = wantAttach && !capsOnly;
@@ -425,6 +426,8 @@ async function build(cfg, guard) {
     catch (e) {
       const i = String(e.message).indexOf(MARK);
       if (i >= 0) { const j = JSON.parse(e.message.slice(i + MARK.length)); throw new IussumRefusal(j.reason, j.delta); }
+      // closed while the grant check was reading: say so with the refusal a caller handles, not as a payload-creation error (Addendum O, O7)
+      if (fails('agent.close_maps_guard', closed && /closed or abandoned/.test(String(e.message)))) { for (const id of st.ids) if (reservations[id].state === 'held' && !reservations[id].created) reservations[id].state = 'released'; throw new IussumRefusal('agent_closed', []); }
       // the payload may have reached the seller and settled even though no response came back: it stays held (and counts) until proven otherwise
       if (!fails('agent.hold_until_proven', true)) for (const id of st.ids) if (reservations[id].state === 'held') reservations[id].state = 'released';
       throw e;
@@ -443,11 +446,14 @@ async function build(cfg, guard) {
     res.receipt = rh ? decodeReceipt(rh) : null;
     return res;
   }
+  started = true;
   return { fetch: pay, client, ledger, reservations, async close({ timeoutMs } = {}) {
+      // an integer from 0 to 2147483647, or Infinity (wait, no timer): setTimeout turns anything else (NaN, above 2^31-1) into 1 ms and the call would reject at once. Rejected at the call, before anything closes (Addendum O, O6)
+      if (timeoutMs !== undefined && fails('agent.close_timeout_bounds', timeoutMs !== Infinity && !(Number.isInteger(timeoutMs) && timeoutMs >= 0 && timeoutMs <= 2147483647))) throw new TypeError('close({ timeoutMs }): timeoutMs must be an integer from 0 to 2147483647, or Infinity');
       closed = true;
       if (fails('agent.close_waits', true) && inflight.size) {
         const done = Promise.allSettled([...inflight]);
-        if (timeoutMs === undefined || !fails('agent.close_timeout', true)) await done;
+        if (timeoutMs === undefined || timeoutMs === Infinity || !fails('agent.close_timeout', true)) await done;
         else {
           let t; const r = await Promise.race([done.then(() => 'done'), new Promise((res) => { t = setTimeout(() => res('timeout'), timeoutMs); })]); clearTimeout(t);
           // the lock is KEPT: a payment may still be writing its settled entry. Process exit frees it; a later close() waits again.
