@@ -16,20 +16,21 @@ const bh = async () => ({ blockhash: '11111111111111111111111111111111', lastVal
 const tmp = (n) => fs.mkdtempSync(path.join(os.tmpdir(), `n46-${n}-`));
 const isPaid = (req, init) => (req instanceof Request ? req.headers : new Headers(init?.headers ?? {})).get('payment-signature');
 
-test('N4 close() while a paid request is in flight: the settled response is returned and the consumed entry is on disk (a1-close-paid-lost)', async () => {
+test('N4 close() while a paid request is in flight: the settled response is returned and the consumed entry is on disk (a1-close-paid-lost)', async (tc) => {
   const facilitator = await startMockFacilitator();
   const seller = await startSeller({ facilitator, mode: 'off', now: () => NOW, price: '20000' });
-  const s = await newScenario(seller, { mandate: { period_budget: '30000', per_payment_max: '20000' } });
   const dataDir = tmp('paid');
-  globalThis.fetch = async (req, init) => { const r = await realFetch(req, init); if (isPaid(req, init)) await sleep(200); return r; };
+  tc.after(() => { facilitator.close(); seller.close(); fs.rmSync(dataDir, { recursive: true, force: true }); });
+  const s = await newScenario(seller, { mandate: { period_budget: '30000', per_payment_max: '20000' } });
+  let inFlight; const paidSent = new Promise((r) => (inFlight = r));
+  globalThis.fetch = async (req, init) => { if (isPaid(req, init)) { inFlight(); await sleep(200); } return realFetch(req, init); };
   let a; try { a = await createAgent({ mandate: s.mandate, grant_tx: s.grant_tx, signer: s.signer, rpc: seller.rpc, getBlockhash: bh, now: () => NOW, dataDir }); } finally { globalThis.fetch = realFetch; }
   const pa = a.fetch(seller.url).then((r) => `status ${r.status}`, (e) => `THREW: ${e.message.slice(0, 80)}`);
-  await sleep(100); await a.close();
+  await paidSent; await a.close(); // close() while the paid request is really in flight, however slow the machine is
   assert.equal(await pa, 'status 200');
   const f = fs.readdirSync(dataDir).find((x) => x.endsWith('.reservations.json'));
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dataDir, f), 'utf8')).reservations.map((x) => x.state ?? 'held'), ['consumed']);
   assert.equal(facilitator.counts.settle, 1); assert.equal(seller.hits.handler, 1);
-  facilitator.close(); seller.close(); fs.rmSync(dataDir, { recursive: true, force: true });
 });
 
 const signer7 = await createKeyPairSignerFromPrivateKeyBytes(new Uint8Array(32).fill(7));
@@ -104,21 +105,23 @@ test('N6 rollback: the legacy check ignores a lock file that names a live NEW-fo
   } finally { live.kill('SIGKILL'); fs.rmSync(dataDir, { recursive: true, force: true }); }
 });
 
-test('N6 close({ timeoutMs }) rejects when a payment is still in flight and KEEPS the lock; without a timeout close() still waits (a4-close-hang)', async () => {
+test('N6 close({ timeoutMs }) rejects when a payment is still in flight and KEEPS the lock; without a timeout close() still waits (a4-close-hang)', async (tc) => {
   const facilitator = await startMockFacilitator();
   const seller = await startSeller({ facilitator, mode: 'off', now: () => NOW, price: '20000' });
-  const s = await newScenario(seller, { mandate: { period_budget: '30000', per_payment_max: '20000' } });
   const dataDir = tmp('hang');
   let release; const gate = new Promise((r) => (release = r));
-  globalThis.fetch = async (req, init) => { if (isPaid(req, init)) { await gate; } return realFetch(req, init); };
+  tc.after(() => { release(); facilitator.close(); seller.close(); fs.rmSync(dataDir, { recursive: true, force: true }); });
+  const s = await newScenario(seller, { mandate: { period_budget: '30000', per_payment_max: '20000' } });
+  let inFlight; const paidSent = new Promise((r) => (inFlight = r));
+  globalThis.fetch = async (req, init) => { if (isPaid(req, init)) { inFlight(); await gate; } return realFetch(req, init); };
   let a; try { a = await createAgent({ mandate: s.mandate, grant_tx: s.grant_tx, signer: s.signer, rpc: seller.rpc, getBlockhash: bh, now: () => NOW, dataDir }); } finally { globalThis.fetch = realFetch; }
   const pa = a.fetch(seller.url).then((r) => r.status, (e) => e.message);
-  await sleep(200);
+  await paidSent; // the paid request is really waiting at the seller
   const closing = await Promise.race([a.close({ timeoutMs: 300 }).then(() => 'resolved', (e) => e.message), sleep(3000).then(() => 'HUNG: close({ timeoutMs }) did not return')]);
   assert.match(closing, /payments still in flight/);
   await assert.rejects(() => createAgent({ mandate: s.mandate, grant_tx: s.grant_tx, signer: s.signer, rpc: seller.rpc, getBlockhash: bh, now: () => NOW, dataDir }), /another agent holds/, 'the lock is kept');
   release(); await pa;
   await a.close({ timeoutMs: 2000 }); // nothing in flight any more: it closes and releases
   const b = await createAgent({ mandate: s.mandate, grant_tx: s.grant_tx, signer: s.signer, rpc: seller.rpc, getBlockhash: bh, now: () => NOW, dataDir });
-  await b.close(); facilitator.close(); seller.close(); fs.rmSync(dataDir, { recursive: true, force: true });
+  await b.close();
 });
