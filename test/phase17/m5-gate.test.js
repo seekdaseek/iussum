@@ -97,7 +97,7 @@ test('M5 (c) an unknown grant_tx costs one read inside a request, and an immedia
   const statuses = [];
   for (let i = 0; i < 5; i++) { const r = await b.fetch(seller.url); statuses.push(r.status); await r.text(); }
   const calls = seller.rpc.calls.getTransaction;
-  assert.ok(statuses.every((x) => x === 403), `${statuses}`); assert.ok(calls <= 2, `${calls} getTransaction calls for 5 requests with an unknown grant`); assert.ok(Date.now() - t0 < 1500, `${Date.now() - t0} ms`); await b.close();
+  assert.ok(statuses.every((x) => x === 503), `${statuses}`); // pending since Addendum N, N5 a (the node may only lag), not a 403 assert.ok(calls <= 2, `${calls} getTransaction calls for 5 requests with an unknown grant`); assert.ok(Date.now() - t0 < 1500, `${Date.now() - t0} ms`); await b.close();
   await a.close(); seller.close(); facilitator.close();
 });
 

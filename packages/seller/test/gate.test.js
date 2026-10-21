@@ -78,12 +78,12 @@ test('enforce: a grant transaction with an extra instruction is grant_mismatch',
     assert.equal(res.status, 403); assert.equal((await res.json()).reason, 'grant_mismatch');
   } finally { t.close(); }
 });
-test('enforce: an unknown grant_tx is grant_not_found', async () => {
+test('enforce: an unknown grant_tx is PENDING (503 + Retry-After), not a refusal: the seller\'s node may only lag (Addendum N, N5 a)', async () => {
   const t = await setup();
   try {
     t.seller.rpc.grants.clear();
     const res = await (await t.agent()).fetch(t.seller.url);
-    assert.equal(res.status, 403); assert.equal((await res.json()).reason, 'grant_not_found');
+    assert.equal(res.status, 503); assert.ok(res.headers.get('retry-after')); assert.equal((await res.json()).reason, 'grant_check_pending');
   } finally { t.close(); }
 });
 test('enforce: an expired mandate is refused using the seller clock', async () => {

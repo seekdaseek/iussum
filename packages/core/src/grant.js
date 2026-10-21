@@ -14,7 +14,7 @@ import { fillBlockIndices, comparePositions, readTransactions } from './chain.js
 
 export const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111';
 export const MEMO_V2 = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
-export const GRANT_CHECKS = ['grant.tx_err', 'grant.scan_resume_top', 'grant.scan_wellformed', 'grant.scan_slot', 'grant.scan_found_slot', 'grant.scan_state_tolerant', 'grant.scan_cap', 'grant.scan_first', 'grant.cache_bound', 'grant.mismatch_uncached', 'grant.not_found_cached', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.superseded_inner', 'grant.scan_failed', 'grant.scan_unreadable', 'grant.superseded_position', 'grant.coalesce_scans', 'grant.scan_store'].map(registerCheck);
+export const GRANT_CHECKS = ['grant.tx_err', 'grant.scan_resume_top', 'grant.scan_wellformed', 'grant.scan_slot', 'grant.scan_found_slot', 'grant.scan_state_tolerant', 'grant.scan_cap', 'grant.warm_lane', 'grant.source_serial', 'grant.scan_options', 'grant.not_found_pending', 'grant.scan_reset_unknown', 'grant.scan_first', 'grant.cache_bound', 'grant.mismatch_uncached', 'grant.not_found_cached', 'grant.fee_payer', 'grant.only_signer', 'grant.no_lookup_tables', 'grant.extra_instruction', 'grant.approve_count', 'grant.approve_owner', 'grant.approve_delegate', 'grant.approve_mint', 'grant.approve_amount', 'grant.approve_source', 'grant.memo_count', 'grant.memo_text', 'grant.active_delegate', 'grant.active_amount', 'grant.active_owner_mint', 'grant.superseded', 'grant.superseded_inner', 'grant.scan_failed', 'grant.scan_unreadable', 'grant.superseded_position', 'grant.coalesce_scans', 'grant.scan_store'].map(registerCheck);
 
 export async function principalAta(principal, asset) {
   const [ata] = await findAssociatedTokenPda({ mint: asset, owner: principal, tokenProgram: TOKEN_PROGRAM_ADDRESS });
@@ -122,7 +122,9 @@ export async function scanSupersede(rpc, source, since, { pageSize = 100, maxPag
 }
 
 // rpc = { getTransaction(sig), getAccountInfoParsed(addr) }. The immutable part is cached by (grant_tx, mandate id).
-export function createGrantChecker(rpc, { scanStore = null, maxScans = 4, maxQueuedScans = 64, grantNullRetries = undefined, cacheMax = 1000, notFoundTtlMs = 5000 } = {}) {
+export function createGrantChecker(rpc, { scanStore = null, maxScans = 4, maxQueuedScans = 64, maxWarmScans = 2, grantNullRetries = undefined, cacheMax = 1000, notFoundTtlMs = 5000 } = {}) {
+  // the caps are integers, not whatever a configuration file produced: 0 or a negative cap queues every scan for ever, NaN switches the cap off (Addendum N, N5 b)
+  if (fails('grant.scan_options', !Number.isInteger(maxScans) || maxScans < 1 || !Number.isInteger(maxWarmScans) || maxWarmScans < 1 || !Number.isInteger(maxQueuedScans) || maxQueuedScans < 0)) throw new Error('createGrantChecker: maxConcurrentScans and maxWarmScans must be integers >= 1 and maxQueuedScans an integer >= 0');
   // inspected grants that are OK, bounded (least recently used out): a grant_mismatch is not cached per mandate id, because the ids are the caller's to choose and
   // an unbounded map of them is a memory leak anyone can feed (Addendum M, M5 b)
   const cache = new Map();
@@ -132,13 +134,36 @@ export function createGrantChecker(rpc, { scanStore = null, maxScans = 4, maxQue
   const SCANS_MAX = 10_000;
   // at most `maxScans` supersession scans run at once; up to `maxQueuedScans` wait for a slot; beyond that the check answers busy (the gate answers 503). Anyone can add
   // grants on an account of their own, each of which would otherwise start a full scan (Addendum M, M5 a).
-  let running = 0; const waiting = [];
-  async function withSlot(fn) {
-    if (fails('grant.scan_cap', running >= maxScans)) {
-      if (waiting.length >= maxQueuedScans) throw Object.assign(new Error('too many supersession scans are running'), { busy: true });
-      await new Promise((res) => waiting.push(res));
-    } else running++;
-    try { return await fn(); } finally { const next = waiting.shift(); if (next) next(); else running--; }
+  // Two lanes (Addendum N, N3). A COLD scan (no completed state for the grant: it reads the whole history above the grant) takes one of `maxScans` slots, and at most one
+  // cold scan per source account runs at a time, so one account's grants cannot take every slot; up to `maxQueuedScans` wait, beyond that the check answers busy. A WARM
+  // scan (from a completed state: it reads only what is new) has its own `maxWarmScans` slots and never queues behind cold ones, so an attacker's slow scans on accounts of
+  // its own cannot turn legitimate, already-warm payments into 503.
+  const lane = (cap) => ({ cap, running: 0, waiting: [] });
+  const cold = lane(maxScans), warmLane = lane(maxWarmScans);
+  const srcActive = new Set(), srcWaiting = new Map();
+  let queued = 0;
+  const busy = () => Object.assign(new Error('too many supersession scans are running'), { busy: true });
+  async function takeLane(l) {
+    if (l.running < l.cap || !fails('grant.scan_cap', true)) { l.running++; return; }
+    if (queued >= maxQueuedScans) throw busy();
+    queued++; await new Promise((res) => l.waiting.push(res)); queued--; // the slot is handed over: running is unchanged
+  }
+  const freeLane = (l) => { const next = l.waiting.shift(); if (next) next(); else l.running--; };
+  async function withSlot(source, warm, fn) {
+    const l = warm && fails('grant.warm_lane', true) ? warmLane : cold;
+    const serial = l === cold && fails('grant.source_serial', true);
+    if (serial) {
+      if (srcActive.has(source)) {
+        if (queued >= maxQueuedScans) throw busy();
+        queued++; await new Promise((res) => { const q = srcWaiting.get(source) ?? []; q.push(res); srcWaiting.set(source, q); }); queued--; // ownership of the account is handed over
+      } else srcActive.add(source);
+    }
+    try {
+      await takeLane(l);
+      try { return await fn(); } finally { freeLane(l); }
+    } finally {
+      if (serial) { const q = srcWaiting.get(source); const next = q?.shift(); if (next) next(); else { srcActive.delete(source); srcWaiting.delete(source); } }
+    }
   }
   // A stored marker that does not parse or has the wrong shape is treated as absent: the scan restarts from the grant (it reads more, never less) (Addendum M, M1 b)
   const stored = (k) => {
@@ -154,11 +179,19 @@ export function createGrantChecker(rpc, { scanStore = null, maxScans = 4, maxQue
     const k = `${source}:${grantTx}${stop ? ':first' : ''}`;
     // scanStore (optional, { get(key), put(key, state) }) keeps the marker across restarts: each signature of the account is read once (Addendum G, T2)
     let st = scans.get(k) ?? (fails('grant.scan_store', true) ? stored(k) : null) ?? { since: grantTx, superseded: null };
+    let resetOnce = false;
     for (;;) {
       if (st.superseded) return st.superseded;
       const resumed = Boolean(st.partial), since = st.since;
-      const r = await withSlot(() => scanSupersede(rpc, source, since, { resume: st.partial ?? null, stopAtFirst: stop, onProgress: (partial) => { const cur = { since, superseded: null, partial }; scans.set(k, cur); scanStore?.put(k, cur); } }));
-      st = { since: r.newest ?? since, superseded: r.superseded };
+      let r;
+      try { r = await withSlot(source, Boolean(st.completed && !st.partial), () => scanSupersede(rpc, source, since, { resume: st.partial ?? null, stopAtFirst: stop, onProgress: (partial) => { const cur = { since, superseded: null, partial }; scans.set(k, cur); scanStore?.put(k, cur); } })); }
+      catch (e) {
+        // a stored since or cursor that the node no longer knows (the public node answers -32020 "Transaction ... not found") would fail every scan of this grant for ever: restart
+        // that grant's scan from the grant. It reads more, never less, and it happens once per call (a node that does not know the grant itself still fails closed).
+        if (!resetOnce && /Transaction \S+ not found/i.test(e.message) && (st.partial || st.since !== grantTx) && fails('grant.scan_reset_unknown', true)) { resetOnce = true; st = { since: grantTx, superseded: null }; scans.delete(k); scanStore?.put(k, st); continue; }
+        throw e;
+      }
+      st = { since: r.newest ?? since, superseded: r.superseded, completed: true };
       scans.delete(k); scans.set(k, st); if (scans.size > SCANS_MAX) scans.delete(scans.keys().next().value); scanStore?.put(k, st);
       // a resumed scan read the history only down from the top of the scan it resumed, never above it: read what landed after that top before answering (Addendum M, M1)
       if (!fails('grant.scan_resume_top', resumed) || st.superseded) return st.superseded;
@@ -175,15 +208,18 @@ export function createGrantChecker(rpc, { scanStore = null, maxScans = 4, maxQue
   };
   return {
     supersededBy: supersededOnce,
-    stats: () => ({ grants: cache.size, notFound: notFound.size, scans: scans.size, runningScans: running, queuedScans: waiting.length }),
+    stats: () => ({ grants: cache.size, notFound: notFound.size, scans: scans.size, runningScans: cold.running + warmLane.running, queuedScans: queued }),
     async check(mandate, grantTx, { active = true } = {}) {
       if (typeof grantTx !== 'string' || grantTx.length < 80) return bad(R.grant_not_found, 'no grant_tx');
       const key = `${grantTx}:${mandateId(mandate)}`;
       let s = cache.get(key);
       if (s) { cache.delete(key); cache.set(key, s); }
       if (!s) {
-        if (fails('grant.not_found_cached', (notFound.get(grantTx) ?? 0) > Date.now())) return bad(R.grant_not_found, 'the grant transaction was not found (asked a moment ago)');
+        if (fails('grant.not_found_cached', (notFound.get(grantTx) ?? 0) > Date.now())) return { ...bad(R.grant_not_found, 'the grant transaction was not found (asked a moment ago)'), pending: fails('grant.not_found_pending', true) };
         const tx = await rpc.getTransaction(grantTx, grantNullRetries !== undefined ? { nullRetries: grantNullRetries } : undefined);
+        // a grant this node does not show yet may be a real grant on a node that lags the agent's: the answer is PENDING (the gate answers 503 with Retry-After, which the agent
+        // retries), not a refusal; the miss is remembered as pending for a few seconds, and the single read stays (Addendum N, N5 a)
+        if (!tx && fails('grant.not_found_pending', true)) { notFound.delete(grantTx); notFound.set(grantTx, Date.now() + notFoundTtlMs); if (notFound.size > cacheMax) notFound.delete(notFound.keys().next().value); return { ...bad(R.grant_not_found, 'the grant transaction is not visible to this node yet'), pending: true }; }
         s = await inspectGrantTx(tx, mandate);
         if (s.ok || (s.reason === R.grant_mismatch && !fails('grant.mismatch_uncached', true))) cacheSet(key, s);
         if (!tx) { notFound.delete(grantTx); notFound.set(grantTx, Date.now() + notFoundTtlMs); if (notFound.size > cacheMax) notFound.delete(notFound.keys().next().value); }

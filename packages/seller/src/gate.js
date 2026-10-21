@@ -31,7 +31,7 @@ export function createSellerGate(cfg) {
   // With cfg.dataDir the issued receipts are also kept in the gate's own SQLite file (H1): written BEFORE the response that carries the receipt is sent, so
   // a repeated success after a restart returns the stored bytes. cfg.receiptStore replaces it (tests). An unreadable or corrupt store stops the start.
   const store = fails('seller.store_receipts', true) ? (cfg.receiptStore ?? (cfg.dataDir ? openReceiptStore(cfg.dataDir) : null)) : null;
-  checker = createGrantChecker(rpc, { grantNullRetries: 0, maxScans: cfg.maxConcurrentScans, maxQueuedScans: cfg.maxQueuedScans, scanStore: store?.getScan ? { get: (k) => store.getScan(k), put: (k, v) => store.putScan(k, v) } : null });
+  checker = createGrantChecker(rpc, { grantNullRetries: 0, maxScans: cfg.maxConcurrentScans, maxQueuedScans: cfg.maxQueuedScans, maxWarmScans: cfg.maxWarmScans, notFoundTtlMs: cfg.notFoundTtlMs, scanStore: store?.getScan ? { get: (k) => store.getScan(k), put: (k, v) => store.putScan(k, v) } : null });
   const signed = new Map();
   const remember = (tx, bytes) => { signed.delete(tx); signed.set(tx, bytes); if (signed.size > 10_000) signed.delete(signed.keys().next().value); };
   const resourceUrl = (req) => `${fails('seller.resource_from_origin', true) ? origin : `${req.protocol}://${req.get('host')}`}${req.originalUrl.split('?')[0]}`;
@@ -56,7 +56,7 @@ export function createSellerGate(cfg) {
     finally { clearTimeout(timer); } // also when the check rejects: no timer is left behind per request
     // pending: the budget ran out, or the check was queued behind too many scans (busy). The scope checks that need no grant still run, so what an observe-mode seller
     // records is not a clean-looking nothing (Addendum M, M5 e).
-    if (g === late || g?.busy) {
+    if (g === late || g?.busy || g?.pending) {
       out.pending = true;
       if (fails('seller.pending_scope', true)) out.violations.push(...scopeViolations(info.mandate, { amount: out.payment.amount, pay_to: payTo, resource: resourceUrl(req), asset, network, payer: out.payment.authority, time: now() }));
       return out;
