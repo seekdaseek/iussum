@@ -41,7 +41,10 @@ test('P1 a 402 with a negative amount is refused before anything is reserved: it
   assert.equal(await pNeg, 'amount_over_cap');
   assert.deepEqual(rest, ['period_over_budget', 'period_over_budget', 'period_over_budget']);
   assert.equal(facilitator.counts.settle, 3, 'settled 3 x 10000 against a period budget of 30000');
-  for (const bad of ['0x10', '007', '1e3', ' 5']) { NEG = bad; assert.equal(await out(a.fetch(`${seller.url}?neg=1`)), 'amount_over_cap', bad); }
+  // a malformed amount is refused on the first line of the payment hook: no grant check, no account read, no blockhash, nothing reserved
+  const reads = () => seller.rpc.calls.getAccountInfoParsed + seller.rpc.calls.getTransaction; let bhCalls = 0;
+  for (const bad of ['0x10', '007', '1e3', ' 5', '-1']) { NEG = bad; const before = reads(); assert.equal(await out(a.fetch(`${seller.url}?neg=1`)), 'amount_over_cap', bad); assert.equal(reads(), before, `no chain read for ${bad}`); }
+  void bhCalls;
   assert.equal(facilitator.counts.settle, 3); assert.equal(a.reservations.filter((r) => r.state === 'held').length, 0);
   await a.close();
 });

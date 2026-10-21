@@ -25,7 +25,7 @@ async function setup({ delayA = 300 } = {}) {
   } });
   const mk = (name, delayMs, sendRefund) => { const rpc = rpcFor(name, delayMs); return createResolver({ rpc, network: A.net, sellerKey: async () => SELLER_KEY.publicKey, store: openStore(file), sendRefund: sendRefund ?? makeRefundSender({ rpc, float }), now: () => clock.t }); };
   const bundle = { tx_sig: P, mandate: M, grant_tx: G, receipt: receipt({ tx_sig: P, pay_to: A.sellerC }) };
-  return { file, P, sent, clock, mk, bundle, delayA };
+  return { file, P, sent, clock, mk, bundle, delayA, chainRpc: (name) => rpcFor(name, 0) };
 }
 
 test('P6 a duplicate dispute on the other service, while the first service is still fetching its blockhash, does not pay a second refund (g3)', async () => {
@@ -74,4 +74,28 @@ test('P6 a claim that lost its place does not send: a service whose claim was re
   t.clock.t += 151; const b = t.mk('B', 0); const rb = await b.dispute(t.bundle); assert.ok(rb.refund_tx); assert.equal(t.sent.length, 1);
   wake(); const ra = await pa;
   assert.equal(aSent, 0, 'A\'s onSigned refused: its claim is gone'); assert.ok(ra.refund_error); assert.equal(store.get(t.P).refund_tx, rb.refund_tx);
+});
+
+test('P6 the claim is what keeps the second service from sending: a service that read the row BEFORE the first one claimed it still sends nothing (the race between read and claim, across processes)', async () => {
+  const t = await setup();
+  let release; const stall = new Promise((r) => { release = r; });
+  const a = t.mk('A', 0, async (_r, hooks) => { await stall; await hooks.onSigned('A'.repeat(88)); return 'A'.repeat(88); });
+  const pa = a.dispute(t.bundle); await sleep(100); // A holds the claim and has signed nothing
+  // B's view of the row is the one from before A's claim: no refund_pending
+  const real = openStore(t.file);
+  const stale = { ...real, get: (tx) => { const r = real.get(tx); return r ? { ...r, refund_pending: null, refund_pending_at: null } : r; } };
+  let bSent = 0;
+  const b = (await import('@iussum/resolver')).createResolver({ rpc: t.chainRpc('B'), network: A.net, sellerKey: async () => SELLER_KEY.publicKey, store: stale, sendRefund: async () => { bSent++; return 'B'.repeat(88); }, now: () => t.clock.t });
+  const rb = await b.dispute(t.bundle);
+  assert.equal(bSent, 0, 'B lost the claim and sent nothing'); assert.equal(rb.refund_state, 'pending');
+  release(); const ra = await pa; assert.equal(ra.refund_tx, 'A'.repeat(88));
+});
+
+test('P6 the store claim is atomic and compare-and-swap: one winner, takeover only of the value read, signing only with the own claim', () => {
+  const s = openStore(); s.put('T', { mandate_sha: 'm', receipt_sha: 'r', verdict: { verdict: 'valid', liable: 'seller' }, now: 1 });
+  assert.equal(s.claimRefund('T', 'claim:a', 10), true); assert.equal(s.claimRefund('T', 'claim:b', 11), false, 'a second claim of a free row loses');
+  assert.equal(s.claimRefund('T', 'claim:b', 200, { pending: 'claim:zzz', at: 10 }), false, 'a takeover of a value that is not the current one loses');
+  assert.equal(s.claimRefund('T', 'claim:b', 200, { pending: 'claim:a', at: 10 }), true, 'a takeover of the value read wins');
+  assert.equal(s.signRefund('T', 'claim:a', 'SIG-A', 201), false, 'the old holder cannot sign'); assert.equal(s.signRefund('T', 'claim:b', 'SIG-B', 201), true);
+  assert.equal(s.releaseClaim('T', 'claim:b'), false, 'a signed claim is not released'); assert.equal(s.get('T').refund_pending, 'SIG-B');
 });
