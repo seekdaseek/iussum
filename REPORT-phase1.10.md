@@ -19,7 +19,7 @@ All eight items were real and reproduced on `c3c2e79` before any change. P1 (a n
 | `g4-recompute.py` | still `mismatches: 0`; `a2-reverse-lock.mjs` with the real `142276f` worktree: both directions REFUSED |
 | five clean devnet runs of scenarios 1 to 16 plus 16b | **98, 98, 98, 97 and 97 checks, 205 signatures, all `finalized` or the expected failed-on-chain 16b ones, checked with `getSignatureStatuses`** ([demo-runs-1.10/](demo-runs-1.10/), [signatures.md](demo-runs-1.10/signatures.md)). The principal's devnet USDC ran low again (1.45 left for about 1.55 needed); with the owner's yes one more devnet `transferChecked` of 3 USDC from seller A back to the principal funded the runs |
 | fresh clone of the final pushed HEAD | **530 / 530** as uid 501 and as uid 0 in a fresh clone of the pushed HEAD `ef2be13` (details below); the closing commit changes only this report, and a fresh clone of it was run again the same way |
-| sensitive scan over the new commits | clean after triage: 13 patterns, a positive control per pattern first, 2804 added lines and 16 added paths in `c3c2e79..ef2be13`; three raw hits, all false positives (two lines carry the substring `cj7` inside one devnet transaction signature, one is an environment-variable read in a test) |
+| sensitive scan over the new commits | clean after triage: 13 patterns, a positive control per pattern first, 2804 added lines and 16 added paths in `c3c2e79..ef2be13`; three raw hits, all false positives (two lines matched a pattern by coincidence inside one devnet transaction signature, one is an environment-variable read in a test) |
 | relative links in tracked `.md` | 96 relative links in tracked `.md`, all resolve (the checker was shown to report a missing target first) |
 
 ## Before and after
